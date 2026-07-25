@@ -1,0 +1,30 @@
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+
+# --- Secrets ---
+.env
+.env.local
+
+# --- IDE ---
+.vscode/
+.idea/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Data & logs ---
+data/
+logs/
+
+# --- Obsidian local cache (其余共享配置保留) ---
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
