@@ -73,16 +73,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="CALLIODESMO_", env_file=".env", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_prefix="CALLIODESMO_", env_file=".env", extra="ignore")
 
     environment: str = "development"
     debug: bool = True
 
-    database_url: str = (
-        "postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo"
-    )
+    database_url: str = "postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo"
 
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
@@ -329,12 +325,12 @@ class ClearanceLevel(enum.IntEnum):
     SECRET = 3
 
 
-class LibraryScope(str, enum.Enum):
+class LibraryScope(enum.StrEnum):
     PERSONAL = "personal"
     ORG = "org"
 
 
-class Permission(str, enum.Enum):
+class Permission(enum.StrEnum):
     INGEST = "ingest"
     QUERY = "query"
     EXPORT = "export"
@@ -366,7 +362,9 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
-    roles: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    roles: Mapped[list["UserRole"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     group_memberships: Mapped[list["UserGroupMember"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -387,7 +385,9 @@ class Role(Base):
 class RolePermission(Base):
     __tablename__ = "role_permissions"
 
-    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
+    role_id: Mapped[int] = mapped_column(
+        ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True
+    )
     permission: Mapped[Permission] = mapped_column(
         Enum(Permission, native_enum=False, validate_strings=True, values_callable=_enum_values),
         primary_key=True,
@@ -399,8 +399,12 @@ class RolePermission(Base):
 class UserRole(Base):
     __tablename__ = "user_roles"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    role_id: Mapped[int] = mapped_column(
+        ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True
+    )
     scope: Mapped[LibraryScope] = mapped_column(
         Enum(LibraryScope, native_enum=False, validate_strings=True, values_callable=_enum_values),
         primary_key=True,
@@ -429,11 +433,15 @@ class UserGroup(Base):
 class UserGroupMember(Base):
     __tablename__ = "user_group_members"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     group_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("user_groups.id", ondelete="CASCADE"), primary_key=True
     )
-    role_in_group: Mapped[str] = mapped_column(String(32), default="member")  # member / manager / reviewer
+    role_in_group: Mapped[str] = mapped_column(
+        String(32), default="member"
+    )  # member / manager / reviewer
 
     user: Mapped[User] = relationship(back_populates="group_memberships")
     group: Mapped[UserGroup] = relationship(back_populates="members")
@@ -838,7 +846,9 @@ async def test_record_audit(session):
     )
     await session.commit()
 
-    rows = (await session.execute(select(AuditLog).where(AuditLog.action == "login"))).scalars().all()
+    rows = (
+        (await session.execute(select(AuditLog).where(AuditLog.action == "login"))).scalars().all()
+    )
     assert len(rows) == 1
     assert rows[0].id == entry.id
     assert rows[0].user_id == user.id
@@ -881,7 +891,9 @@ class AuditLog(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    action: Mapped[str] = mapped_column(String(64), index=True)  # login/query/export/push/approve/merge...
+    action: Mapped[str] = mapped_column(
+        String(64), index=True
+    )  # login/query/export/push/approve/merge...
     resource_type: Mapped[str | None] = mapped_column(String(64))
     resource_id: Mapped[str | None] = mapped_column(String(128))
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -1038,12 +1050,16 @@ class TextDocumentLoader(DocumentLoader):
             raise FileNotFoundError(f"文档源不存在: {source}")
         if source.is_file():
             if source.suffix.lower() not in SUPPORTED_SUFFIXES:
-                raise ValueError(f"不支持的文件类型: {source.suffix}（支持 {sorted(SUPPORTED_SUFFIXES)}）")
+                raise ValueError(
+                    f"不支持的文件类型: {source.suffix}（支持 {sorted(SUPPORTED_SUFFIXES)}）"
+                )
             files = [source]
             base = source.parent
         else:
             files = sorted(
-                p for p in source.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES
+                p
+                for p in source.rglob("*")
+                if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES
             )
             base = source
 
@@ -1196,7 +1212,9 @@ from calliodesmo.interfaces.embedding import EmbeddingProvider, EmbeddingResult
 
 
 class BgeM3EmbeddingProvider(EmbeddingProvider):
-    def __init__(self, model_name: str = "BAAI/bge-m3", dimension: int = 1024, use_fp16: bool = True) -> None:
+    def __init__(
+        self, model_name: str = "BAAI/bge-m3", dimension: int = 1024, use_fp16: bool = True
+    ) -> None:
         self._model_name = model_name
         self._dimension = dimension
         self._use_fp16 = use_fp16
@@ -1269,8 +1287,12 @@ async def test_litellm_provider_complete(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "litellm", SimpleNamespace(acompletion=acompletion))
 
-    provider = LiteLLMProvider(model="openai/gpt-4o-mini", api_key="k", api_base="https://api.example.com")
-    resp = await provider.complete([LLMMessage(role="user", content="hi")], temperature=0.1, max_tokens=16)
+    provider = LiteLLMProvider(
+        model="openai/gpt-4o-mini", api_key="k", api_base="https://api.example.com"
+    )
+    resp = await provider.complete(
+        [LLMMessage(role="user", content="hi")], temperature=0.1, max_tokens=16
+    )
 
     assert resp.content == "你好，世界"
     assert resp.model == "openai/gpt-4o-mini"
@@ -1741,7 +1763,9 @@ def db_init() -> None:
     typer.echo("数据库表已创建。")
 
 
-async def _seed(database_url: str, admin_username: str, admin_password: str | None) -> tuple[int, bool]:
+async def _seed(
+    database_url: str, admin_username: str, admin_password: str | None
+) -> tuple[int, bool]:
     import calliodesmo.models  # noqa: F401
     from calliodesmo.auth.models import ClearanceLevel, LibraryScope, User
     from calliodesmo.auth.service import assign_role, create_user, seed_default_roles
