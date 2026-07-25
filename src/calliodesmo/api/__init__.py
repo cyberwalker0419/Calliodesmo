@@ -1,1 +1,1 @@
-"""FastAPI application package."""`n
+"""FastAPI application package."""
