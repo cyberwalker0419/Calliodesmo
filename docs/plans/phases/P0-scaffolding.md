@@ -33,7 +33,7 @@ created: 2026-07-26
 - Create: `src/calliodesmo/config.py`
 - Test: `tests/test_config.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_config.py
@@ -56,12 +56,12 @@ def test_settings_env_override(monkeypatch):
     assert s.database_url == "sqlite+aiosqlite:///:memory:"
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_config.py -v`
 Expected: FAIL（`ModuleNotFoundError: calliodesmo.config`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/config.py
@@ -105,12 +105,12 @@ def get_settings() -> Settings:
     return Settings()
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_config.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/config.py tests/test_config.py
@@ -126,7 +126,7 @@ git commit -m "feat(config): pydantic-settings 配置模块（CALLIODESMO_ 前�
 - Create: `src/calliodesmo/db/session.py`
 - Create: `src/calliodesmo/models.py`
 
-- [ ] **Step 1: 实现（纯骨架，测试在 Task 3 随模型一起写）**
+- [x] **Step 1: 实现（纯骨架，测试在 Task 3 随模型一起写）**
 
 ```python
 # src/calliodesmo/db/base.py
@@ -179,7 +179,7 @@ __all__ = [
 ]
 ```
 
-- [ ] **Step 2: 提交（随 Task 3 一起提交亦可）**
+- [x] **Step 2: 提交（随 Task 3 一起提交亦可）**
 ---
 
 ### Task 3: 权限三维模型（users/roles/role_permissions/user_roles/user_groups/user_group_members）
@@ -189,7 +189,7 @@ __all__ = [
 - Test: `tests/test_db_models.py`
 - Create: `tests/conftest.py`
 
-- [ ] **Step 1: 写失败测试（含共享夹具）**
+- [x] **Step 1: 写失败测试（含共享夹具）**
 
 ```python
 # tests/conftest.py
@@ -291,12 +291,12 @@ async def test_duplicate_username_rejected(session):
         await session.flush()
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_db_models.py -v`
 Expected: FAIL（`ModuleNotFoundError: calliodesmo.auth.models`）
 
-- [ ] **Step 3: 实现模型**
+- [x] **Step 3: 实现模型**
 
 ```python
 # src/calliodesmo/auth/models.py
@@ -447,12 +447,12 @@ class UserGroupMember(Base):
     group: Mapped[UserGroup] = relationship(back_populates="members")
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_db_models.py -v`
 Expected: 3 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/db src/calliodesmo/models.py src/calliodesmo/auth/models.py tests/conftest.py tests/test_db_models.py
@@ -467,7 +467,7 @@ git commit -m "feat(auth): 三维权限模型（RBAC + clearance + scope + 用�
 - Create: `src/calliodesmo/auth/security.py`
 - Test: `tests/test_security.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_security.py
@@ -508,12 +508,12 @@ def test_jwt_wrong_secret():
         decode_access_token(token, "other-secret", "HS256")
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_security.py -v`
 Expected: FAIL（`ModuleNotFoundError`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/auth/security.py
@@ -546,12 +546,12 @@ def decode_access_token(token: str, secret_key: str, algorithm: str) -> dict:
     return jwt.decode(token, secret_key, algorithms=[algorithm])
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_security.py -v`
 Expected: 4 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/auth/security.py tests/test_security.py
@@ -567,7 +567,7 @@ git commit -m "feat(auth): Argon2 密码哈希与 JWT 编解码"
 - Create: `src/calliodesmo/auth/service.py`
 - Test: `tests/test_access_context.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_access_context.py
@@ -640,12 +640,12 @@ async def test_get_access_context_unknown_user(session):
     assert await get_access_context(session, uuid.uuid4()) is None
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_access_context.py -v`
 Expected: FAIL（`ModuleNotFoundError`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/auth/context.py
@@ -802,12 +802,12 @@ async def get_access_context(session: AsyncSession, user_id: uuid.UUID) -> Acces
     )
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_access_context.py -v`
 Expected: 6 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/auth/context.py src/calliodesmo/auth/service.py tests/test_access_context.py
@@ -823,7 +823,7 @@ git commit -m "feat(auth): AccessContext 与用户/角色/用户组服务"
 - Create: `src/calliodesmo/audit/service.py`
 - Test: `tests/test_audit.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_audit.py
@@ -864,12 +864,12 @@ async def test_record_audit_anonymous(session):
     assert rows[0].user_id is None
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_audit.py -v`
 Expected: FAIL（`ModuleNotFoundError`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/audit/models.py
@@ -935,12 +935,12 @@ async def record_audit(
     return entry
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_audit.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/audit tests/test_audit.py
@@ -954,7 +954,7 @@ git commit -m "feat(audit): 审计日志表与 record_audit 骨架"
 - Create: `src/calliodesmo/providers/text_loader.py`
 - Test: `tests/test_text_loader.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_text_loader.py
@@ -1002,12 +1002,12 @@ async def test_missing_source(tmp_path):
         await TextDocumentLoader().load(tmp_path / "nope")
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_text_loader.py -v`
 Expected: FAIL（`ModuleNotFoundError`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/interfaces/document_loader.py
@@ -1079,12 +1079,12 @@ class TextDocumentLoader(DocumentLoader):
         return documents
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_text_loader.py -v`
 Expected: 4 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/interfaces/document_loader.py src/calliodesmo/providers/text_loader.py tests/test_text_loader.py
@@ -1101,7 +1101,7 @@ git commit -m "feat(providers): DocumentLoader 接口与文本加载默认实现
 - Create: `src/calliodesmo/providers/bge_m3.py`
 - Test: `tests/test_embedding.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_embedding.py
@@ -1137,12 +1137,12 @@ async def test_bge_m3_missing_dependency(monkeypatch):
         await provider.embed(["x"])
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_embedding.py -v`
 Expected: FAIL（`ModuleNotFoundError`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/interfaces/embedding.py
@@ -1242,12 +1242,12 @@ class BgeM3EmbeddingProvider(EmbeddingProvider):
         return EmbeddingResult(vectors=vectors, model=self._model_name, dimension=self._dimension)
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_embedding.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/interfaces/embedding.py src/calliodesmo/providers/hash_embedding.py src/calliodesmo/providers/bge_m3.py tests/test_embedding.py
@@ -1263,7 +1263,7 @@ git commit -m "feat(providers): EmbeddingProvider 接口与 Hash/BGE-M3 实现"
 - Create: `src/calliodesmo/providers/litellm_provider.py`
 - Test: `tests/test_llm_provider.py`
 
-- [ ] **Step 1: 写失败测试（sys.modules 桩替代真实 litellm，离线可跑）**
+- [x] **Step 1: 写失败测试（sys.modules 桩替代真实 litellm，离线可跑）**
 
 ```python
 # tests/test_llm_provider.py
@@ -1326,12 +1326,12 @@ async def test_litellm_provider_omits_optional_kwargs(monkeypatch):
     assert "max_tokens" not in calls
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_llm_provider.py -v`
 Expected: FAIL（`ModuleNotFoundError`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/interfaces/llm.py
@@ -1419,12 +1419,12 @@ class LiteLLMProvider(LLMProvider):
         )
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_llm_provider.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/interfaces/llm.py src/calliodesmo/providers/litellm_provider.py tests/test_llm_provider.py
@@ -1439,7 +1439,7 @@ git commit -m "feat(providers): LLMProvider 接口与 LiteLLM 默认实现"
 - Create: `src/calliodesmo/api/app.py`
 - Test: `tests/test_api_smoke.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_api_smoke.py
@@ -1494,12 +1494,12 @@ async def test_me_requires_token(client):
     assert resp.status_code == 401
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_api_smoke.py -v`
 Expected: FAIL（`ModuleNotFoundError: calliodesmo.api.app`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/api/schemas.py
@@ -1633,12 +1633,12 @@ def create_app() -> FastAPI:
 app = create_app()
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_api_smoke.py -v`
 Expected: 4 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/api tests/test_api_smoke.py
@@ -1653,7 +1653,7 @@ git commit -m "feat(api): /healthz 与 JWT 登录、/auth/me AccessContext 链�
 - Create: `src/calliodesmo/cli.py`
 - Test: `tests/test_cli.py`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 # tests/test_cli.py
@@ -1705,12 +1705,12 @@ def test_db_init_and_seed(tmp_path, monkeypatch):
     conn.close()
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `uv run pytest tests/test_cli.py -v`
 Expected: FAIL（`ModuleNotFoundError: calliodesmo.cli`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 ```python
 # src/calliodesmo/cli.py
@@ -1804,12 +1804,12 @@ def db_seed() -> None:
     typer.echo(f"新建角色 {roles_created} 个；管理员{status}。")
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `uv run pytest tests/test_cli.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/calliodesmo/cli.py tests/test_cli.py
@@ -1823,7 +1823,7 @@ git commit -m "feat(cli): Typer 入口与 db init/seed 命令"
 **Files:**
 - Verify: `docker-compose.yml`、`.github/workflows/ci.yml`（Task 0 已建）
 
-- [ ] **Step 1: Ruff 格式化与静态检查**
+- [x] **Step 1: Ruff 格式化与静态检查**
 
 ```bash
 uv run ruff format .
@@ -1831,21 +1831,21 @@ uv run ruff check --fix .
 ```
 Expected: 无 error（import 排序等自动修复）
 
-- [ ] **Step 2: 全量测试**
+- [x] **Step 2: 全量测试**
 
 ```bash
 uv run pytest -q
 ```
 Expected: 全部通过（约 25 个用例）
 
-- [ ] **Step 3: compose 配置校验**
+- [x] **Step 3: compose 配置校验**
 
 ```bash
 docker compose config -q
 ```
 Expected: 无输出（配置合法）。本机有 Docker 时可 `docker compose up -d` 实测起库。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add -A
@@ -1865,3 +1865,6 @@ git commit -m "chore(p0): ruff 格式化与全量验收"
 ## 执行方式
 
 按用户目标 inline 顺序执行（本计划即执行脚本），每 Task 完成后勾选 checkbox 并提交。
+
+> [!success] 执行记录（2026-07-26）
+> P0 全部 12 个 Task 当日由 agent inline 执行完毕：ruff 0 error，`pytest` **31 passed**。提交：骨架 `f1d3f0c` -> 计划文档 `936a9c1` -> 全量实现 `6ae3588`（分支 `codex/p0-scaffolding`）。Task 12 Step 3 的 `docker compose up -d` 实测起库因本机未装 Docker 留待学生环境执行（compose/CI YAML 已通过解析校验）。
