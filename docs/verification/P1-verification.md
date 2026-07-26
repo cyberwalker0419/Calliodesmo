@@ -10,16 +10,16 @@
 
 | 维度 | 结果 | 证据 |
 | --- | --- | --- |
-| 自动化测试 | **112 通过**（P0 33 + P1 79） | `uv run pytest -q` → `112 passed` |
+| 自动化测试 | **124 通过**（P0 33 + P1 91） | `uv run pytest -q` → `124 passed` |
 | 静态检查 | ruff **0 error** | `uv run ruff check .` → `All checks passed!` |
-| 格式检查 | **91 files 一致** | `uv run ruff format --check .` → `91 files already formatted` |
+| 格式检查 | **96 files 一致** | `uv run ruff format --check .` → `96 files already formatted` |
 | 端到端 | ingest CLI 退出码 0 + 审计落库 | `tests/test_ingest_cli.py::test_ingest_success` |
 
 ---
 
 ## 一、测试内容
 
-### 1.1 自动化测试矩阵（P1 新增 89 用例，按 Task）
+### 1.1 自动化测试矩阵（P1 新增 91 用例，按 Task）
 
 | Task | 测试文件 | 用例 | 覆盖要点 |
 | --- | --- | --- | --- |
@@ -79,9 +79,9 @@
 
 ```bash
 uv sync
-uv run ruff format --check .     # 91 files already formatted
+uv run ruff format --check .     # 96 files already formatted
 uv run ruff check .              # All checks passed!
-uv run pytest -q                 # 122 passed
+uv run pytest -q                 # 124 passed
 ```
 
 > Windows 沙箱下 uv 受管 Python 位于 AppData，需在沙箱外执行（`uv run` 前缀已登记）。
@@ -92,7 +92,7 @@ uv run pytest -q                 # 122 passed
 uv run pytest -q
 ........................................ [ 64%]
 ........................................ [100%]
-122 passed, 6 warnings in 1.85s
+124 passed, 6 warnings in 2.25s
 ```
 
 6 warnings 均为 P0 JWT 测试的 `InsecureKeyLengthWarning`（测试用短密钥，非 P1 引入）。
@@ -100,6 +100,8 @@ uv run pytest -q
 ### 4.3 提交锚点
 
 P1 实现集中于 `src/calliodesmo/ecl/`、`src/calliodesmo/providers/`（新增 loader/store）、`src/calliodesmo/interfaces/`（新增接口）、`src/calliodesmo/stores/`，测试集中于 `tests/test_*.py`（11 个新文件）。
+
+**提交**：`7a5aabe`（Task 1-6 主链路）→ `aa12853`（Task 7 实体档案卡）→ `5f3c395`（本地 LLM 接入 LM Studio/llama.cpp/Ollama：api_base 指 localhost 自动豁免 key，新增 2 个豁免用例，124 passed）。
 
 ---
 
