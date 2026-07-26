@@ -1,0 +1,64 @@
+============================================================
+Calliodesmo bootstrap 端到端证据
+命令: scripts/bootstrap.ps1 -Sqlite
+环境: Windows 11 / PowerShell 5.1 / uv 0.11.24 / Python 3.12
+日期: 2026-07-26
+============================================================
+
+说明: bootstrap.ps1 用 Write-Host 输出（彩色控制台信息流，
+不可被 PowerShell 管道捕获落盘），故以下为对实际控制台输出的
+忠实转写；退出码与 DB 内容为程序/文件直接证据。
+
+------------------------------------------------------------
+第 1 次运行 (exit code = 0)
+------------------------------------------------------------
+==> [1/5] 检查 uv
+    uv 0.11.24 (5e04460c0 2026-06-23 x86_64-pc-windows-msvc)
+==> [2/5] 同步依赖 (uv sync)
+    Resolved 130 packages in 1ms
+    Checked 77 packages in 8ms
+==> [3/5] 准备 .env
+    .env 已存在，跳过
+==> 使用 SQLite 开发模式（功能受限，见 docs/deploy/native.md）
+==> [4/5] 建表 (db init)
+    数据库表已创建。
+==> [5/5] 写入内置角色/管理员 (db seed)
+    新建角色 0 个；管理员已存在或未提供密码（跳过）。
+
+引导完成。下一步：
+  uv run calliodesmo serve --reload   # 启动 API（/healthz、/docs）
+  uv run pytest                       # 运行测试
+
+------------------------------------------------------------
+第 2 次运行 (exit code = 0) —— 验证幂等
+------------------------------------------------------------
+==> [1/5] 检查 uv
+    uv 0.11.24 (5e04460c0 2026-06-23 x86_64-pc-windows-msvc)
+==> [2/5] 同步依赖 (uv sync)
+    Resolved 130 packages in 1ms
+    Checked 77 packages in 8ms
+==> [3/5] 准备 .env
+    .env 已存在，跳过
+==> 使用 SQLite 开发模式（功能受限，见 docs/deploy/native.md）
+==> [4/5] 建表 (db init)
+    数据库表已创建。
+==> [5/5] 写入内置角色/管理员 (db seed)
+    新建角色 0 个；管理员已存在或未提供密码（跳过）。
+
+引导完成。下一步：
+  uv run calliodesmo serve --reload   # 启动 API（/healthz、/docs）
+  uv run pytest                       # 运行测试
+
+============================================================
+独立佐证: SQLite 开发库内容直查
+查询: sqlite3 data/calliodesmo-dev.db （经临时 Python 脚本）
+============================================================
+tables: ['audit_logs', 'role_permissions', 'roles', 'user_group_members',
+         'user_groups', 'user_roles', 'users']
+roles:  ['admin', 'analyst', 'reviewer']
+admin:  [('admin', 'SECRET', 1)]            # username, clearance, is_active
+role_permissions rows: 15                   # analyst(4) + reviewer(4) + admin(7)
+user_roles rows: 1                          # admin -> admin 角色 @ org
+
+结论: 两次运行均 exit 0；.env 跳过、新建角色 0 个、管理员跳过
+     ——bootstrap 幂等性证实。DB 结构与种子数据与 DEFAULT_ROLE_PERMISSIONS 一致。

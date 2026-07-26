@@ -1,0 +1,39 @@
+# P0 infrastructure: PostgreSQL 16 + pgvector (episodic layer) & Neo4j (semantic layer).
+# App itself runs locally via `uv run` / `calliodesmo` CLI.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: calliodesmo-postgres
+    environment:
+      POSTGRES_USER: calliodesmo
+      POSTGRES_PASSWORD: calliodesmo
+      POSTGRES_DB: calliodesmo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calliodesmo -d calliodesmo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5
+    container_name: calliodesmo-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/calliodesmo
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt
+    volumes:
+      - neo4jdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p calliodesmo 'RETURN 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  neo4jdata:
