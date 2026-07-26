@@ -86,3 +86,15 @@ def db_seed() -> None:
     )
     status = "已创建" if admin_created else "已存在或未提供密码（跳过）"
     typer.echo(f"新建角色 {roles_created} 个；管理员{status}。")
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="监听地址。"),
+    port: int = typer.Option(8000, help="监听端口。"),
+    reload: bool = typer.Option(False, "--reload", help="开发模式自动重载。"),
+) -> None:
+    """启动 API 服务（uvicorn，无需 Docker 的原生部署入口）。"""
+    import uvicorn
+
+    uvicorn.run("calliodesmo.api.app:app", host=host, port=port, reload=reload)
