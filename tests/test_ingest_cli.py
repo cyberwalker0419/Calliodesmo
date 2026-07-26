@@ -131,3 +131,35 @@ def test_ingest_llm_missing_key(tmp_path, monkeypatch):
         get_settings.cache_clear()
     assert result.exit_code == 1
     assert "CALLIODESMO_LLM_API_KEY" in result.output
+
+
+def test_ingest_local_apibase_exempt_from_key(tmp_path, monkeypatch):
+    """指向 localhost 的 api_base（LM Studio / llama.cpp / Ollama）无需 API key。"""
+    _setup_db(tmp_path, monkeypatch)
+    monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
+    monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "openai/local-model")
+    monkeypatch.setenv("CALLIODESMO_LLM_API_BASE", "http://localhost:1234/v1")
+    monkeypatch.delenv("CALLIODESMO_LLM_API_KEY", raising=False)
+    (tmp_path / "note.md").write_text("OpenAI 开发了 GPT-4。", encoding="utf-8")
+    get_settings.cache_clear()
+    try:
+        result = runner.invoke(app, ["ingest", str(tmp_path / "note.md")])
+    finally:
+        get_settings.cache_clear()
+    # 本地豁免 -> 不因缺 key 报错（桩引擎跑通）
+    assert result.exit_code == 0, result.output
+
+
+def test_ingest_lm_studio_prefix_exempt_from_key(tmp_path, monkeypatch):
+    """lm-studio/ 前缀同样豁免 key。"""
+    _setup_db(tmp_path, monkeypatch)
+    monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
+    monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "lm-studio/local-model")
+    monkeypatch.delenv("CALLIODESMO_LLM_API_KEY", raising=False)
+    (tmp_path / "note.md").write_text("OpenAI 开发了 GPT-4。", encoding="utf-8")
+    get_settings.cache_clear()
+    try:
+        result = runner.invoke(app, ["ingest", str(tmp_path / "note.md")])
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 0, result.output

@@ -145,10 +145,22 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
     from calliodesmo.providers.registry import default_registry
 
     model = settings.llm_model
-    needs_key = not (model.startswith("ollama/") or model.startswith("test"))
-    if needs_key and not settings.llm_api_key:
+    # 本地推理服务（Ollama / LM Studio / llama.cpp 等）经 api_base 指向 localhost，
+    # 通常无需 API key；仅当指向远端云服务且未显式豁免时才强制要求 key。
+    local_hosts = ("localhost", "127.0.0.1", "0.0.0.0", "::1")
+    is_local = bool(settings.llm_api_base) and any(
+        h in (settings.llm_api_base or "") for h in local_hosts
+    )
+    exempt = (
+        model.startswith("ollama/")
+        or model.startswith("test")
+        or model.startswith("lm-studio/")
+        or is_local
+    )
+    if not exempt and not settings.llm_api_key:
         raise RuntimeError(
-            "LLM 缺 API key：设置环境变量 CALLIODESMO_LLM_API_KEY（或用 ollama/* 本地模型）"
+            "LLM 缺 API key：设置环境变量 CALLIODESMO_LLM_API_KEY"
+            "（本地服务可设 CALLIODESMO_LLM_API_BASE 指向 http://localhost:... 自动豁免）"
         )
 
     llm = LiteLLMProvider(model=model, api_key=settings.llm_api_key, api_base=settings.llm_api_base)
