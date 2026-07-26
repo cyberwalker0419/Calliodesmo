@@ -52,20 +52,20 @@ created: 2026-07-26
 
 **支持的格式矩阵：**
 
-| 类别 | 格式 | 接入 | 候选库/方式 |
-| --- | --- | --- | --- |
-| 纯文本/Markdown | `.txt` `.log` `.md` `.markdown` | 内置 | 已有 `TextDocumentLoader` |
-| 表格 | `.csv` `.tsv` | 内置 | 标准库 `csv` |
-| 结构化文本 | `.json` `.yaml`/`.yml` `.xml` `.html`/`.htm` | 内置 | 标准库 + `PyYAML` |
-| 标记语言 | `.rst` `.org` `.tex` | 内置（轻解析取纯文本） | 标准库/正则 |
-| PDF | `.pdf`（文本型） | extra `documents-pdf` | `pypdf`（备选 pdfplumber/pymupdf） |
-| Word | `.docx` | extra `documents-office` | `python-docx` |
-| Excel | `.xlsx` | extra `documents-office` | `openpyxl` |
-| PowerPoint | `.pptx` | extra `documents-office` | `python-pptx` |
-| 开放文档 | `.odt` `.ods` `.odp` | extra `documents-opendocument` | `odfpy` |
-| 富文本/电子书 | `.rtf` `.epub` `.mobi` | extra `documents-rich` | `striprtf`/`ebooklib` |
-| 邮件 | `.eml` `.msg` | extra `documents-email` | 标准库 `email`/`extract-msg` |
-| 笔记本 | `.ipynb` | extra `documents-notebooks` | `nbformat` |
+| 类别           | 格式                                           | 接入                             | 候选库/方式                         |
+| ------------ | -------------------------------------------- | ------------------------------ | ------------------------------ |
+| 纯文本/Markdown | `.txt` `.log` `.md` `.markdown`              | 内置                             | 已有 `TextDocumentLoader`        |
+| 表格           | `.csv` `.tsv`                                | 内置                             | 标准库 `csv`                      |
+| 结构化文本        | `.json` `.yaml`/`.yml` `.xml` `.html`/`.htm` | 内置                             | 标准库 + `PyYAML`                 |
+| 标记语言         | `.rst` `.org` `.tex`                         | 内置（轻解析取纯文本）                    | 标准库/正则                         |
+| PDF          | `.pdf`（文本型）                                  | extra `documents-pdf`          | `pypdf`（备选 pdfplumber/pymupdf） |
+| Word         | `.docx`                                      | extra `documents-office`       | `python-docx`                  |
+| Excel        | `.xlsx`                                      | extra `documents-office`       | `openpyxl`                     |
+| PowerPoint   | `.pptx`                                      | extra `documents-office`       | `python-pptx`                  |
+| 开放文档         | `.odt` `.ods` `.odp`                         | extra `documents-opendocument` | `odfpy`                        |
+| 富文本/电子书      | `.rtf` `.epub` `.mobi`                       | extra `documents-rich`         | `striprtf`/`ebooklib`          |
+| 邮件           | `.eml` `.msg`                                | extra `documents-email`        | 标准库 `email`/`extract-msg`      |
+| 笔记本          | `.ipynb`                                     | extra `documents-notebooks`    | `nbformat`                     |
 
 **基础格式（P1 必做，内置）：**
 - [ ] **Step 1:** txt/md/log 复用 `TextDocumentLoader`（回归测试）
@@ -97,17 +97,20 @@ created: 2026-07-26
 
 ### Task 2: 分块与抽取（Chunk + Extract）
 
-**目标：** 把 Task 1 的 `LoadedDocument` 切成 `Chunk`，再用 LLM 做 **Schema-Free / Schema-Constraint 两模式** 与 **实体/关系/声明/协变量四类** 抽取，输出结构化 `ExtractionResult`。LLM 走 `LLMProvider`，测试用 `sys.modules` 桩隔离 litellm（沿用 P0 `test_llm_provider` 模式）。
+**目标：** 把 Task 1 的 `LoadedDocument` 切成 `Chunk`，再用 LLM 抽取**实体/关系/声明/协变量四类**结构化 `ExtractionResult`。实体类型受**团队级硬约束**：每个团队有且仅有一套 `EntitySchema`（由配置文件定义、可改），抽取时严格校验（schema 外类型实体拒绝并记入 `rejected_entities`），未配置 schema 的团队走 Schema-Free。LLM 走 `LLMProvider`，测试用 `sys.modules` 桩隔离 litellm（沿用 P0 `test_llm_provider`）。
 
-> [!note] 本任务引入的 `Chunk`/`Entity`/`Relation`/`Claim`/`Covariate`/`ExtractionResult` 为 P1 全局共享类型，Task 3-6 直接引用。
+> [!note] 本任务引入的 `Chunk`/`Entity`/`Relation`/`Claim`/`Covariate`/`ExtractionResult`/`EntitySchema` 为 P1 全局共享类型，Task 3-6 直接引用。
 
 **Files:**
 - Create: `src/calliodesmo/interfaces/chunker.py`（`Chunker` ABC + `Chunk` dataclass）
-- Create: `src/calliodesmo/interfaces/extractor.py`（`Extractor` ABC + `ExtractionResult`/`Entity`/`Relation`/`Claim`/`Covariate`）
+- Create: `src/calliodesmo/interfaces/extractor.py`（`Extractor` ABC + `ExtractionResult`/`Entity`/`Relation`/`Claim`/`Covariate`/`EntitySchema`）
 - Create: `src/calliodesmo/ecl/__init__.py`
 - Create: `src/calliodesmo/ecl/chunker.py`（`TextChunker`，size+overlap，确定性）
-- Create: `src/calliodesmo/ecl/extractor.py`（`LLMExtractor`，prompt 构造 + JSON 解析 + Schema 模式开关）
-- Test: `tests/test_chunker.py`、`tests/test_extractor.py`
+- Create: `src/calliodesmo/ecl/extractor.py`（`LLMExtractor`，prompt 构造 + JSON 解析 + 硬约束校验）
+- Create: `src/calliodesmo/ecl/entity_schema.py`（`EntitySchemaRegistry`：从 YAML 配置加载，按 team 唯一）
+- Create: `config/entity_schemas.example.yaml`（团队 schema 样例）
+- Modify: `src/calliodesmo/config.py`（新增 `entity_schema_file`，默认 `config/entity_schemas.yaml`）
+- Test: `tests/test_chunker.py`、`tests/test_extractor.py`、`tests/test_entity_schema.py`
 
 **共享类型（`interfaces/extractor.py`）：**
 
@@ -154,12 +157,20 @@ class Covariate:
     source_chunk_ids: list[str]
 
 @dataclass
+class EntitySchema:
+    """团队级实体类型硬约束：每团队有且仅有一套，由配置文件定义、可改。"""
+    team: str                       # team_id 字符串
+    entity_types: list[str]         # 允许的实体类型白名单
+    type_descriptions: dict[str, str] = field(default_factory=dict)
+
+@dataclass
 class ExtractionResult:
     entities: list[Entity]
     relations: list[Relation]
     claims: list[Claim]
     covariates: list[Covariate]
-    schema_mode: str         # "schema-free" | "schema-constraint"
+    schema_mode: str                # 输出属性：记录实际应用模式 "schema-free" | "schema-constraint"
+    rejected_entities: list[Entity] = field(default_factory=list)  # 硬约束拒绝的 schema 外实体
 ```
 
 **接口（`interfaces/chunker.py`、`interfaces/extractor.py`）：**
@@ -172,22 +183,25 @@ class Chunker(ABC):
 class Extractor(ABC):
     @abstractmethod
     async def extract(
-        self, chunks: list[Chunk], *, schema_mode: str = "schema-free",
-        entity_types: list[str] | None = None,
+        self, chunks: list[Chunk], *, access: AccessContext,
     ) -> ExtractionResult: ...
 ```
 
+> [!note] `entity_types` 不再是调用方自由传入的参数，而由 `EntitySchemaRegistry` 按 ingest 所属团队从配置文件解析（每团队唯一）。`access` 提供 team 上下文：恰好一个团队且已配置 schema -> 硬约束；无 team 或未配置 -> Schema-Free；P4 团队库 ingest 时 target team 唯一。
+
 - [ ] **Step 1:** `TextChunker` 失败测试（按 size=200/overlap=20 切；空文档返空；单段超长按 size 切；切分确定性与文本可还原拼接）-> 实现跑绿
 - [ ] **Step 2:** `Chunk` 携带 access 字段（`access_level`/`library_scope`/`owner_id`/`project_id`/`team_id` 从 `LoadedDocument.metadata` 继承，缺省 INTERNAL/personal）测试 -> 实现跑绿
-- [ ] **Step 3:** `LLMExtractor` Schema-Free 模式：构造 prompt（含全部 chunk 文本 + 要求输出固定 JSON schema）-> `sys.modules` 桩 litellm 返回合法 JSON -> 解析为 `ExtractionResult`（断言四类字段映射、`source_chunk_ids` 正确）测试 -> 实现跑绿
-- [ ] **Step 4:** Schema-Constraint 模式：传入 `entity_types`（如 `["人物","组织","地点"]`）-> prompt 注入约束段 -> 桩 LLM 返回受限类型实体 -> 断言 `schema_mode="schema-constraint"` 测试 -> 实现跑绿
-- [ ] **Step 5:** 健壮性：LLM 返回非法 JSON / 空抽取 -> 抛 `ExtractionError`（含原始响应片段），不静默吞异常测试 -> 实现跑绿
-- [ ] **Step 6:** 来源打标：跨 chunk 抽取的 `Entity.source_chunk_ids` 含所有出现该实体的 chunk ordinal 测试 -> 实现跑绿
-- [ ] **Step 7:** 四类齐全端到端（entities/relations/claims/covariates 均非空，桩 LLM 一次返回）测试 -> 实现跑绿
+- [ ] **Step 3:** `EntitySchemaRegistry` 失败测试：从 YAML 加载 `team -> EntitySchema`；**每团队唯一**（同 team 重复键配置 -> 加载报错）；缺文件/空文件 -> registry 为空（全 schema-free）；`CALLIODESMO_ENTITY_SCHEMA_FILE` 可覆盖路径 -> 实现跑绿
+- [ ] **Step 4:** `LLMExtractor` Schema-Free：当前 ingest 无团队 schema -> prompt 不含类型约束 -> 桩 litellm 返回合法 JSON -> 解析为 `ExtractionResult(schema_mode="schema-free", rejected_entities=[])` 测试 -> 实现跑绿
+- [ ] **Step 5:** `LLMExtractor` Schema-Constraint **硬约束**：团队 schema 已配置 -> prompt 注入允许类型白名单（严格指令）-> 桩 litellm 返回"合规 + 越界类型"混合实体 -> 解析后**仅保留 `entity.type ∈ schema.entity_types` 的实体，越界实体入 `rejected_entities` 并记录原因**；`schema_mode="schema-constraint"` 测试 -> 实现跑绿
+- [ ] **Step 6:** 健壮性：LLM 返回非法 JSON / 空抽取 -> 抛 `ExtractionError`（含原始响应片段），不静默吞异常测试 -> 实现跑绿
+- [ ] **Step 7:** 来源打标：跨 chunk 抽取的 `Entity.source_chunk_ids` 含所有出现该实体的 chunk ordinal 测试 -> 实现跑绿
+- [ ] **Step 8:** 四类齐全端到端（entities/relations/claims/covariates 均非空，桩 LLM 一次返回）测试 -> 实现跑绿
 
 **验收：**
 - `TextChunker` 确定性、可还原；`Chunk` 携带完整 access 字段
-- 两模式抽取输出结构化 `ExtractionResult`，四类字段齐全且带 `source_chunk_ids` 溯源
+- `EntitySchemaRegistry` 按 team 唯一、配置文件可改；同 team 重复键加载报错
+- Schema-Constraint 为**硬约束**：schema 外类型实体进 `rejected_entities` 而非混入结果；schema-free / schema-constraint 由配置驱动，`schema_mode` 为输出属性
 - LLM 全程经 `LLMProvider`，离线测试用 `sys.modules` 桩，零真实请求
 - 非法 LLM 输出有清晰错误，不静默吞异常
 
@@ -328,7 +342,7 @@ class CommunityStore(ABC):
 
 **Files:**
 - Create: `src/calliodesmo/interfaces/indexing_engine.py`（`IndexingEngine` ABC）
-- Create: `src/calliodesmo/ecl/engine.py`（`ECLIndexingEngine`，依赖注入 loader/embedding/llm/chunker/extractor/cognify/三 store/deriver）
+- Create: `src/calliodesmo/ecl/engine.py`（`ECLIndexingEngine`，依赖注入 loader/embedding/llm/chunker/extractor（含 EntitySchemaRegistry）/cognify/三 store/deriver）
 - Modify: `src/calliodesmo/cli.py`（新增 `ingest` 命令）
 - Modify: `src/calliodesmo/models.py`（如需 ORM 持久化补表；内存默认实现下可不改）
 - Test: `tests/test_indexing_engine.py`、`tests/test_ingest_cli.py`
@@ -351,8 +365,8 @@ class IndexingEngine(ABC):
     ) -> IngestStats: ...
 ```
 
-- [ ] **Step 1:** `IndexingEngine` 接口 + `ECLIndexingEngine` 依赖注入构造（loader/embedding/llm/chunker/extractor/cognify/三 store/deriver）测试 -> 实现跑绿
-- [ ] **Step 2:** 端到端 ECL（桩 LLM + `HashEmbeddingProvider` + 内存三 store + `TextDocumentLoader`）跑通：doc->chunks->extraction->graph->communities->三 store 落库 + 返回 `IngestStats` 计数正确测试 -> 实现跑绿
+- [ ] **Step 1:** `IndexingEngine` 接口 + `ECLIndexingEngine` 依赖注入构造（loader/embedding/llm/chunker/extractor（含 EntitySchemaRegistry）/cognify/三 store/deriver）测试 -> 实现跑绿
+- [ ] **Step 2:** 端到端 ECL（桩 LLM + `HashEmbeddingProvider` + 内存三 store + `TextDocumentLoader`）跑通：doc->chunks->extraction（access 解析团队 schema 硬约束）->graph->communities->三 store 落库 + 返回 `IngestStats` 计数正确测试 -> 实现跑绿
 - [ ] **Step 3:** `AccessContext` 限定 personal scope + `owner_id=ctx.user_id` 落库（断言 store 中记录 owner 匹配、越权不可见）测试 -> 实现跑绿
 - [ ] **Step 4:** `ingest` CLI（Typer）：路径参数 + 构造默认引擎（内存 stores + `HashEmbeddingProvider` + `LiteLLMProvider`）+ 打印 `IngestStats`；`CliRunner` 断言退出码 0 与统计文本测试 -> 实现跑绿
 - [ ] **Step 5:** 失败友好报错（路径不存在 -> 退出码非 0；loader 未注册 -> 提示安装 extra；LLM 缺 key -> 指引 `CALLIODESMO_LLM_API_KEY`）测试 -> 实现跑绿
@@ -372,4 +386,5 @@ class IndexingEngine(ABC):
 - **三层存储**：`VectorStore`/`GraphStore`/`CommunityStore` 接口 + 确定性内存默认实现保证离线可测；pgvector/Neo4j 真后端列为 optional extra（容器验证，与 BGE-M3 同策略）。内存默认实现非持久（dev/test 重建即恢复），prod 持久化由真后端承担（与 P0 SQLite/Postgres 同构）。
 - **社区检测**默认 `ConnectedComponentsDetector`（零重依赖、确定性）；可选 networkx Louvain/Leiden 列 extra（`graph-analytics`），缺依赖友好报错。GraphRAG 库式集成列为可选 extra（自带 LLM 调用需 key），P1 默认用自建 Cognify，GraphRAG 仅作 prod-grade Leiden 替代。
 - **抽取/摘要 LLM** 真实运行需 API key；离线测试全用 `sys.modules` 桩隔离 litellm（沿用 P0 `test_llm_provider` 模式），零真实请求。
+- **团队实体类型硬约束**：`EntitySchemaRegistry` 从 YAML 配置（`CALLIODESMO_ENTITY_SCHEMA_FILE`，默认 `config/entity_schemas.yaml`）按 team 唯一加载；Schema-Constraint 为硬约束（schema 外实体入 `rejected_entities`）；PyYAML 已由 Task 1 引入。
 - **版本钉制**：litellm `>=1.85,<1.91`（>=1.93 无 Windows wheel）；引入 networkx/GraphRAG 时与之协调，避免传递依赖冲突。
