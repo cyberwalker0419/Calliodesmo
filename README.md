@@ -3,7 +3,7 @@
 > 三层知识图谱驱动的智能情报分析平台 — GraphRAG 索引基座 + LlamaIndex/LangGraph 检索与 Agent 编排，LLM 与嵌入可切换。
 
 [![phase: P1 done](https://img.shields.io/badge/phase-P1%20done-22c55e)](docs/plans/roadmap.md)
-[![tests: 112 passing](https://img.shields.io/badge/tests-112%20passing-3b82f6)](docs/verification/P1-verification.md)
+[![tests: 122 passing](https://img.shields.io/badge/tests-122%20passing-3b82f6)](docs/verification/P1-verification.md)
 [![python: 3.12](https://img.shields.io/badge/python-3.12-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 

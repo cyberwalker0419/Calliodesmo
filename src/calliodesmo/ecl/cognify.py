@@ -142,9 +142,11 @@ class NameEntityResolver(EntityResolver):
 
         merged: dict[str, GraphNode] = {}
         name_to_canonical: dict[str, str] = {}
+        aliases: dict[str, list[str]] = {}
         for name, node in nodes.items():
             canon = self._canonical(name)
             name_to_canonical[name] = canon
+            aliases.setdefault(canon, []).append(name)
             if canon in merged:
                 tgt = merged[canon]
                 tgt.source_chunk_ids = list({*tgt.source_chunk_ids, *node.source_chunk_ids})
@@ -184,7 +186,7 @@ class NameEntityResolver(EntityResolver):
                     source_chunk_ids=list(e.source_chunk_ids),
                 )
             )
-        return {"nodes": merged, "edges": new_edges}
+        return {"nodes": merged, "edges": new_edges, "aliases": aliases}
 
 
 class LLMAliasResolver(EntityResolver):

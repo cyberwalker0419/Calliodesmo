@@ -16,6 +16,7 @@ class IngestStats:
     entities: int = 0
     relations: int = 0
     communities: int = 0
+    profile_cards: int = 0
 
     def as_dict(self) -> dict:
         return {
@@ -24,6 +25,7 @@ class IngestStats:
             "entities": self.entities,
             "relations": self.relations,
             "communities": self.communities,
+            "profile_cards": self.profile_cards,
         }
 
 

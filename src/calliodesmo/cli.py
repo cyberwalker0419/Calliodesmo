@@ -163,5 +163,6 @@ def ingest(
         raise typer.Exit(code=1) from exc
     typer.echo(
         f"ingest 完成：文档 {stats.documents} / 块 {stats.chunks} / "
-        f"实体 {stats.entities} / 关系 {stats.relations} / 社区 {stats.communities}"
+        f"实体 {stats.entities} / 关系 {stats.relations} / 社区 {stats.communities} / "
+        f"档案卡 {stats.profile_cards}"
     )

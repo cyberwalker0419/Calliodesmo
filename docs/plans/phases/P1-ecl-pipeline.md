@@ -414,6 +414,88 @@ class IndexingEngine(ABC):
 
 ---
 
+### Task 7: 实体档案卡自动生成（ProfileCard）
+
+**目标：** 在 Task 2/3 已抽取并消解的 `Entity` 基础上，从图邻居 + Covariate + Entity 确定性聚合出**结构化档案卡**（`ProfileCard`），作为用户侧展示单元。档案卡的**结构化字段**（别名/职务/组织/关联人/时间跨度/证据）是图与 Covariate 的确定性投影，可进入模型上下文增强 LLM 可读性与精度；**叙述字段**（narrative）为可选 LLM 生成概述，按"摘要不进模型"约束**不进入检索/rerank/生成链路**，仅供人阅读。P1 只做自动生成（确定性聚合为主 + 可选叙述），**用户编辑/版本/审核/推送归 P4**（与抽取模板 review-gated 同流程）；P1 数据模型预留来源标记与锁定标记字段，不实现编辑逻辑。
+
+> [!note] 与 Task 2 Step 4 的区别：Task 2/3 是"从 chunk 原文**抽取**实体并**消解**合并"（产出 `Entity`，description 为自由文本汇总）；Task 7 是"从已合并的 Entity + 图邻居 + Covariate **聚合**成结构化画像"（产出 `ProfileCard`，字段为结构化投影）。前者是 Extract/Cognify 阶段从无到有提取原料，后者是 Cognify 之后/Load 时的结构化成型，不重复抽取，只做二手聚合。
+
+**Files:**
+- Create: `src/calliodesmo/interfaces/profile_card.py`（`ProfileCard` dataclass + `ProfileCardDeriver` ABC + `FieldProvenance` 枚举）
+- Create: `src/calliodesmo/ecl/profile_card_deriver.py`（`DeterministicProfileCardDeriver`：从 GraphStore.neighbors + Covariate + Entity 聚合；可选 `narrative` 经 `LLMProvider` 生成但标记为非检索用）
+- Create: `src/calliodesmo/stores/profile_card_store.py`（`InMemoryProfileCardStore`，与三 store 同构，按 `visible_to` 过滤）
+- Modify: `src/calliodesmo/ecl/engine.py`（`ECLIndexingEngine` 可选串联档案卡生成：ingest 主链路完成后触发，不阻塞主流程；`IngestStats` 增 `profile_cards` 计数）
+- Test: `tests/test_profile_card.py`
+
+**共享类型（`interfaces/profile_card.py`）：**
+
+```python
+class FieldProvenance(enum.StrEnum):
+    AUTO = "auto"  # 自动聚合生成
+    USER = "user"  # 用户编辑（P4）
+    MERGED = "merged"  # 自动+用户合并（P4）
+
+
+@dataclass
+class ProfileField:
+    value: str
+    provenance: FieldProvenance = FieldProvenance.AUTO
+    locked: bool = False  # 用户编辑过的字段不被自动覆盖（P4 编辑生效；P1 恒 False）
+
+
+@dataclass
+class ProfileCard:
+    entity_name: str
+    entity_type: str | None
+    aliases: list[ProfileField]  # 来自 NameEntityResolver 别名合并
+    role: ProfileField | None  # 职务（Covariate 或 Relation 投影）
+    organization: ProfileField | None  # 所属组织（Relation target 投影）
+    associates: list[ProfileField]  # 关联人（图邻居 person 类型）
+    timespan: ProfileField | None  # 活动时间跨度（chunk 时间元数据）
+    description: str  # Entity.description 原文汇总（自由文本）
+    narrative: str | None = None  # 可选 LLM 叙述概述（不进检索链路，仅供人读）
+    evidence_chunk_ids: list[str] = field(default_factory=list)  # source_chunk_ids 溯源
+    access_level: ClearanceLevel = ClearanceLevel.INTERNAL
+    library_scope: LibraryScope = LibraryScope.PERSONAL
+    owner_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
+    team_id: uuid.UUID | None = None
+    version: int = 1  # P4 编辑版本，P1 恒 1
+```
+
+**接口（`interfaces/profile_card.py`）：**
+
+```python
+class ProfileCardDeriver(ABC):
+    @abstractmethod
+    async def derive(
+        self,
+        entity_name: str,
+        *,
+        graph: GraphStore,
+        covariates: list[Covariate],
+        entity: Entity,
+        access: AccessContext,
+    ) -> ProfileCard: ...
+```
+
+- [x] **Step 1:** `ProfileCard` / `ProfileField` / `FieldProvenance` 数据模型失败测试（字段齐全、默认值、access 字段继承）-> 实现跑绿
+- [x] **Step 2:** `DeterministicProfileCardDeriver` 纯确定性聚合：aliases 来自 Entity 消解别名、associates 来自 GraphStore.neighbors（person 类型邻居）、organization 来自 Relation（target 为组织类）、role/timespan 来自 Covariate 或 chunk 时间元数据；**不调 LLM**，全部为图/Covariate 的客观投影测试 -> 实现跑绿
+- [x] **Step 3:** 结构化字段可进入模型上下文（断言 `ProfileCard` 序列化为结构化文本后喂 LLM 可读性优于自由 description；narrative 字段为 None 时不进任何检索输入）测试 -> 实现跑绿
+- [x] **Step 4:** 可选 narrative：经 `LLMProvider` 生成叙述概述（桩 litellm），标记 `provenance=AUTO`；narrative **不进** VectorStore/GraphStore/rerank，仅随 ProfileCard 存于 ProfileCardStore 供展示测试 -> 实现跑绿
+- [x] **Step 5:** `InMemoryProfileCardStore`：upsert（同 entity_name 覆盖）+ 按 `visible_to` 过滤的 list/get；幂等测试 -> 实现跑绿
+- [x] **Step 6:** `ECLIndexingEngine` 可选串联：ingest 主链路（Task 1-6）完成后，对落库实体触发档案卡生成写入 ProfileCardStore；`IngestStats` 增 `profile_cards` 计数；串联为可选（开关默认开），关闭时不影响主链路测试 -> 实现跑绿
+- [x] **Step 7:** 来源标记预留：`ProfileField.provenance`/`locked` 字段存在且 P1 恒为 `AUTO`/`False`；断言自动聚合不覆盖已存在 `locked=True` 字段（P4 编辑场景的接口预留，P1 不触发）测试 -> 实现跑绿
+
+**验收：**
+- `ProfileCard` 结构化字段（别名/职务/组织/关联人/时间跨度/证据）从图+Covariate 确定性聚合，零 LLM 调用（narrative 除外）
+- 结构化字段可进模型上下文增强可读性；narrative 叙述字段不进检索/rerank/生成链路，仅供人读
+- 与 Task 2 Step 4 不重复：Task 2/3 抽取消解产出 `Entity`，Task 7 聚合产出 `ProfileCard`，后者依赖前者
+- `ProfileField.provenance`/`locked`/`version` 预留用户编辑接口，P1 不实现编辑逻辑（归 P4 review-gated）
+- `InMemoryProfileCardStore` 按 `visible_to` 过滤，access 字段贯通
+
+---
+
 ## 精度策略与跨阶段改进（前瞻）
 
 > [!note] 记录 P1 设计评审中提出的精度担忧与改进方向；P1 落地其中"过门槛"部分，更重的留待对应阶段，全部经可插拔接口接入，不动核心。

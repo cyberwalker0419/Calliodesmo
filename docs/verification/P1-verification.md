@@ -19,7 +19,7 @@
 
 ## 一、测试内容
 
-### 1.1 自动化测试矩阵（P1 新增 79 用例，按 Task）
+### 1.1 自动化测试矩阵（P1 新增 89 用例，按 Task）
 
 | Task | 测试文件 | 用例 | 覆盖要点 |
 | --- | --- | --- | --- |
@@ -81,7 +81,7 @@
 uv sync
 uv run ruff format --check .     # 91 files already formatted
 uv run ruff check .              # All checks passed!
-uv run pytest -q                 # 112 passed
+uv run pytest -q                 # 122 passed
 ```
 
 > Windows 沙箱下 uv 受管 Python 位于 AppData，需在沙箱外执行（`uv run` 前缀已登记）。
@@ -92,7 +92,7 @@ uv run pytest -q                 # 112 passed
 uv run pytest -q
 ........................................ [ 64%]
 ........................................ [100%]
-112 passed, 6 warnings in 2.28s
+122 passed, 6 warnings in 1.85s
 ```
 
 6 warnings 均为 P0 JWT 测试的 `InsecureKeyLengthWarning`（测试用短密钥，非 P1 引入）。
