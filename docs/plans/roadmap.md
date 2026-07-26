@@ -24,8 +24,8 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - 向量+元数据：PostgreSQL 16 + pgvector（v1），`VectorStore` 接口可换 Qdrant/Milvus
 - 交付形态：API（FastAPI）+ CLI（Typer）优先；Web UI 在 P2 后启动
 - 规模：v1 单机 ≤5k 文档，六个抽象接口保证可扩展到 ≥50万
-- 多用户模型：混合（共享组织库 + 个人沙箱）
-- 协作模型：Git-like 推送（个人库 -> 组织库，审核/合并/图谱合并）
+- 多用户模型：混合（团队库 + 项目库 + 个人库，三层）
+- 协作模型：Git-like 推送（个人库 -> 项目库 -> 团队库，审核/合并/图谱合并）
 - 认证：v1 本地账号（账号密码 + JWT），预留 OIDC/SSO 接口位
 - 文档社区管理：v1 选项 A（自动派生 + 手动策展）；选项 B 列为后续精化
 - 节奏：学生 10-15h/周，暑期集中、学期适中、考试期降负
@@ -37,11 +37,13 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - **角色 RBAC**（控"能做什么"）：`analyst` / `reviewer` / `admin`。细粒度权限：`ingest` / `query` / `export` / `push` / `approve` / `manage_users` / `manage_community`。
   - 表：`users` / `roles` / `role_permissions` / `user_roles(user_id, role_id, scope)`
 - **访问等级 clearance**（控"能看什么"）：`public` / `internal` / `confidential` / `secret`。用户有 clearance，文档/社区/实体有 access_level，检索需 `clearance >= access_level` 才可见。
-- **库范围 scope**（控"谁的数据"）：`personal` / `org`。
-- **用户组 user_groups**：把用户组织成调查组/项目组。
-  - 组可拥有共享社区/库；组内角色继承（组管理员管成员、指派组内 reviewer）；推送审核可指派到组。
-  - 表：`user_groups(id, name, desc, scope)` / `user_group_members(user_id, group_id, role_in_group)`
-- **统一上下文**：`AccessContext(userId, roles, clearance, library_scope, group_ids)` 贯穿请求全生命周期，检索器/合成器/Agent 统一接收做过滤。
+- **库范围 scope**（控"谁的数据"，三层）：`personal`（个人库）/ `project`（项目库，一个项目多人维护、属于一个团队）/ `team`（团队库，一个团队多个项目）。
+- **团队与项目**（团队组织 + 项目隔离，取代原 user_groups）：
+  - `team`（团队）：一个团队有多个项目；团队库为团队共享情报全貌。
+  - `project`（项目）：属于一个团队，由多人维护；项目库为项目协作空间。
+  - 用户可被授予**不同 project / team 的不同角色**（如 A 项目 analyst、B 项目 reviewer）；角色 RBAC + clearance + scope 三维组合，按当前操作所在的 project/team 判定。
+  - 表：`teams(id, name, desc)` / `projects(id, name, desc, team_id)` / `team_members(user_id, team_id, role_in_team)` / `project_members(user_id, project_id, role_id, role_in_project)`。
+- **统一上下文**：`AccessContext(userId, roles, clearance, project_id, team_id, project_role, team_role)` 贯穿请求全生命周期，按当前 project/team 聚合权限，检索器/合成器/Agent 统一接收做过滤。
 - **审计日志**：每次访问/导出/推送/合并/审核记录（谁/何时/做了什么/从哪来）。P0 打骨架，P9 硬化（审计查询 UI、留存策略、导出管控、数据溯源）。
 
 > [!example] 权限判定示例
@@ -49,13 +51,14 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 
 ## Git-like 协作模型
 
-**混合库结构**
+**混合库结构（三层）**
 - 个人库（personal，≈ fork/工作库）：每用户私有空间，自己 ingest/建图/分析，可选私有或共享。
-- 组织库（org，≈ main/origin）：团队共享情报全貌，按 clearance 可读，写只能经审核推送。
-- 所有业务表带 `library_scope` / `library_id` / `owner_id` / `access_level`。
+- 项目库（project，≈ 分支协作库）：一个项目多人维护，项目内审核合并；属于一个团队。
+- 团队库（team，≈ main/origin）：团队共享情报全貌（多个项目汇总），按 clearance 可读，写只能经审核推送。
+- 所有业务表带 `library_scope` / `library_id` / `owner_id` / `project_id` / `team_id` / `access_level`。
 
 **推送流程**
-- 推送(Push)：把个人库策划好的内容（文档+抽取实体+社区摘要）提议合并到组织库。
+- 推送(Push)：把个人库策划好的内容（文档+抽取实体+社区摘要）提议合并到项目库；项目库可进一步推送到团队库（团队级汇总）。
 - 贡献请求(MR)：状态机 `draft -> submitted -> approved/rejected -> merged`。
 - 审核(Review)：reviewer/admin 批准，覆盖权限（能推什么、谁能批、access_level 合并时继承）。
 - 合并(Merge)：应用到组织库，核心是**图谱合并**（实体按 name+type/embedding 去重、关系并集、来源打标）。
@@ -159,4 +162,5 @@ Python(`__pycache__/`、`*.pyc`、`.venv/`、`*.egg-info/`、`dist/`、`build/`)
 - API+CLI 先行；Web UI 在 P2 后启动并随后续阶段迭代。
 - 权限三维（角色 RBAC + clearance + 库范围）+ 用户组；认证本地 JWT 起步预留 SSO。
 - 用户/用户组管理 CRUD（添加/编辑/删除/查询）延后至 P3 落地；P1/P2 期间仅 `db seed` 建初始管理员，其余靠直接库操作。
+- 三层库（个人/项目/团队）取代原 personal/org 两层：需修订 P0 已实现的 `LibraryScope`（`PERSONAL/ORG` -> `PERSONAL/PROJECT/TEAM`）、`UserRole`、`UserGroup`（拆为 `Team`/`Project` 及成员角色表）与 `AccessContext`，并同步迁移测试与 `db seed`。
 - 节奏默认 10-15h/周；考试期降负、假期集中，按校历动态调整周计划。
