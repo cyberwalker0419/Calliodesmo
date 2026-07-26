@@ -23,7 +23,7 @@ class RemoteEmbeddingProvider(EmbeddingProvider):
         dimension: int = 1024,
         api_key: str = "local",
         timeout: float = 60.0,
-        max_chars_per_slice: int = 400,
+        max_chars_per_slice: int = 5000,  # 远端 token 上限 8192 -> 约 6000 字符，留余量
     ) -> None:
         self._api_base = api_base.rstrip("/")
         if not self._api_base.endswith("/v1"):

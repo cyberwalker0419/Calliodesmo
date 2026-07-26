@@ -45,6 +45,11 @@ class ECLIndexingEngine(IndexingEngine):
         self.profile_deriver = profile_deriver
         self.profile_card_store = profile_card_store
         self.enable_profile_cards = enable_profile_cards
+        # 最近一次 ingest 的中间结果（供调用方 dump 详情）
+        self.last_merged = None
+        self.last_communities = []
+        self.last_graph = {}
+        self.last_chunks = []
 
     async def ingest(self, source: str | Path, *, access: AccessContext) -> IngestStats:
         docs = await self.loader.load(source)
@@ -83,6 +88,12 @@ class ECLIndexingEngine(IndexingEngine):
 
         # 档案卡生成（可选，不阻塞主链路）
         profile_count = await self._derive_profile_cards(merged, graph, access=access)
+
+        # 挂载最近一次抽取的中间结果，供调用方 dump 详情（如 CLI --dump-json）
+        self.last_merged = merged
+        self.last_communities = communities + doc_communities
+        self.last_graph = graph
+        self.last_chunks = all_chunks
 
         return IngestStats(
             documents=len(docs),

@@ -1,6 +1,7 @@
 """Calliodesmo CLI（Typer）：db init / db seed / serve / ingest。"""
 
 import asyncio
+import json
 import uuid
 
 import typer
@@ -139,12 +140,15 @@ async def _run_ingest(source: str, settings, engine_factory) -> object:
         )
         await session.commit()
     await db_engine.dispose()
-    return stats
+    return stats, engine
 
 
 @app.command()
 def ingest(
     path: str = typer.Argument(..., help="文档路径（文件或目录），按后缀自动分发加载器。"),
+    dump_json: str = typer.Option(
+        None, "--dump-json", help="抽取详情（实体/关系/声明/社区）导出为 JSON 到该路径。"
+    ),
 ) -> None:
     """端到端建图落个人库：Load -> Extract -> Cognify -> Load -> 文档社区派生。
 
@@ -153,7 +157,7 @@ def ingest(
     """
     settings = get_settings()
     try:
-        stats = asyncio.run(_run_ingest(path, settings, build_default_indexing_engine))
+        stats, engine = asyncio.run(_run_ingest(path, settings, build_default_indexing_engine))
     except FileNotFoundError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -166,3 +170,27 @@ def ingest(
         f"实体 {stats.entities} / 关系 {stats.relations} / 社区 {stats.communities} / "
         f"档案卡 {stats.profile_cards}"
     )
+    if dump_json:
+        from dataclasses import asdict
+
+        merged = engine.last_merged
+        payload = {
+            "stats": stats.as_dict(),
+            "entities": [asdict(e) for e in (merged.entities if merged else [])],
+            "relations": [asdict(r) for r in (merged.relations if merged else [])],
+            "claims": [asdict(c) for c in (merged.claims if merged else [])],
+            "covariates": [asdict(v) for v in (merged.covariates if merged else [])],
+            "communities": [
+                {
+                    "community_id": c.community_id,
+                    "level": c.level,
+                    "title": c.title,
+                    "summary": c.summary,
+                    "member_entity_names": c.member_entity_names,
+                }
+                for c in engine.last_communities
+            ],
+        }
+        with open(dump_json, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        typer.echo(f"抽取详情已导出：{dump_json}")
