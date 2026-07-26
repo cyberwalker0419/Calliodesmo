@@ -97,7 +97,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - **P0 地基脚手架**：docker-compose(Postgres+pgvector/Neo4j)、配置密钥、三接口(LLMProvider/EmbeddingProvider/DocumentLoader)+默认实现、**用户/角色/权限/用户组表+JWT 认证+AccessContext+审计骨架**、CI+冒烟测试。
 - **P1 ECL 管线 MVP（系统心脏）**：Extract 四类抽取(Schema-Free+Schema-Constraint)、Cognify(图谱+Leiden 社区检测+社区摘要)、Load 三层数据落库(写个人库)、**文档社区自动派生**、CLI `ingest` 建图。
 - **P2 基础检索与 RAG（里程碑）**：NativeRAG(情景层)/LocalSearch(语义层)/GlobalSearch(摘要层)、答案标注来源文本块、按 AccessContext 过滤可见语料、FastAPI+CLI 暴露 Q&A。**此为"基础功能完善"节点。**
-- **P3 Web UI（启动并持续迭代）**：登录注册、个人/组织库视图、问答面板、**文档社区手动管理 UI**、角色可见性。用 `frontend-design` skill 构建。
+- **P3 Web UI（启动并持续迭代）**：登录注册、个人/组织库视图、问答面板、**用户/用户组管理 UI（添加/编辑/删除/查询、角色与组成员，受 `manage_users` 保护；service/CLI/API 管理端点同期补全）**、**文档社区手动管理 UI**、角色可见性。用 `frontend-design` skill 构建。
 - **P4 Git-like 协作推送**：个人库 -> 组织库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、推送审核指派到组。
 - **P5 高级 RAG 与智能检索**：MultiQuery / RAGFusion / SubQuestion；Corrective(CRAG) / SelfCheck / Adaptive。
 - **P6 LLM 分析任务（9 类）**：摘要、关键信息、时间线、实体识别、关系映射、任务列表、概念解释、问答、自定义提示。输出结构化报告。
@@ -158,4 +158,5 @@ Python(`__pycache__/`、`*.pyc`、`.venv/`、`*.egg-info/`、`dist/`、`build/`)
 - v1 单机 docker-compose 起步；六个抽象接口（LLMProvider/EmbeddingProvider/VectorStore/GraphStore/DocumentLoader/IndexingEngine）保证可换以支撑 ≥50万 扩展。
 - API+CLI 先行；Web UI 在 P2 后启动并随后续阶段迭代。
 - 权限三维（角色 RBAC + clearance + 库范围）+ 用户组；认证本地 JWT 起步预留 SSO。
+- 用户/用户组管理 CRUD（添加/编辑/删除/查询）延后至 P3 落地；P1/P2 期间仅 `db seed` 建初始管理员，其余靠直接库操作。
 - 节奏默认 10-15h/周；考试期降负、假期集中，按校历动态调整周计划。
