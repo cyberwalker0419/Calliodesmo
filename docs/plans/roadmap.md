@@ -98,7 +98,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 优先级逻辑：先打通"数据进 -> 建图 -> 能问问题"主链路（P0-P2），UI 紧随启动（P3）；Git-like 协作推送作为多用户核心能力紧接（P4）；高级检索/分析/Agent 依次推进；差异化验证放后段；规模化收尾。
 
 - **P0 地基脚手架**：docker-compose(Postgres+pgvector/Neo4j)、配置密钥、三接口(LLMProvider/EmbeddingProvider/DocumentLoader)+默认实现、**用户/角色/权限/用户组表+JWT 认证+AccessContext+审计骨架**、CI+冒烟测试。
-- **P1 ECL 管线 MVP（系统心脏）**：**多格式文档解析（txt/md/csv 内置，pdf/Office 全家桶可拓展插件，详见 [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] Task 1）**、Extract 四类抽取(Schema-Free+Schema-Constraint)、Cognify(图谱+Leiden 社区检测+社区摘要)、Load 三层数据落库(写个人库)、**文档社区自动派生**、CLI `ingest` 建图。
+- **P1 ECL 管线 MVP（系统心脏）**：**多格式文档解析（txt/md/csv/json/yaml/html 等基础内置，pdf/Office/开放文档/富文本/邮件/笔记本/图片OCR 等可拓展插件，详见 [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] Task 1）**、Extract 四类抽取(Schema-Free+Schema-Constraint)、Cognify(图谱+Leiden 社区检测+社区摘要)、Load 三层数据落库(写个人库)、**文档社区自动派生**、CLI `ingest` 建图。
 - **P2 基础检索与 RAG（里程碑）**：NativeRAG(情景层)/LocalSearch(语义层)/GlobalSearch(摘要层)、答案标注来源文本块、按 AccessContext 过滤可见语料、FastAPI+CLI 暴露 Q&A。**此为"基础功能完善"节点。**
 - **P3 Web UI（启动并持续迭代）**：登录注册、个人/组织库视图、问答面板、**用户/用户组管理 UI（添加/编辑/删除/查询、角色与组成员，受 `manage_users` 保护；service/CLI/API 管理端点同期补全）**、**文档社区手动管理 UI**、角色可见性。用 `frontend-design` skill 构建。
 - **P4 Git-like 协作推送**：个人库 -> 组织库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、推送审核指派到组。
