@@ -76,8 +76,8 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - 高层摘要层：pgvector（社区摘要向量）+ Postgres（摘要文本+社区层级元数据）。
 
 **ECL 管线**
-- Extract：实体/关系/**事件**/**概念**四类全量抽取，各自定制 prompt；Schema-Free 默认 + Schema-Constraint 配置项。
-- Cognify：图谱构建 + Leiden 社区检测 + 社区摘要。
+- Extract：实体/关系/声明/协变量四类全量抽取，各自定制 prompt；**团队抽取模板软引导**（模板外实体保留+打标，不限定死；新类型 review-gated 沉淀 P4）。
+- Cognify：实体消解（碎片实体合并，一等公民）+ 图谱构建 + Leiden 社区检测 + 社区摘要。
 - Load：三层数据落库，写入个人库。
 
 ## 文档社区管理
@@ -93,16 +93,28 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - 社区版本/分支/合并（git-branch 式管理社区）。
 - 社区回滚。
 
+## 精度与评估原则
+
+> [!info] 精度不靠切分完美，而在多层补救 + 数据度量（模型选型详见 [[docs/model-selection|模型选型建议]]）。来自架构审视的结论。
+
+- **评估 harness（贯穿项）**：golden 集 + 检索召回/精排命中率/答案忠实度等指标回归，自 P1/P2 起逐步建立；**精度由数据判定，不靠猜**。
+- **精度杠杆排序**：①评估 harness ②检索混合+交叉编码器重排 ③实体消解（P1 Task3）④结构感知切分+overlap（P1 Task2，过门槛）⑤切 size 调参。切分属中游杠杆，**精度主要在检索重排与实体消解挣回**。
+- **嵌入三输出**：BGE-M3 的 dense+sparse+multi-vec **全用**，不止 dense（sparse 近 BM25、multi-vec 近 ColBERT）。
+- **抽取模板（软引导）**：团队级、user 可编辑、配置文件可改；模板外实体保留+打标（`template_conforming`/`discovered_types`），不 reject；新类型 review-gated 沉淀（P4）。
+- **切分**：结构感知（标题/代码块/表原子 + 段句兜底 + overlap）过门槛；分层父子 + 上下文富化（contextual retrieval）+ 语义切分**推迟 P5**。
+- **L0/L1 分层摘要**：写时为 chunk/社区生成超短摘要供**用户侧展示**（列表预览、导航提示、档案卡叙述字段），**不进入向量检索/rerank/生成链路**（摘要不污染模型判断）。**P1 仅在 Chunk.summary 预留可选字段**（填 None，不写生成逻辑）；P2/P5 按需补生成，仅服务展示层。参考 OpenViking L0/L1/L2 三层，但其为树形目录递归，本项目为图+社区，取其分层理念非目录递归。
+- **精度边界**：跨 chunk 关系抽取、别名/指代歧义在 MVP 不完美，靠结构感知切分 + 实体消解 + `source_chunk_ids` 溯源缓解，**P8 证据验证硬化**。
+
 ## 阶段计划（P0-P9）
 
 优先级逻辑：先打通"数据进 -> 建图 -> 能问问题"主链路（P0-P2），UI 紧随启动（P3）；Git-like 协作推送作为多用户核心能力紧接（P4）；高级检索/分析/Agent 依次推进；差异化验证放后段；规模化收尾。
 
 - **P0 地基脚手架**：docker-compose(Postgres+pgvector/Neo4j)、配置密钥、三接口(LLMProvider/EmbeddingProvider/DocumentLoader)+默认实现、**用户/角色/权限/用户组表+JWT 认证+AccessContext+审计骨架**、CI+冒烟测试。
-- **P1 ECL 管线 MVP（系统心脏）**：**多格式文档解析（txt/md/csv/json/yaml/html 等基础内置，pdf/Office/开放文档/富文本/邮件/笔记本 等可拓展插件，详见 [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] Task 1）**、Extract 四类抽取(Schema-Free+Schema-Constraint)、Cognify(图谱+Leiden 社区检测+社区摘要)、Load 三层数据落库(写个人库)、**文档社区自动派生**、CLI `ingest` 建图。
-- **P2 基础检索与 RAG（里程碑）**：NativeRAG(情景层)/LocalSearch(语义层)/GlobalSearch(摘要层)、答案标注来源文本块、按 AccessContext 过滤可见语料、FastAPI+CLI 暴露 Q&A。**此为"基础功能完善"节点。**
+- **P1 ECL 管线 MVP（系统心脏）**：**多格式文档解析（txt/md/csv/json/yaml/html 等基础内置，pdf/Office/开放文档/富文本/邮件/笔记本 等可拓展插件，详见 [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] Task 1）**、Extract 四类抽取（团队抽取模板软引导，模板外保留+打标；review-gated 沉淀 P4）、Cognify(实体消解一等公民+图谱+Leiden 社区检测+社区摘要)、Load 三层数据落库(写个人库)、**文档社区自动派生**、CLI `ingest` 建图、**实体档案卡自动生成（ProfileCard：结构化字段从图+Covariate 确定性聚合，可进模型上下文增强可读性；narrative 叙述字段不进检索链路仅供人读；用户编辑归 P4）**。
+- **P2 基础检索与 RAG（里程碑）**：NativeRAG(情景层)/LocalSearch(语义层)/GlobalSearch(摘要层)、**混合检索**（稠密 BGE-M3 三输出 + 稀疏 BM25 + 图，RRF 融合）+ **交叉编码器重排**（`bge-reranker-v2-m3`；向量与 rerank 均打原文，不打摘要）、答案标注来源文本块、按 AccessContext 过滤可见语料、FastAPI+CLI 暴露 Q&A。**此为"基础功能完善"节点。**
 - **P3 Web UI（启动并持续迭代）**：登录注册、个人/组织库视图、问答面板、**用户/用户组管理 UI（添加/编辑/删除/查询、角色与组成员，受 `manage_users` 保护；service/CLI/API 管理端点同期补全）**、**文档社区手动管理 UI**、角色可见性。用 `frontend-design` skill 构建。
-- **P4 Git-like 协作推送**：个人库 -> 项目库 -> 团队库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、推送审核指派到组、**文档社区选项 B（独立文档嵌入聚类引擎 + 社区版本/分支/合并 + 社区回滚，v1 完成）**。
-- **P5 高级 RAG 与智能检索**：MultiQuery / RAGFusion / SubQuestion；Corrective(CRAG) / SelfCheck / Adaptive。
+- **P4 Git-like 协作推送**：个人库 -> 项目库 -> 团队库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、**抽取模板新类型 review-gated 沉淀**（团队模板随语料生长，经审核并入）、推送审核指派到组、**文档社区选项 B（独立文档嵌入聚类引擎 + 社区版本/分支/合并 + 社区回滚，v1 完成）**。
+- **P5 高级 RAG 与智能检索**：MultiQuery / RAGFusion / SubQuestion；Corrective(CRAG) / SelfCheck / Adaptive；**分层切分 + 上下文富化（contextual retrieval）/ 语义切分**（精度精化）；混合检索与重排成熟。
 - **P6 LLM 分析任务（9 类）**：摘要、关键信息、时间线、实体识别、关系映射、任务列表、概念解释、问答、自定义提示。输出结构化报告。
 - **P7 Agent 模式**：ReAct / ReWOO / PlanExecute（LangGraph）+ 工具定义，权限内行动。
 - **P8 证据验证与幻觉检测（差异化）**：答案-证据映射、接地度评分(NLI/LLM-as-judge)、跨文档交叉验证、低接地声明标记疑似幻觉。

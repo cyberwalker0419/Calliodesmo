@@ -1,6 +1,8 @@
-"""Calliodesmo CLI（Typer）：db init / db seed。"""
+"""Calliodesmo CLI（Typer）：db init / db seed / serve / ingest。"""
 
 import asyncio
+import json
+import uuid
 
 import typer
 from sqlalchemy import select
@@ -9,10 +11,14 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from calliodesmo import __version__
 from calliodesmo.config import get_settings
 from calliodesmo.db.base import Base
+from calliodesmo.ecl.engine import build_default_indexing_engine
 
 app = typer.Typer(help="Calliodesmo：三层知识图谱驱动的智能情报分析平台。")
 db_app = typer.Typer(help="数据库管理命令。")
 app.add_typer(db_app, name="db")
+
+#: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
+SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 def _version_callback(value: bool) -> None:
@@ -98,3 +104,136 @@ def serve(
     import uvicorn
 
     uvicorn.run("calliodesmo.api.app:app", host=host, port=port, reload=reload)
+
+
+def _system_access():
+    from calliodesmo.auth.context import AccessContext
+    from calliodesmo.auth.models import ClearanceLevel, Permission
+
+    return AccessContext(
+        user_id=SYSTEM_USER_ID,
+        username="system",
+        clearance=ClearanceLevel.INTERNAL,
+        permissions=frozenset({Permission.INGEST}),
+    )
+
+
+def _dump_outputs(engine, stats, dump_json, dump_html):
+    """导出抽取详情 JSON 与/或交互式关系图 HTML。"""
+    from dataclasses import asdict
+
+    from calliodesmo.ecl.graph_html import render_graph_html
+
+    merged = engine.last_merged
+    graph = engine.last_graph or {}
+    nodes = graph.get("nodes", {})
+    edges = graph.get("edges", [])
+    aliases = graph.get("aliases", {})
+
+    if dump_json:
+        payload = {
+            "stats": stats.as_dict(),
+            "entities": [asdict(e) for e in (merged.entities if merged else [])],
+            "relations": [asdict(r) for r in (merged.relations if merged else [])],
+            "claims": [asdict(c) for c in (merged.claims if merged else [])],
+            "covariates": [asdict(v) for v in (merged.covariates if merged else [])],
+            "graph": {
+                "nodes": [
+                    {
+                        "name": n.name,
+                        "type": n.type,
+                        "description": n.description,
+                        "source_chunk_ids": n.source_chunk_ids,
+                    }
+                    for n in nodes.values()
+                ],
+                "edges": [
+                    {
+                        "source": e.source,
+                        "target": e.target,
+                        "type": e.type,
+                        "description": e.description,
+                    }
+                    for e in edges
+                ],
+                "aliases": aliases,
+            },
+            "communities": [
+                {
+                    "community_id": c.community_id,
+                    "level": c.level,
+                    "title": c.title,
+                    "summary": c.summary,
+                    "member_entity_names": c.member_entity_names,
+                }
+                for c in engine.last_communities
+            ],
+        }
+        with open(dump_json, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        typer.echo(f"抽取详情已导出：{dump_json}")
+
+    if dump_html:
+        render_graph_html(nodes, edges, dump_html)
+        typer.echo(f"关系图已导出：{dump_html}（浏览器打开查看）")
+
+
+async def _run_ingest(source: str, settings, engine_factory) -> object:
+    engine = engine_factory(settings)
+    access = _system_access()
+    stats = await engine.ingest(source, access=access)
+
+    # 审计：ingest 动作落 AuditLog
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.audit.service import record_audit
+
+    db_engine = create_async_engine(settings.database_url)
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with factory() as session:
+        await record_audit(
+            session,
+            user_id=None,
+            action="ingest",
+            resource_type="document",
+            detail=stats.as_dict(),
+            source="cli",
+        )
+        await session.commit()
+    await db_engine.dispose()
+    return stats, engine
+
+
+@app.command()
+def ingest(
+    path: str = typer.Argument(..., help="文档路径（文件或目录），按后缀自动分发加载器。"),
+    dump_json: str = typer.Option(
+        None, "--dump-json", help="抽取详情（实体/关系/声明/社区）导出为 JSON 到该路径。"
+    ),
+    dump_html: str = typer.Option(
+        None,
+        "--dump-html",
+        help="关系图导出为交互式 HTML（vis.js）到该路径，浏览器打开可看实体关系网络。",
+    ),
+) -> None:
+    """端到端建图落个人库：Load -> Extract -> Cognify -> Load -> 文档社区派生。
+
+    输出统计并记审计。LLM 经 CALLIODESMO_LLM_MODEL/CALLIODESMO_LLM_API_KEY 配置；
+    缺 key 时给出指引。内存 stores 为 P1 默认（离线可测）。
+    """
+    settings = get_settings()
+    try:
+        stats, engine = asyncio.run(_run_ingest(path, settings, build_default_indexing_engine))
+    except FileNotFoundError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except (ValueError, RuntimeError) as exc:
+        # ValueError: loader 未注册（提示 extra）；RuntimeError: LLM 缺 key
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(
+        f"ingest 完成：文档 {stats.documents} / 块 {stats.chunks} / "
+        f"实体 {stats.entities} / 关系 {stats.relations} / 社区 {stats.communities} / "
+        f"档案卡 {stats.profile_cards}"
+    )
+    if dump_json or dump_html:
+        _dump_outputs(engine, stats, dump_json, dump_html)
