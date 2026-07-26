@@ -1,0 +1,46 @@
+# 版本控制与元数据
+.git
+.gitignore
+.github
+.agents
+.codex
+
+# Python 缓存与虚拟环境
+__pycache__/
+*.py[cod]
+.venv/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# 构建产物
+build/
+dist/
+*.egg-info/
+
+# 数据与运行时产物（容器内自建，避免污染镜像）
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# 本地配置（容器经 env_file 注入，不烤进镜像）
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 文档与计划（运行时不需要，减体积）
+docs/
+
+# 测试（运行时不需要）
+tests/

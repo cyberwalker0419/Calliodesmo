@@ -87,16 +87,26 @@ docs/
 
 前置：安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)（自动准备 Python 3.12）。基础设施（PostgreSQL+pgvector / Neo4j）三选一。
 
-### 路径 A：Docker（省心）
+### 路径 A：Docker（省心，一键全栈）
 
 ```bash
-uv sync                      # 安装依赖
-cp .env.example .env         # 配置密钥与连接串
-docker compose up -d         # 启动 PostgreSQL+pgvector 与 Neo4j
-uv run calliodesmo db init   # 建表
-uv run calliodesmo db seed   # 写入默认角色/权限与管理员
-uv run calliodesmo serve     # 启动 API：http://127.0.0.1:8000（/healthz、/docs）
+cp .env.example .env         # 配置密钥；设 CALLIODESMO_ADMIN_PASSWORD 启用初始管理员
+docker compose up -d --build # 起 PostgreSQL+pgvector + Neo4j + app（app 自动 db init/seed/serve）
 ```
+
+启动后访问 http://127.0.0.1:8000/healthz 与 /docs。容器内连接串已由 compose 覆盖为服务名，无需手改 `.env` 里的 DATABASE_URL/NEO4J_URI。
+
+```bash
+docker compose logs -f app                                       # 跟踪应用日志
+docker compose exec app calliodesmo ingest /app/data/docs        # 建图（文档放 ./data/docs）
+docker compose exec app calliodesmo db seed                      # 重新种子
+```
+
+> [!tip] 本地 LLM 与 Docker
+> 容器要访问宿主机的 Ollama / LM Studio / llama.cpp，`.env` 里把 `localhost` 改为 `host.docker.internal`（compose 已配 `host-gateway`）：
+> `CALLIODESMO_LLM_API_BASE=http://host.docker.internal:1234/v1`
+>
+> 想要更小的镜像？构建前设 `CALLIODESMO_INSTALL_EMBEDDING=0` 跳过 BGE-M3 重依赖（仅离线/Hash 嵌入场景）。
 
 ### 路径 B：原生（无 Docker）
 
