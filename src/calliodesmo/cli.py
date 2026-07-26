@@ -118,6 +118,66 @@ def _system_access():
     )
 
 
+def _dump_outputs(engine, stats, dump_json, dump_html):
+    """导出抽取详情 JSON 与/或交互式关系图 HTML。"""
+    from dataclasses import asdict
+
+    from calliodesmo.ecl.graph_html import render_graph_html
+
+    merged = engine.last_merged
+    graph = engine.last_graph or {}
+    nodes = graph.get("nodes", {})
+    edges = graph.get("edges", [])
+    aliases = graph.get("aliases", {})
+
+    if dump_json:
+        payload = {
+            "stats": stats.as_dict(),
+            "entities": [asdict(e) for e in (merged.entities if merged else [])],
+            "relations": [asdict(r) for r in (merged.relations if merged else [])],
+            "claims": [asdict(c) for c in (merged.claims if merged else [])],
+            "covariates": [asdict(v) for v in (merged.covariates if merged else [])],
+            "graph": {
+                "nodes": [
+                    {
+                        "name": n.name,
+                        "type": n.type,
+                        "description": n.description,
+                        "source_chunk_ids": n.source_chunk_ids,
+                    }
+                    for n in nodes.values()
+                ],
+                "edges": [
+                    {
+                        "source": e.source,
+                        "target": e.target,
+                        "type": e.type,
+                        "description": e.description,
+                    }
+                    for e in edges
+                ],
+                "aliases": aliases,
+            },
+            "communities": [
+                {
+                    "community_id": c.community_id,
+                    "level": c.level,
+                    "title": c.title,
+                    "summary": c.summary,
+                    "member_entity_names": c.member_entity_names,
+                }
+                for c in engine.last_communities
+            ],
+        }
+        with open(dump_json, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        typer.echo(f"抽取详情已导出：{dump_json}")
+
+    if dump_html:
+        render_graph_html(nodes, edges, dump_html)
+        typer.echo(f"关系图已导出：{dump_html}（浏览器打开查看）")
+
+
 async def _run_ingest(source: str, settings, engine_factory) -> object:
     engine = engine_factory(settings)
     access = _system_access()
@@ -149,6 +209,11 @@ def ingest(
     dump_json: str = typer.Option(
         None, "--dump-json", help="抽取详情（实体/关系/声明/社区）导出为 JSON 到该路径。"
     ),
+    dump_html: str = typer.Option(
+        None,
+        "--dump-html",
+        help="关系图导出为交互式 HTML（vis.js）到该路径，浏览器打开可看实体关系网络。",
+    ),
 ) -> None:
     """端到端建图落个人库：Load -> Extract -> Cognify -> Load -> 文档社区派生。
 
@@ -170,27 +235,5 @@ def ingest(
         f"实体 {stats.entities} / 关系 {stats.relations} / 社区 {stats.communities} / "
         f"档案卡 {stats.profile_cards}"
     )
-    if dump_json:
-        from dataclasses import asdict
-
-        merged = engine.last_merged
-        payload = {
-            "stats": stats.as_dict(),
-            "entities": [asdict(e) for e in (merged.entities if merged else [])],
-            "relations": [asdict(r) for r in (merged.relations if merged else [])],
-            "claims": [asdict(c) for c in (merged.claims if merged else [])],
-            "covariates": [asdict(v) for v in (merged.covariates if merged else [])],
-            "communities": [
-                {
-                    "community_id": c.community_id,
-                    "level": c.level,
-                    "title": c.title,
-                    "summary": c.summary,
-                    "member_entity_names": c.member_entity_names,
-                }
-                for c in engine.last_communities
-            ],
-        }
-        with open(dump_json, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        typer.echo(f"抽取详情已导出：{dump_json}")
+    if dump_json or dump_html:
+        _dump_outputs(engine, stats, dump_json, dump_html)
