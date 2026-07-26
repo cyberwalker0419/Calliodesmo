@@ -215,9 +215,9 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - [ ] **Step 2:** `CommunityNav`：level 0/1 tab -> 社区列表 -> 成员实体；点击实体进详情测试 -> 实现跑绿
 - [ ] **Step 3:** `GraphStore.subgraph` 接口 + `InMemoryGraphStore` 实现：BFS 从 seeds 按 hops 扩展、limit 截断、去重、返回 `SubgraphView`；全程 `visible_to` 过滤（越权邻居不入子图）；`truncated` 标记是否达上限测试 -> 实现跑绿
 - [ ] **Step 4:** `GET /library/subgraph?seeds=&hops=&limit=`：多种子逗号分隔、hops 默认 1、limit 默认 50（防拉爆）；`query` 守卫；返回 `SubgraphResponse`（nodes/edges/expanded_seeds/truncated）测试 -> 实现跑绿
-- [ ] **Step 5:** `EntityGraph` 基础渲染：从 `EntityDetail` 传入种子实体 -> 拉 `/library/subgraph`（hops=1, limit=50）-> 图引擎渲染节点+边（Canvas，类型着色沿用 `graph_html.py` 的 `_TYPE_COLORS`）；节点 hover 显示 type/description tooltip 测试 -> 实现跑绿
-- [ ] **Step 6:** **展开**：点节点 -> 以该节点为新种子、hops=1 增量拉子图 -> 合并入画布（去重）；被展开节点加“已展开”标记（避免重复点）测试 -> 实现跑绿
-- [ ] **Step 7:** **折叠**：点已展开节点 -> 移除其引入的邻居（保留该节点本身 + 其他路径仍可达的节点）；折叠不破坏其他子图连通性测试 -> 实现跑绿
+- [ ] **Step 5:** `EntityGraph` 基础渲染：从 `EntityDetail` 传入种子实体 -> 拉 `/library/subgraph`（hops=1, limit=50）-> 图引擎渲染节点+边（Canvas，类型着色沿用 `graph_html.py` 的 `_TYPE_COLORS`）；**单击节点**在右侧/底部详情面板展示该实体结构化信息（type/description/ProfileCard/证据 chunk）测试 -> 实现跑绿
+- [ ] **Step 6:** **展开（双击）**：双击节点 -> 以该节点为新种子、hops=1 增量拉子图 -> 合并入画布（去重）；被展开节点加“已展开”标记（避免重复展开）测试 -> 实现跑绿
+- [ ] **Step 7:** **折叠（双击）**：双击已展开节点 -> 移除其引入的邻居（保留该节点本身 + 其他路径仍可达的节点）；折叠不破坏其他子图连通性；双击未展开节点走展开、双击已展开节点走折叠（状态切换）测试 -> 实现跑绿
 - [ ] **Step 8:** **调范围**：跳数滑块（1-3，默认 1）+ 画布节点上限步进器（50/100/200/500，默认 50）；调整后按当前种子重新拉取；达上限时 UI 提示“已截断，提高上限或折叠部分节点查看更多”测试 -> 实现跑绿
 - [ ] **Step 9:** `EntityDetail`：结构化字段面板（左侧）+ `EntityGraph` 画布（右侧）；从 `CommunityNav`/`ProfileCard` 点击实体进入；种子可多选（从列表勾选多个实体作为初始 seeds）测试 -> 实现跑绿
 - [ ] **Step 10:** `ScopeSwitcher`：按 `AccessContext` 有权 scope 切换（personal/project/team）；无权 scope 不可选；切换后列表与子图均随 scope 过滤（子图拉取带 scope 上下文）测试 -> 实现跑绿
