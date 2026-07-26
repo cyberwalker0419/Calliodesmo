@@ -10,7 +10,7 @@ created: 2026-07-26
 
 > **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P0-scaffolding|P0]] / [[docs/plans/monthly/2026-08|2026-08 月计划]]。
 
-**Goal:** 打通 ECL 主链路（Extract -> Cognify -> Load），实现“数据进 -> 建图 -> 落个人库”。Extract 入口支持**多格式文档解析**：纯文本/标记/表格/结构化文本等基础格式内置，PDF、Office 全家桶、开放文档、富文本/电子书、邮件、Jupyter 笔记本、图片 OCR 等以可拓展插件方式按需接入。
+**Goal:** 打通 ECL 主链路（Extract -> Cognify -> Load），实现“数据进 -> 建图 -> 落个人库”。Extract 入口支持**多格式文档解析**：纯文本/标记/表格/结构化文本等基础格式内置，PDF、Office 全家桶、开放文档、富文本/电子书、邮件、Jupyter 笔记本 等以可拓展插件方式按需接入。
 
 **Architecture:** `DocumentLoader` 抽象接口（P0 已立）保持不变；每种/每类文档格式一个具体 Loader（插件），按后缀分发。基础格式默认内置；重依赖格式列为可选 extra（`[project.optional-dependencies]`），懒加载，缺依赖时友好报错（沿用 FlagEmbedding 模式）。`LoaderRegistry` 按 `source.suffix` 选择实现；新增格式只需新增 Loader + 注册，不动核心。Cognify 走 GraphRAG 库式集成 + Leiden；Load 写个人库三层数据。
 
@@ -22,7 +22,6 @@ created: 2026-07-26
 - 可选 extra `documents-rich`：`striprtf`（RTF）/ `ebooklib`（EPUB）
 - 可选 extra `documents-email`：标准库 `email`（.eml）+ `extract-msg`（.msg）
 - 可选 extra `documents-notebooks`：`nbformat`（.ipynb）
-- 可选 extra `documents-ocr`：`pytesseract`+`Pillow`（图片 OCR / 扫描型 PDF）
 - 可选后端：`pandoc` / `LibreOffice(headless)`（旧二进制 office 与格式转换兜底）
 - 测试：`pytest` + 临时样例文件 + `monkeypatch`/`sys.modules` 桩隔离重依赖
 
@@ -42,7 +41,6 @@ created: 2026-07-26
 - Create: `src/calliodesmo/providers/rich_loader.py`（extra: documents-rich，rtf/epub/mobi）
 - Create: `src/calliodesmo/providers/email_loader.py`（extra: documents-email，eml/msg）
 - Create: `src/calliodesmo/providers/notebook_loader.py`（extra: documents-notebooks，ipynb）
-- Create: `src/calliodesmo/providers/ocr_loader.py`（extra: documents-ocr，图片/扫描 PDF）
 - Create: `src/calliodesmo/providers/registry.py`（按后缀分发 + 注册表）
 - Modify: `pyproject.toml`（新增 optional-dependencies 分组）
 - Test: `tests/test_document_loaders.py`
@@ -68,7 +66,6 @@ created: 2026-07-26
 | 富文本/电子书 | `.rtf` `.epub` `.mobi` | extra `documents-rich` | `striprtf`/`ebooklib` |
 | 邮件 | `.eml` `.msg` | extra `documents-email` | 标准库 `email`/`extract-msg` |
 | 笔记本 | `.ipynb` | extra `documents-notebooks` | `nbformat` |
-| 图片/OCR | `.png` `.jpg` `.jpeg` `.tiff` `.bmp` `.webp`（及扫描型 PDF） | extra `documents-ocr` | `pytesseract`+`Pillow`（备选 LLM 多模态） |
 
 **基础格式（P1 必做，内置）：**
 - [ ] **Step 1:** txt/md/log 复用 `TextDocumentLoader`（回归测试）
@@ -86,11 +83,10 @@ created: 2026-07-26
 - [ ] **Step 11:** 富文本/电子书 `.rtf`/`.epub`（`documents-rich`）
 - [ ] **Step 12:** 邮件 `.eml`/`.msg`（`documents-email`，正文 + 附件清单入 metadata）
 - [ ] **Step 13:** 笔记本 `.ipynb`（`documents-notebooks`，cell 拼接）
-- [ ] **Step 14:** 图片/扫描 PDF OCR（`documents-ocr`）
-- [ ] **Step 15:** 缺依赖友好报错统一测试（monkeypatch `sys.modules` 卸载各依赖，断言提示安装对应 extra）
+- [ ] **Step 14:** 缺依赖友好报错统一测试（monkeypatch `sys.modules` 卸载各依赖，断言提示安装对应 extra）
 
 **集成：**
-- [ ] **Step 16:** `ingest` 入口（CLI/API）走 `LoaderRegistry` 按后缀加载，端到端冒烟（覆盖内置 + 至少一个 extra）
+- [ ] **Step 15:** `ingest` 入口（CLI/API）走 `LoaderRegistry` 按后缀加载，端到端冒烟（覆盖内置 + 至少一个 extra）
 
 **验收：**
 - 内置格式（txt/md/log/csv/tsv/json/yaml/xml/html/rst/org/tex）装基础依赖即可用
@@ -112,8 +108,8 @@ created: 2026-07-26
 ---
 
 **依赖与风险：**
-- 重依赖格式按 extra 分组（documents-pdf/office/opendocument/rich/email/notebooks/ocr），CI 默认只装基础 + 用桩测接口；真机验证用 `uv sync --extra documents-pdf --extra documents-office ...` 按需组合。
+- 重依赖格式按 extra 分组（documents-pdf/office/opendocument/rich/email/notebooks），CI 默认只装基础 + 用桩测接口；真机验证用 `uv sync --extra documents-pdf --extra documents-office ...` 按需组合。
+- PDF 仅支持文本型（可抽取文本的 PDF）；扫描型/图片型 PDF 需 OCR，不在 P1 支持范围。
 - 旧二进制 Office（`.doc`/`.ppt`/`.xls`）、Keynote `.key`、Visio 等专有格式需 LibreOffice(headless)/antiword，P1 不直接支持，列入后续精化。
-- OCR 路径（图片/扫描 PDF）依赖 `tesseract` 系统二进制；CI 用桩，真机需额外安装，标注为可选能力。
 - `pandoc` 作为多格式转换兜底后端（可选），不作为 P1 必选。
 - GraphRAG 依赖在 P1 引入，注意与 LiteLLM 版本钉制（`>=1.85,<1.91`）协调。
