@@ -1,4 +1,4 @@
----
+﻿---
 title: P3 Web UI 实施计划
 type: phase-plan
 phase: P3
@@ -195,22 +195,37 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 **目标：** 个人/组织库浏览：ProfileCard 列表与详情（结构化字段 + narrative 人读区）、社区导航（level 0 实体社区 / level 1 文档社区 -> 成员实体）、实体详情（邻居子图）。库视图按 `AccessContext` scope 切换（personal/project/team）。
 
 > [!note] ProfileCard 的 `narrative`（叙述）为 P1“仅供人读、不进检索链路”字段，UI 在详情区单独呈现并标注“概览叙述（不参与检索）”，与结构化字段（别名/职务/组织/关联人/时间跨度/证据）区分展示。
+>
+> [!note] **交互式子图可视化**：`EntityGraph` 非静态全图渲染，而是“从种子实体出发的局部子图，可动态调范围”——点节点展开其邻居（加入画布）、折叠则移除其邻居（保留节点本身）、滑块/步进器调展开跳数与画布节点上限。避免一次性渲染全库（可达数千节点）卡死；按需探索，想看的展开、不想看的折叠。前端图引擎用 `react-force-graph`（Canvas 渲染，百-千节点流畅）或 vis-network（沿用 `graph_html.py` 的 vis.js 生态）；后端 `GET /library/subgraph` 支持按种子+跳数+上限增量拉取。
 
 **Files:**
 - Create: `frontend/src/features/library/ProfileCardList.tsx` / `ProfileCardDetail.tsx`
 - Create: `frontend/src/features/library/CommunityNav.tsx`（level tab + 成员实体列表）
-- Create: `frontend/src/features/library/EntityDetail.tsx`（实体 + neighbors 子图可视化）
+- Create: `frontend/src/features/library/EntityDetail.tsx`（实体详情面板：结构化字段 + ProfileCard，承载 `EntityGraph`）
+- Create: `frontend/src/features/library/EntityGraph.tsx`（交互式子图可视化：展开/折叠/调范围）
+- Create: `frontend/src/features/library/useSubgraph.ts`（TanStack Query 封装 `/library/subgraph`，按种子+跳数+上限增量拉取）
 - Create: `frontend/src/features/library/ScopeSwitcher.tsx`（库视图切换，按 scope）
-- Test: `frontend/src/features/library/*.test.tsx`
+- Modify: `src/calliodesmo/api/library.py`（新增 `GET /library/subgraph?seeds=&hops=&limit=`：按 `visible_to` 过滤的增量子图扩展，复用 `GraphStore.neighbors`）
+- Modify: `src/calliodesmo/interfaces/graph_store.py`（`GraphStore` 增 `subgraph(seeds, *, hops, limit, access)` 方法，广度优先 + 节点上限截断 + 去重）
+- Modify: `src/calliodesmo/providers/in_memory_graph_store.py`（实现 `subgraph`：BFS 从 seeds 出发，按 hops 扩展，累计节点达 limit 截断，返回 `SubgraphView{nodes, edges}`）
+- Modify: `src/calliodesmo/api/schemas.py`（`SubgraphResponse`：nodes/edges/expanded_seeds/truncated 标记）
+- Test: `frontend/src/features/library/*.test.tsx`、`tests/test_subgraph_api.py`
 
 - [ ] **Step 1:** `ProfileCardList`（`/library/profile-cards`）+ `ProfileCardDetail`：结构化字段表格 + narrative 概览区（标注不进检索）；evidence_chunk_ids 可溯源点击测试 -> 实现跑绿
 - [ ] **Step 2:** `CommunityNav`：level 0/1 tab -> 社区列表 -> 成员实体；点击实体进详情测试 -> 实现跑绿
-- [ ] **Step 3:** `EntityDetail`：实体 + neighbors 子图（轻量图视图）；越权邻居后端已过滤不出现测试 -> 实现跑绿
-- [ ] **Step 4:** `ScopeSwitcher`：按 `AccessContext` 有权 scope 切换（personal/project/team）；无权 scope 不可选；切换后列表随 scope 过滤测试 -> 实现跑绿
+- [ ] **Step 3:** `GraphStore.subgraph` 接口 + `InMemoryGraphStore` 实现：BFS 从 seeds 按 hops 扩展、limit 截断、去重、返回 `SubgraphView`；全程 `visible_to` 过滤（越权邻居不入子图）；`truncated` 标记是否达上限测试 -> 实现跑绿
+- [ ] **Step 4:** `GET /library/subgraph?seeds=&hops=&limit=`：多种子逗号分隔、hops 默认 1、limit 默认 50（防拉爆）；`query` 守卫；返回 `SubgraphResponse`（nodes/edges/expanded_seeds/truncated）测试 -> 实现跑绿
+- [ ] **Step 5:** `EntityGraph` 基础渲染：从 `EntityDetail` 传入种子实体 -> 拉 `/library/subgraph`（hops=1, limit=50）-> 图引擎渲染节点+边（Canvas，类型着色沿用 `graph_html.py` 的 `_TYPE_COLORS`）；节点 hover 显示 type/description tooltip 测试 -> 实现跑绿
+- [ ] **Step 6:** **展开**：点节点 -> 以该节点为新种子、hops=1 增量拉子图 -> 合并入画布（去重）；被展开节点加“已展开”标记（避免重复点）测试 -> 实现跑绿
+- [ ] **Step 7:** **折叠**：点已展开节点 -> 移除其引入的邻居（保留该节点本身 + 其他路径仍可达的节点）；折叠不破坏其他子图连通性测试 -> 实现跑绿
+- [ ] **Step 8:** **调范围**：跳数滑块（1-3，默认 1）+ 画布节点上限步进器（50/100/200/500，默认 50）；调整后按当前种子重新拉取；达上限时 UI 提示“已截断，提高上限或折叠部分节点查看更多”测试 -> 实现跑绿
+- [ ] **Step 9:** `EntityDetail`：结构化字段面板（左侧）+ `EntityGraph` 画布（右侧）；从 `CommunityNav`/`ProfileCard` 点击实体进入；种子可多选（从列表勾选多个实体作为初始 seeds）测试 -> 实现跑绿
+- [ ] **Step 10:** `ScopeSwitcher`：按 `AccessContext` 有权 scope 切换（personal/project/team）；无权 scope 不可选；切换后列表与子图均随 scope 过滤（子图拉取带 scope 上下文）测试 -> 实现跑绿
 
 **验收：**
 - ProfileCard 浏览含结构化字段 + narrative 人读区（区分标注）
-- 社区/实体导航可用；邻居子图按权限过滤
+- 社区/实体导航可用；子图按权限过滤
+- **交互式子图**：从种子出发、点节点展开邻居、折叠收起、滑块调跳数与节点上限；大库不卡（按需拉取 + limit 截断）
 - 库视图按 scope 切换，无权 scope 不可选
 
 ---
