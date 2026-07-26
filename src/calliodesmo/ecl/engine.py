@@ -141,10 +141,21 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
     from calliodesmo.providers.in_memory_community_store import InMemoryCommunityStore
     from calliodesmo.providers.in_memory_graph_store import InMemoryGraphStore
     from calliodesmo.providers.in_memory_vector_store import InMemoryVectorStore
-    from calliodesmo.providers.litellm_provider import LiteLLMProvider
     from calliodesmo.providers.registry import default_registry
 
     model = settings.llm_model
+
+    # test/* 模型走离线桩（不实例化 litellm，零网络），其余走 LiteLLM 统一后端。
+    if model.startswith("test/"):
+        from calliodesmo.providers.stub_llm import StubLLMProvider
+
+        llm = StubLLMProvider(model=model)
+    else:
+        from calliodesmo.providers.litellm_provider import LiteLLMProvider
+
+        llm = LiteLLMProvider(
+            model=model, api_key=settings.llm_api_key, api_base=settings.llm_api_base
+        )
     # 本地推理服务（Ollama / LM Studio / llama.cpp 等）经 api_base 指向 localhost，
     # 通常无需 API key；仅当指向远端云服务且未显式豁免时才强制要求 key。
     local_hosts = ("localhost", "127.0.0.1", "0.0.0.0", "::1")
@@ -163,7 +174,6 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
             "（本地服务可设 CALLIODESMO_LLM_API_BASE 指向 http://localhost:... 自动豁免）"
         )
 
-    llm = LiteLLMProvider(model=model, api_key=settings.llm_api_key, api_base=settings.llm_api_base)
     registry = ExtractionTemplateRegistry.from_yaml(settings.extraction_template_file)
     extractor = LLMExtractor(llm, registry)
     cognify = CognifyPipeline(summarizer=None)  # CLI 默认不跑 LLM 社区摘要（省调用）
