@@ -10,7 +10,7 @@ created: 2026-07-26
 
 ## 摘要
 
-GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混搭；LLM 与嵌入走可切换抽象接口。多用户采用**混合模型**（共享组织库 + 个人沙箱），协作借鉴 **Git-like 推送流程**（个人库经审核合并到组织库）。文档社区管理 v1 走自动派生 + 手动策展（选项 A），重活列为后续精化（选项 B）。API+CLI 优先，Web UI 在 P2 基础问答跑通后启动并随后续阶段迭代。按学生独立开发、适中节奏（10-15h/周）排期。
+GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混搭；LLM 与嵌入走可切换抽象接口。多用户采用**混合模型**（共享组织库 + 个人沙箱），协作借鉴 **Git-like 推送流程**（个人库经审核合并到组织库）。文档社区管理 v1 同时完成选项 A（自动派生 + 手动策展）与选项 B（独立聚类/版本/合并/回滚，并入 P4）。API+CLI 优先，Web UI 在 P2 基础问答跑通后启动并随后续阶段迭代。按学生独立开发、适中节奏（10-15h/周）排期。
 
 ## 已锁定决策
 
@@ -27,7 +27,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - 多用户模型：混合（团队库 + 项目库 + 个人库，三层）
 - 协作模型：Git-like 推送（个人库 -> 项目库 -> 团队库，审核/合并/图谱合并）
 - 认证：v1 本地账号（账号密码 + JWT），预留 OIDC/SSO 接口位
-- 文档社区管理：v1 选项 A（自动派生 + 手动策展）；选项 B 列为后续精化
+- 文档社区管理：v1 同时完成选项 A + 选项 B（A：自动派生并入 P1、手动策展 UI 并入 P3；B：并入 P4）
 - 节奏：学生 10-15h/周，暑期集中、学期适中、考试期降负
 
 ## 用户、权限与用户组（三维正交模型）
@@ -88,7 +88,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - 自动并入 P1，手动管理 UI 并入 P3。
 - 表：`document_communities(id, name, desc, scope, library_id, owner_id, access_level, derived_from_entity_community_id, ...)` + `document_community_members(community_id, document_id, added_by, added_at, note)`。
 
-**选项 B（后续精化 v2）**
+**选项 B（v1，并入 P4）**
 - 独立文档嵌入聚类引擎（不依赖实体图）。
 - 社区版本/分支/合并（git-branch 式管理社区）。
 - 社区回滚。
@@ -101,7 +101,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - **P1 ECL 管线 MVP（系统心脏）**：**多格式文档解析（txt/md/csv/json/yaml/html 等基础内置，pdf/Office/开放文档/富文本/邮件/笔记本 等可拓展插件，详见 [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] Task 1）**、Extract 四类抽取(Schema-Free+Schema-Constraint)、Cognify(图谱+Leiden 社区检测+社区摘要)、Load 三层数据落库(写个人库)、**文档社区自动派生**、CLI `ingest` 建图。
 - **P2 基础检索与 RAG（里程碑）**：NativeRAG(情景层)/LocalSearch(语义层)/GlobalSearch(摘要层)、答案标注来源文本块、按 AccessContext 过滤可见语料、FastAPI+CLI 暴露 Q&A。**此为"基础功能完善"节点。**
 - **P3 Web UI（启动并持续迭代）**：登录注册、个人/组织库视图、问答面板、**用户/用户组管理 UI（添加/编辑/删除/查询、角色与组成员，受 `manage_users` 保护；service/CLI/API 管理端点同期补全）**、**文档社区手动管理 UI**、角色可见性。用 `frontend-design` skill 构建。
-- **P4 Git-like 协作推送**：个人库 -> 组织库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、推送审核指派到组。
+- **P4 Git-like 协作推送**：个人库 -> 项目库 -> 团队库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、推送审核指派到组、**文档社区选项 B（独立文档嵌入聚类引擎 + 社区版本/分支/合并 + 社区回滚，v1 完成）**。
 - **P5 高级 RAG 与智能检索**：MultiQuery / RAGFusion / SubQuestion；Corrective(CRAG) / SelfCheck / Adaptive。
 - **P6 LLM 分析任务（9 类）**：摘要、关键信息、时间线、实体识别、关系映射、任务列表、概念解释、问答、自定义提示。输出结构化报告。
 - **P7 Agent 模式**：ReAct / ReWOO / PlanExecute（LangGraph）+ 工具定义，权限内行动。
@@ -141,7 +141,6 @@ Python(`__pycache__/`、`*.pyc`、`.venv/`、`*.egg-info/`、`dist/`、`build/`)
 
 ## 后续精化（v2）
 
-- 文档社区选 B：独立文档嵌入聚类引擎、社区版本/分支/合并、社区回滚。
 - 图谱合并：同名不同义实体冲突解决、版本/回滚、按调查任务开分支。
 - 认证：接入 OIDC/SSO。
 - 规模化：大规模分布式索引与检索。
