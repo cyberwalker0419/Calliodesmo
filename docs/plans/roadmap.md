@@ -134,7 +134,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 
 ## .gitignore 范围
 
-Python(`__pycache__/`、`*.pyc`、`.venv/`、`*.egg-info/`、`dist/`、`build/`) · 密钥(`.env`、`.env.local`) · IDE(`.vscode/`、`.idea/`) · 系统(`.DS_Store`、`Thumbs.db`) · 数据日志(`data/`、`logs/`、本地 DB 卷) · Obsidian 本地缓存(`.obsidian/workspace.json`、`.obsidian/workspace-mobile.json`、`.obsidian/cache`，保留其余共享配置)。
+Python(`__pycache__/`、`*.pyc`、`.venv/`、`*.egg-info/`、`dist/`、`build/`) · 密钥(`.env`、`.env.local`) · IDE(`.vscode/`、`.idea/`) · 系统(`.DS_Store`、`Thumbs.db`) · 数据日志(`data/`、`logs/`、本地 DB 卷) · Obsidian vault 本地配置(`.obsidian/` 整目录，不上传)。
 
 ## 后续精化（v2）
 

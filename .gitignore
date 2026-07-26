@@ -24,7 +24,5 @@ Thumbs.db
 data/
 logs/
 
-# --- Obsidian local cache (其余共享配置保留) ---
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache/
+# --- Obsidian vault (本地配置，整目录不上传) ---
+.obsidian/
