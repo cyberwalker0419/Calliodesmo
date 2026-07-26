@@ -1,4 +1,4 @@
-"""用户 / 角色 / 用户组应用服务与 AccessContext 构建。"""
+"""用户 / 角色 / 团队 / 项目应用服务与 AccessContext 构建。"""
 
 import uuid
 
@@ -11,11 +11,13 @@ from calliodesmo.auth.models import (
     DEFAULT_ROLE_PERMISSIONS,
     ClearanceLevel,
     LibraryScope,
+    Project,
+    ProjectMember,
     Role,
     RolePermission,
+    Team,
+    TeamMember,
     User,
-    UserGroup,
-    UserGroupMember,
     UserRole,
 )
 from calliodesmo.auth.security import hash_password, verify_password
@@ -77,23 +79,46 @@ async def assign_role(
     return link
 
 
-async def create_group(
+async def create_team(session: AsyncSession, *, name: str, description: str = "") -> Team:
+    team = Team(name=name, description=description)
+    session.add(team)
+    await session.flush()
+    return team
+
+
+async def create_project(
+    session: AsyncSession, *, name: str, team: Team, description: str = ""
+) -> Project:
+    project = Project(name=name, description=description, team_id=team.id)
+    session.add(project)
+    await session.flush()
+    return project
+
+
+async def add_team_member(
+    session: AsyncSession, *, user: User, team: Team, role_in_team: str = "member"
+) -> TeamMember:
+    member = TeamMember(user_id=user.id, team_id=team.id, role_in_team=role_in_team)
+    session.add(member)
+    await session.flush()
+    return member
+
+
+async def add_project_member(
     session: AsyncSession,
     *,
-    name: str,
-    description: str = "",
-    scope: LibraryScope = LibraryScope.ORG,
-) -> UserGroup:
-    group = UserGroup(name=name, description=description, scope=scope)
-    session.add(group)
-    await session.flush()
-    return group
-
-
-async def add_group_member(
-    session: AsyncSession, *, user: User, group: UserGroup, role_in_group: str = "member"
-) -> UserGroupMember:
-    member = UserGroupMember(user_id=user.id, group_id=group.id, role_in_group=role_in_group)
+    user: User,
+    project: Project,
+    role_name: str,
+    role_in_project: str = "member",
+) -> ProjectMember:
+    role = (await session.execute(select(Role).where(Role.name == role_name))).scalar_one()
+    member = ProjectMember(
+        user_id=user.id,
+        project_id=project.id,
+        role_id=role.id,
+        role_in_project=role_in_project,
+    )
     session.add(member)
     await session.flush()
     return member
@@ -105,20 +130,28 @@ async def get_access_context(session: AsyncSession, user_id: uuid.UUID) -> Acces
         .where(User.id == user_id)
         .options(
             selectinload(User.roles).selectinload(UserRole.role).selectinload(Role.permissions),
-            selectinload(User.group_memberships),
+            selectinload(User.team_memberships),
+            selectinload(User.project_memberships)
+            .selectinload(ProjectMember.role)
+            .selectinload(Role.permissions),
         )
     )
     user = result.scalar_one_or_none()
     if user is None or not user.is_active:
         return None
     permissions = {rp.permission for ur in user.roles for rp in ur.role.permissions}
+    permissions.update(
+        rp.permission for pm in user.project_memberships for rp in pm.role.permissions
+    )
     scopes = {ur.scope for ur in user.roles}
-    group_ids = {m.group_id for m in user.group_memberships}
+    team_ids = {m.team_id for m in user.team_memberships}
+    project_ids = {m.project_id for m in user.project_memberships}
     return AccessContext(
         user_id=user.id,
         username=user.username,
         clearance=user.clearance,
         permissions=frozenset(permissions),
         library_scopes=frozenset(scopes),
-        group_ids=frozenset(group_ids),
+        team_ids=frozenset(team_ids),
+        project_ids=frozenset(project_ids),
     )

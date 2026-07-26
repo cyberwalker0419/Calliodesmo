@@ -16,4 +16,5 @@ class MeResponse(BaseModel):
     clearance: str
     permissions: list[str]
     library_scopes: list[str]
-    group_ids: list[uuid.UUID]
+    team_ids: list[uuid.UUID]
+    project_ids: list[uuid.UUID]

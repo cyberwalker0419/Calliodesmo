@@ -16,7 +16,7 @@ async def test_auth_flow(client, session):
     user = await create_user(
         session, username="erin", password="pw123", clearance=ClearanceLevel.CONFIDENTIAL
     )
-    await assign_role(session, user=user, role_name="analyst", scope=LibraryScope.ORG)
+    await assign_role(session, user=user, role_name="analyst", scope=LibraryScope.TEAM)
     await session.commit()
 
     resp = await client.post("/auth/token", data={"username": "erin", "password": "pw123"})
@@ -30,7 +30,7 @@ async def test_auth_flow(client, session):
     assert body["username"] == "erin"
     assert body["clearance"] == "CONFIDENTIAL"
     assert "ingest" in body["permissions"]
-    assert "org" in body["library_scopes"]
+    assert "team" in body["library_scopes"]
 
     logs = (
         (await session.execute(select(AuditLog).where(AuditLog.action == "login"))).scalars().all()

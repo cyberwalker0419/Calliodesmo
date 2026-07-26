@@ -35,8 +35,10 @@ def test_db_init_and_seed(tmp_path, monkeypatch):
         "roles",
         "role_permissions",
         "user_roles",
-        "user_groups",
-        "user_group_members",
+        "teams",
+        "projects",
+        "team_members",
+        "project_members",
         "audit_logs",
     } <= tables
     roles = {r[0] for r in conn.execute("SELECT name FROM roles")}

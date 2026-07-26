@@ -54,7 +54,8 @@ def create_app() -> FastAPI:
             clearance=context.clearance.name,
             permissions=sorted(p.value for p in context.permissions),
             library_scopes=sorted(s.value for s in context.library_scopes),
-            group_ids=sorted(context.group_ids, key=str),
+            team_ids=sorted(context.team_ids, key=str),
+            project_ids=sorted(context.project_ids, key=str),
         )
 
     return app

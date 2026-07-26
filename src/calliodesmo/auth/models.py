@@ -1,4 +1,4 @@
-"""三维正交权限模型：角色 RBAC + 访问等级 clearance + 库范围 scope，外加用户组。"""
+"""三维正交权限模型：角色 RBAC + 访问等级 clearance + 库范围 scope，外加团队与项目。"""
 
 import enum
 import uuid
@@ -24,8 +24,11 @@ class ClearanceLevel(enum.IntEnum):
 
 
 class LibraryScope(enum.StrEnum):
+    """库范围（三层）：个人库 / 项目库 / 团队库。一个团队有多个项目，一个项目由多人维护。"""
+
     PERSONAL = "personal"
-    ORG = "org"
+    PROJECT = "project"
+    TEAM = "team"
 
 
 class Permission(enum.StrEnum):
@@ -63,7 +66,10 @@ class User(Base):
     roles: Mapped[list["UserRole"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    group_memberships: Mapped[list["UserGroupMember"]] = relationship(
+    team_memberships: Mapped[list["TeamMember"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    project_memberships: Mapped[list["ProjectMember"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -95,6 +101,8 @@ class RolePermission(Base):
 
 
 class UserRole(Base):
+    """用户在某库范围的角色（scope 为 project/team 时表示项目/团队级角色）。"""
+
     __tablename__ = "user_roles"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -112,34 +120,72 @@ class UserRole(Base):
     role: Mapped[Role] = relationship()
 
 
-class UserGroup(Base):
-    __tablename__ = "user_groups"
+class Team(Base):
+    """团队：一个团队有多个项目。"""
+
+    __tablename__ = "teams"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(128), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
-    scope: Mapped[LibraryScope] = mapped_column(
-        Enum(LibraryScope, native_enum=False, validate_strings=True, values_callable=_enum_values),
-        default=LibraryScope.ORG,
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    members: Mapped[list["TeamMember"]] = relationship(
+        back_populates="team", cascade="all, delete-orphan"
+    )
+    projects: Mapped[list["Project"]] = relationship(
+        back_populates="team", cascade="all, delete-orphan"
     )
 
-    members: Mapped[list["UserGroupMember"]] = relationship(
-        back_populates="group", cascade="all, delete-orphan"
+
+class Project(Base):
+    """项目：属于一个团队，由多人维护。"""
+
+    __tablename__ = "projects"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(128), unique=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    team_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    team: Mapped[Team] = relationship(back_populates="projects")
+    members: Mapped[list["ProjectMember"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )
 
 
-class UserGroupMember(Base):
-    __tablename__ = "user_group_members"
+class TeamMember(Base):
+    """团队成员：用户加入团队，组内角色（member/manager/reviewer）。"""
+
+    __tablename__ = "team_members"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    group_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("user_groups.id", ondelete="CASCADE"), primary_key=True
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("teams.id", ondelete="CASCADE"), primary_key=True
     )
-    role_in_group: Mapped[str] = mapped_column(
-        String(32), default="member"
-    )  # member/manager/reviewer
+    role_in_team: Mapped[str] = mapped_column(String(32), default="member")
 
-    user: Mapped[User] = relationship(back_populates="group_memberships")
-    group: Mapped[UserGroup] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(back_populates="team_memberships")
+    team: Mapped[Team] = relationship(back_populates="members")
+
+
+class ProjectMember(Base):
+    """项目成员：用户在某项目的 RBAC 角色与项目内角色。"""
+
+    __tablename__ = "project_members"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"))
+    role_in_project: Mapped[str] = mapped_column(String(32), default="member")
+
+    user: Mapped[User] = relationship(back_populates="project_memberships")
+    project: Mapped[Project] = relationship(back_populates="members")
+    role: Mapped[Role] = relationship()

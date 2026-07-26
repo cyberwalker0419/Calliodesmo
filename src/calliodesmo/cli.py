@@ -70,7 +70,7 @@ async def _seed(
                     password=admin_password,
                     clearance=ClearanceLevel.SECRET,
                 )
-                await assign_role(session, user=admin, role_name="admin", scope=LibraryScope.ORG)
+                await assign_role(session, user=admin, role_name="admin", scope=LibraryScope.TEAM)
                 admin_created = True
         await session.commit()
     await engine.dispose()

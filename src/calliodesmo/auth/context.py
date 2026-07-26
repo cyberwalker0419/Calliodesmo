@@ -13,7 +13,8 @@ class AccessContext:
     clearance: ClearanceLevel
     permissions: frozenset[Permission] = field(default_factory=frozenset)
     library_scopes: frozenset[LibraryScope] = field(default_factory=frozenset)
-    group_ids: frozenset[uuid.UUID] = field(default_factory=frozenset)
+    team_ids: frozenset[uuid.UUID] = field(default_factory=frozenset)
+    project_ids: frozenset[uuid.UUID] = field(default_factory=frozenset)
 
     def can_access(self, access_level: ClearanceLevel) -> bool:
         """clearance >= access_level 才可见。"""
