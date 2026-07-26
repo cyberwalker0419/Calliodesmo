@@ -4,7 +4,7 @@ from pathlib import Path
 
 from calliodesmo.interfaces.document_loader import DocumentLoader, LoadedDocument
 
-SUPPORTED_SUFFIXES = {".md", ".txt"}
+SUPPORTED_SUFFIXES = {".txt", ".log", ".md", ".markdown"}
 
 
 class TextDocumentLoader(DocumentLoader):

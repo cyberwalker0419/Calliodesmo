@@ -1,6 +1,7 @@
-"""Calliodesmo CLI（Typer）：db init / db seed。"""
+"""Calliodesmo CLI（Typer）：db init / db seed / serve / ingest。"""
 
 import asyncio
+import uuid
 
 import typer
 from sqlalchemy import select
@@ -9,10 +10,14 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from calliodesmo import __version__
 from calliodesmo.config import get_settings
 from calliodesmo.db.base import Base
+from calliodesmo.ecl.engine import build_default_indexing_engine
 
 app = typer.Typer(help="Calliodesmo：三层知识图谱驱动的智能情报分析平台。")
 db_app = typer.Typer(help="数据库管理命令。")
 app.add_typer(db_app, name="db")
+
+#: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
+SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 def _version_callback(value: bool) -> None:
@@ -98,3 +103,65 @@ def serve(
     import uvicorn
 
     uvicorn.run("calliodesmo.api.app:app", host=host, port=port, reload=reload)
+
+
+def _system_access():
+    from calliodesmo.auth.context import AccessContext
+    from calliodesmo.auth.models import ClearanceLevel, Permission
+
+    return AccessContext(
+        user_id=SYSTEM_USER_ID,
+        username="system",
+        clearance=ClearanceLevel.INTERNAL,
+        permissions=frozenset({Permission.INGEST}),
+    )
+
+
+async def _run_ingest(source: str, settings, engine_factory) -> object:
+    engine = engine_factory(settings)
+    access = _system_access()
+    stats = await engine.ingest(source, access=access)
+
+    # 审计：ingest 动作落 AuditLog
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.audit.service import record_audit
+
+    db_engine = create_async_engine(settings.database_url)
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with factory() as session:
+        await record_audit(
+            session,
+            user_id=None,
+            action="ingest",
+            resource_type="document",
+            detail=stats.as_dict(),
+            source="cli",
+        )
+        await session.commit()
+    await db_engine.dispose()
+    return stats
+
+
+@app.command()
+def ingest(
+    path: str = typer.Argument(..., help="文档路径（文件或目录），按后缀自动分发加载器。"),
+) -> None:
+    """端到端建图落个人库：Load -> Extract -> Cognify -> Load -> 文档社区派生。
+
+    输出统计并记审计。LLM 经 CALLIODESMO_LLM_MODEL/CALLIODESMO_LLM_API_KEY 配置；
+    缺 key 时给出指引。内存 stores 为 P1 默认（离线可测）。
+    """
+    settings = get_settings()
+    try:
+        stats = asyncio.run(_run_ingest(path, settings, build_default_indexing_engine))
+    except FileNotFoundError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except (ValueError, RuntimeError) as exc:
+        # ValueError: loader 未注册（提示 extra）；RuntimeError: LLM 缺 key
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(
+        f"ingest 完成：文档 {stats.documents} / 块 {stats.chunks} / "
+        f"实体 {stats.entities} / 关系 {stats.relations} / 社区 {stats.communities}"
+    )

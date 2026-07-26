@@ -2,8 +2,8 @@
 
 > 三层知识图谱驱动的智能情报分析平台 — GraphRAG 索引基座 + LlamaIndex/LangGraph 检索与 Agent 编排，LLM 与嵌入可切换。
 
-[![phase: P0 done](https://img.shields.io/badge/phase-P0%20done-22c55e)](docs/plans/roadmap.md)
-[![tests: 33 passing](https://img.shields.io/badge/tests-33%20passing-3b82f6)](docs/verification/P0-verification.md)
+[![phase: P1 done](https://img.shields.io/badge/phase-P1%20done-22c55e)](docs/plans/roadmap.md)
+[![tests: 112 passing](https://img.shields.io/badge/tests-112%20passing-3b82f6)](docs/verification/P1-verification.md)
 [![python: 3.12](https://img.shields.io/badge/python-3.12-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 
@@ -19,7 +19,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **多后端 LLM** — 经 LiteLLM 统一接入 OpenAI / Qwen / DeepSeek / Ollama 本地，一行配置切换。
 
 > [!note] 当前阶段
-> **P0 地基脚手架已完成**（认证、权限、审计、三接口、API/CLI、部署）。建图与问答（P1-P2）按 [路线图](docs/plans/roadmap.md) 推进中。
+> **P1 ECL 管线 MVP 已完成**（多格式解析/抽取/建图/实体消解/社区/落库/ingest CLI）。检索与问答（P2）按 [路线图](docs/plans/roadmap.md) 推进中。
 
 ## 架构概览
 
@@ -178,8 +178,8 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | **P0** | 地基脚手架（权限/JWT/审计/三接口/API/CLI/部署） | ✅ 完成 |
-| P1 | ECL 管线 MVP（抽取/建图/社区/落库） | ⏳ 下一步 |
-| P2 | 基础检索与 RAG（里程碑） | ⏳ |
+| **P1** | ECL 管线 MVP（抽取/建图/社区/落库） | ✅ 完成 |
+| P2 | 基础检索与 RAG（里程碑） | ⏳ 下一步 |
 | P3 | Web UI | ⏳ |
 | P4 | Git-like 协作推送 | ⏳ |
 | P5-P9 | 高级检索 / 分析 / Agent / 证据验证 / 规模化 | ⏳ |

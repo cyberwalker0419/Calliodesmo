@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str | None = None
 
+    # P1 ECL 管线
+    extraction_template_file: str = "config/extraction_templates.yaml"
+    chunk_size: int = 1200
+    chunk_overlap: int = 100
+
 
 @lru_cache
 def get_settings() -> Settings:
