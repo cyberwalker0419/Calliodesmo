@@ -8,13 +8,13 @@ created: 2026-07-26
 # 原生部署指南（无 Docker）
 
 > [!info] 适用场景
-> 本机/服务器不装 Docker 时的完整部署路径。应用层（API + CLI）本来就不进容器，经 uv 本地运行；需要原生安装的是两个基础设施：**PostgreSQL 16 + pgvector**（情景层）与 **Neo4j Community**（语义层）。Docker 路径见根目录 `docker-compose.yml`。关联：[[docs/plans/roadmap|年计划]]。
+> 本机/服务器不装 Docker 时的完整部署路径：应用层（API + CLI）经 uv 本地运行，再原生安装两个基础设施：**PostgreSQL 16 + pgvector**（情景层）与 **Neo4j Community**（语义层）。若想连应用层一起容器化（含基础设施一键起），见根目录 docker-compose.yml + Dockerfile。关联：[[docs/plans/roadmap|年计划]]。
 
 ## 组件与原生替代总览
 
 | 组件 | Docker 路径 | 原生替代 |
 | --- | --- | --- |
-| 应用（FastAPI + Typer CLI） | 无（始终本地运行） | uv + Python 3.12（三平台通用） |
+| 应用（FastAPI + Typer CLI） | Dockerfile + pp 服务 | uv + Python 3.12（三平台通用） |
 | PostgreSQL 16 + pgvector | `pgvector/pgvector:pg16` | 系统包管理器 / 安装器 + pgvector 扩展 |
 | Neo4j Community | `neo4j:5` | 官方 zip/tar 解压 + Java 17+ |
 

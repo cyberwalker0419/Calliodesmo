@@ -1,5 +1,14 @@
-# P0 infrastructure: PostgreSQL 16 + pgvector (episodic layer) & Neo4j (semantic layer).
-# App itself runs locally via `uv run` / `calliodesmo` CLI.
+# Calliodesmo 一键编排：基础设施（Postgres+pgvector / Neo4j）+ 应用（FastAPI）。
+#
+# 用法：
+#   cp .env.example .env          # 按需改密钥；设 CALLIODESMO_ADMIN_PASSWORD 启用初始管理员
+#   docker compose up -d          # 起 pg + neo4j + app（app 自动 db init/seed/serve）
+#   docker compose logs -f app    # 跟踪应用日志
+#   docker compose exec app calliodesmo ingest /app/data/docs   # 建图
+#
+# 应用经 env_file 读 .env；下面 environment 用容器服务名（postgres/neo4j）覆盖连接串。
+# 容器内访问宿主机的本地 LLM（Ollama/LM Studio/llama.cpp）用 host.docker.internal。
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -34,6 +43,37 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 设 0 可跳过 BGE-M3 重依赖，减小镜像（P1 离线/Hash 嵌入场景）
+        INSTALL_EMBEDDING: ${CALLIODESMO_INSTALL_EMBEDDING:-1}
+    image: calliodesmo:latest
+    container_name: calliodesmo-app
+    env_file:
+      - .env
+    environment:
+      # 覆盖连接串：容器内用服务名而非 localhost
+      CALLIODESMO_DATABASE_URL: postgresql+asyncpg://calliodesmo:calliodesmo@postgres:5432/calliodesmo
+      CALLIODESMO_NEO4J_URI: bolt://neo4j:7687
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data                # 文档进料 + SQLite 开发库
+      - hfcache:/app/data/hf-cache      # BGE-M3 模型缓存（避免重复下载）
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    # 容器访问宿主机本地 LLM（Ollama/LM Studio/llama.cpp）：host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
 volumes:
   pgdata:
   neo4jdata:
+  hfcache:

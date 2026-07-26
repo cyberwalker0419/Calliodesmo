@@ -1,0 +1,21 @@
+# 团队级抽取模板（软引导，非白名单）
+# 路径经 CALLIODESMO_EXTRACTION_TEMPLATE_FILE 覆盖；复制为 extraction_templates.yaml 启用。
+# 模板外实体仍会抽取并打 template_conforming=False，不 reject；新类型沉淀为 review-gated（P4）。
+templates:
+  - team: "team-alpha"
+    preferred_entity_types:
+      - person
+      - organization
+      - location
+      - technology
+    type_descriptions:
+      person: "an individual (named person)"
+      organization: "a named organization, company, or group"
+      location: "a geographic place or facility"
+      technology: "a technology, product, or system"
+    relation_types:
+      - works_for
+      - located_in
+      - developed
+      - partnered_with
+    instructions: "优先抽取人物、组织、地点与技术及其相互关系；同时保留模板外实体。"
