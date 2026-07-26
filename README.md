@@ -25,43 +25,43 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 
 ```mermaid
 graph TB
-    subgraph Src["文档源"]
-        D[Markdown / 文本 / ...]
+    subgraph Src["Sources"]
+        D[Markdown / Text / ...]
     end
-    subgraph ECL["ECL 索引管线（P1）"]
-        E["Extract 抽取<br/>实体 / 关系 / 声明"]
-        C["Cognify 建图<br/>Leiden 社区检测 + 摘要"]
-        L["Load 落库"]
+    subgraph ECL["ECL Pipeline (P1)"]
+        E["Extract<br/>entities / relations / claims"]
+        C["Cognify<br/>Leiden community detection + summary"]
+        L["Load"]
     end
-    subgraph Store["三层存储"]
-        S1["情景层<br/>Postgres + pgvector<br/>文本块 + 向量"]
-        S2["语义层<br/>Neo4j<br/>实体关系图"]
-        S3["摘要层<br/>Postgres<br/>社区摘要"]
+    subgraph Store["Three-Layer Store"]
+        S1["Episodic<br/>Postgres + pgvector<br/>chunks + vectors"]
+        S2["Semantic<br/>Neo4j<br/>entity-relation graph"]
+        S3["Summary<br/>Postgres<br/>community summaries"]
     end
-    subgraph Access["访问层"]
-        RAG["NativeRAG / LocalSearch / GlobalSearch（P2）"]
+    subgraph Access["Access Layer"]
+        RAG["NativeRAG / LocalSearch / GlobalSearch (P2)"]
         API[FastAPI]
         CLI[CLI]
     end
     D --> E --> C --> L
     L --> S1 & S2 & S3
     S1 & S2 & S3 --> RAG --> API
-    CLI -.调用.-> API
+    CLI -. calls .-> API
 ```
 
 ### 三维正交权限模型
 
 ```mermaid
 graph LR
-    U([用户])
-    U -->|能做什么| RBAC[角色 RBAC<br/>analyst/reviewer/admin]
-    RBAC --> Perm[细粒度权限<br/>ingest/query/push/approve...]
-    U -->|能看什么| CL[clearance 访问等级<br/>public→secret]
-    U -->|谁的数据| Scope[库范围<br/>personal/org]
-    U --> G[user_groups 用户组]
-    AC["AccessContext<br/>贯穿请求全生命周期"]
+    U(["User"])
+    U -->|"can do"| RBAC["RBAC role<br/>analyst/reviewer/admin"]
+    RBAC --> Perm["permissions<br/>ingest/query/push/approve..."]
+    U -->|"can see"| CL["clearance level<br/>public to secret"]
+    U -->|"whose data"| Scope["library scope<br/>personal/org"]
+    U --> G["user_groups"]
+    AC["AccessContext<br/>per-request context"]
     U --> AC
-    AC -->|clearance ≥ access_level<br/>过滤| Data[(可见语料)]
+    AC -->|"clearance >= access_level<br/>filter"| Data[("visible corpus")]
 ```
 
 ## 项目结构
