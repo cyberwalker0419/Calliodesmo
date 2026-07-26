@@ -1868,3 +1868,6 @@ git commit -m "chore(p0): ruff 格式化与全量验收"
 
 > [!success] 执行记录（2026-07-26）
 > P0 全部 12 个 Task 当日由 agent inline 执行完毕：ruff 0 error，`pytest` **31 passed**。提交：骨架 `f1d3f0c` -> 计划文档 `936a9c1` -> 全量实现 `6ae3588`（分支 `codex/p0-scaffolding`）。Task 12 Step 3 的 `docker compose up -d` 实测起库因本机未装 Docker 留待学生环境执行（compose/CI YAML 已通过解析校验）。
+
+> [!note] 补充（2026-07-26）：无 Docker 部署路径
+> 应用户要求补全非 Docker 部署：`calliodesmo serve`（uvicorn 启动 API）、`scripts/bootstrap.ps1` / `scripts/bootstrap.sh`（幂等一键引导，支持 SQLite 降级模式）、[[docs/deploy/native|原生部署指南]]（三平台 Postgres+pgvector / Neo4j 原生安装、systemd/Windows 服务、生产要点、验证清单）。
