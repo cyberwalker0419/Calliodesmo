@@ -24,10 +24,14 @@ class Settings(BaseSettings):
     llm_model: str = "openai/gpt-4o-mini"
     llm_api_key: str | None = None
     llm_api_base: str | None = None
+    llm_disable_thinking: bool = (
+        True  # 对 reasoning 模型禁用思考链（chat_template_kwargs.enable_thinking=False）
+    )
 
-    embedding_provider: str = "bge-m3"
+    embedding_provider: str = "bge-m3"  # hash | bge-m3 | remote
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
+    embedding_api_base: str | None = None  # remote 时指向嵌入服务（如 http://host:8082/v1）
 
     admin_username: str = "admin"
     admin_password: str | None = None

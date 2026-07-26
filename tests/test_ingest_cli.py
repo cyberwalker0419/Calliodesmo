@@ -109,14 +109,15 @@ def test_ingest_path_not_exists(tmp_path, monkeypatch):
 def test_ingest_unregistered_suffix(tmp_path, monkeypatch):
     _setup_db(tmp_path, monkeypatch)
     monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
-    f = tmp_path / "doc.pdf"
-    f.write_bytes(b"%PDF-1.4 dummy")
+    # 用真正未注册的后缀（.pdf 在装了 documents-pdf extra 后会注册，不再适合测未注册）
+    f = tmp_path / "doc.xyzunknown"
+    f.write_text("dummy", encoding="utf-8")
     try:
         result = runner.invoke(app, ["ingest", str(f)])
     finally:
         get_settings.cache_clear()
     assert result.exit_code == 1
-    assert "documents-pdf" in result.output
+    assert "未注册的文件类型" in result.output
 
 
 def test_ingest_llm_missing_key(tmp_path, monkeypatch):

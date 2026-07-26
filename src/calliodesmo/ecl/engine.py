@@ -153,8 +153,18 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
     else:
         from calliodesmo.providers.litellm_provider import LiteLLMProvider
 
+        # reasoning 模型（Qwen3/DeepSeek-R1 等）默认禁用思考链，让 content 直接承载回答，
+        # 避免 token 被思考链耗尽导致 content 为空。设 CALLIODESMO_LLM_DISABLE_THINKING=false 关闭。
+        extra_body = (
+            {"chat_template_kwargs": {"enable_thinking": False}}
+            if getattr(settings, "llm_disable_thinking", True)
+            else None
+        )
         llm = LiteLLMProvider(
-            model=model, api_key=settings.llm_api_key, api_base=settings.llm_api_base
+            model=model,
+            api_key=settings.llm_api_key,
+            api_base=settings.llm_api_base,
+            extra_body=extra_body,
         )
     # 本地推理服务（Ollama / LM Studio / llama.cpp 等）经 api_base 指向 localhost，
     # 通常无需 API key；仅当指向远端云服务且未显式豁免时才强制要求 key。
@@ -176,13 +186,33 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
 
     registry = ExtractionTemplateRegistry.from_yaml(settings.extraction_template_file)
     extractor = LLMExtractor(llm, registry)
+    # 嵌入 provider 路由：hash（离线/测试）| bge-m3（本地 FlagEmbedding）| remote（OpenAI 兼容远端）
+    emb_provider_name = (settings.embedding_provider or "hash").lower()
+    if emb_provider_name == "remote":
+        from calliodesmo.providers.remote_embedding import RemoteEmbeddingProvider
+
+        if not settings.embedding_api_base:
+            raise RuntimeError(
+                "remote 嵌入需设 CALLIODESMO_EMBEDDING_API_BASE（如 http://host:8082/v1）"
+            )
+        embedding_provider = RemoteEmbeddingProvider(
+            api_base=settings.embedding_api_base,
+            model=settings.embedding_model,
+            dimension=settings.embedding_dimension,
+        )
+    elif emb_provider_name == "bge-m3":
+        from calliodesmo.providers.bge_m3 import BgeM3EmbeddingProvider
+
+        embedding_provider = BgeM3EmbeddingProvider(
+            model_name=settings.embedding_model, dimension=settings.embedding_dimension
+        )
+    else:
+        embedding_provider = HashEmbeddingProvider(dimension=settings.embedding_dimension or 64)
     cognify = CognifyPipeline(summarizer=None)  # CLI 默认不跑 LLM 社区摘要（省调用）
     vector_store = InMemoryVectorStore()
     graph_store = InMemoryGraphStore()
     community_store = InMemoryCommunityStore()
-    load_service = LoadService(
-        vector_store, graph_store, community_store, HashEmbeddingProvider(dimension=64)
-    )
+    load_service = LoadService(vector_store, graph_store, community_store, embedding_provider)
     deriver = DocumentCommunityDeriver(llm, community_store)
     profile_card_store = InMemoryProfileCardStore()
     profile_deriver = DeterministicProfileCardDeriver(llm=None)  # 确定性聚合，narrative 默认不生成
