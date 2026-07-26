@@ -189,7 +189,7 @@ class Extractor(ABC):
 
 > [!note] `entity_types` 不再是调用方自由传入的参数，而由 `EntitySchemaRegistry` 按 ingest 所属团队从配置文件解析（每团队唯一）。`access` 提供 team 上下文：恰好一个团队且已配置 schema -> 硬约束；无 team 或未配置 -> Schema-Free；P4 团队库 ingest 时 target team 唯一。
 
-- [ ] **Step 1:** `TextChunker` 失败测试（按 size=200/overlap=20 切；空文档返空；单段超长按 size 切；切分确定性与文本可还原拼接）-> 实现跑绿
+- [ ] **Step 1:** `TextChunker` 结构感知切分失败测试（默认 `chunk_size=1200`/`overlap=100` 字符；先按 Markdown 标题/代码块/表为原子单元，段/句兜底，贪心装填 + overlap 接缝；空文档返空；确定性；无丢失覆盖；`len<=chunk_size` 除非不可分单元；相邻 chunk 共享 overlap）-> 实现跑绿
 - [ ] **Step 2:** `Chunk` 携带 access 字段（`access_level`/`library_scope`/`owner_id`/`project_id`/`team_id` 从 `LoadedDocument.metadata` 继承，缺省 INTERNAL/personal）测试 -> 实现跑绿
 - [ ] **Step 3:** `EntitySchemaRegistry` 失败测试：从 YAML 加载 `team -> EntitySchema`；**每团队唯一**（同 team 重复键配置 -> 加载报错）；缺文件/空文件 -> registry 为空（全 schema-free）；`CALLIODESMO_ENTITY_SCHEMA_FILE` 可覆盖路径 -> 实现跑绿
 - [ ] **Step 4:** `LLMExtractor` Schema-Free：当前 ingest 无团队 schema -> prompt 不含类型约束 -> 桩 litellm 返回合法 JSON -> 解析为 `ExtractionResult(schema_mode="schema-free", rejected_entities=[])` 测试 -> 实现跑绿
@@ -197,23 +197,27 @@ class Extractor(ABC):
 - [ ] **Step 6:** 健壮性：LLM 返回非法 JSON / 空抽取 -> 抛 `ExtractionError`（含原始响应片段），不静默吞异常测试 -> 实现跑绿
 - [ ] **Step 7:** 来源打标：跨 chunk 抽取的 `Entity.source_chunk_ids` 含所有出现该实体的 chunk ordinal 测试 -> 实现跑绿
 - [ ] **Step 8:** 四类齐全端到端（entities/relations/claims/covariates 均非空，桩 LLM 一次返回）测试 -> 实现跑绿
+- [ ] **Step 9:** 抽取 prompt 模板可配置（schema-free / schema-constraint 两套外部模板，经配置/参数注入，不硬编码）+ 模型经 `LLMProvider` 可切换（`CALLIODESMO_LLM_MODEL`）；prompt 工程与模型选型作为精度杠杆，单测覆盖 prompt 构造与模型参数透传 -> 实现跑绿
 
 **验收：**
-- `TextChunker` 确定性、可还原；`Chunk` 携带完整 access 字段
+- `TextChunker` 结构感知（标题/代码块/表为原子 + 段句兜底 + overlap）、确定性、无丢失覆盖；`Chunk` 携带完整 access 字段
 - `EntitySchemaRegistry` 按 team 唯一、配置文件可改；同 team 重复键加载报错
 - Schema-Constraint 为**硬约束**：schema 外类型实体进 `rejected_entities` 而非混入结果；schema-free / schema-constraint 由配置驱动，`schema_mode` 为输出属性
 - LLM 全程经 `LLMProvider`，离线测试用 `sys.modules` 桩，零真实请求
 - 非法 LLM 输出有清晰错误，不静默吞异常
+- 抽取 prompt 模板可配置、模型经 `LLMProvider` 可切换；prompt 工程与模型选型作为精度杠杆
 
 ---
 
-### Task 3: 建图与社区检测（Cognify）
+### Task 3: 建图、实体消解与社区检测（Cognify）
 
-**目标：** 把 `ExtractionResult` 建成实体-关系图，做社区检测，对每个社区生成 LLM 摘要，输出 `list[Community]`。
+**目标：** 把 `ExtractionResult` 建成实体-关系图，**做实体消解**（把切分/抽取造成的碎片实体拼回去--名归一化、别名合并、多 chunk 描述汇总），再做社区检测，对每个社区生成 LLM 摘要，输出 `list[Community]`。
+
+> [!note] 实体消解是 P1 精度的主回收层：切分把同一实体切碎到不同 chunk，靠这一步合并回单节点（GraphRAG 内置 entity summarization 同思路）。社区检测在合并后的图上进行，避免重复节点错分社区。
 
 **Files:**
-- Create: `src/calliodesmo/interfaces/cognify.py`（`GraphBuilder`/`CommunityDetector`/`CommunitySummarizer` ABC + `Community` dataclass）
-- Create: `src/calliodesmo/ecl/cognify.py`（`EntityRelationGraphBuilder` / `ConnectedComponentsDetector` / `NetworkxCommunityDetector`（extra）/ `LLMCommunitySummarizer`）
+- Create: `src/calliodesmo/interfaces/cognify.py`（`GraphBuilder`/`EntityResolver`/`CommunityDetector`/`CommunitySummarizer` ABC + `Community` dataclass）
+- Create: `src/calliodesmo/ecl/cognify.py`（`EntityRelationGraphBuilder` / `NameEntityResolver` / `LLMAliasResolver`（可选）/ `ConnectedComponentsDetector` / `NetworkxCommunityDetector`（extra）/ `LLMCommunitySummarizer`）
 - Test: `tests/test_cognify.py`
 
 **共享类型（`interfaces/cognify.py`）：**
@@ -234,13 +238,16 @@ class Community:
     team_id: uuid.UUID | None
 ```
 
-- [ ] **Step 1:** `EntityRelationGraphBuilder` 失败测试（entities->节点、relations->边、同名实体去重、自环/重复边过滤）-> 实现跑绿
-- [ ] **Step 2:** `CommunityDetector` 接口 + 默认 `ConnectedComponentsDetector`（零重依赖、确定性、按 name 排序保证可复现）测试 -> 实现跑绿
-- [ ] **Step 3:** 可选 `NetworkxCommunityDetector`（extra）：`monkeypatch` 模拟 networkx 缺失 -> 友好报错 `RuntimeError("社区检测需 networkx：uv sync --extra graph-analytics")` 测试 -> 实现跑绿
-- [ ] **Step 4:** `LLMCommunitySummarizer`：对社区成员实体名+描述喂 LLM 生成 `title`+`summary`（桩 litellm）测试 -> 实现跑绿
-- [ ] **Step 5:** Cognify 串联（build -> detect -> summarize -> `list[Community]`，access 字段从 chunk 继承）端到端测试 -> 实现跑绿
+- [ ] **Step 1:** `EntityRelationGraphBuilder` 失败测试（entities->节点、relations->边、自环/重复边过滤；最终去重留待 Step 2 消解）-> 实现跑绿
+- [ ] **Step 2:** `EntityResolver` 一等公民：`NameEntityResolver`（名归一化：大小写/空白/标点 + 显式别名表合并 + 跨 chunk 描述汇总为单节点）测试 -> 实现跑绿
+- [ ] **Step 3:** 可选 `LLMAliasResolver`：LLM 判别名/指代合并（如 "OpenAI"=="OpenAI Inc."，桩 litellm）；未启用时回退纯名归一化测试 -> 实现跑绿
+- [ ] **Step 4:** `CommunityDetector` 接口 + 默认 `ConnectedComponentsDetector`（零重依赖、确定性、按 name 排序可复现；在**消解后**的图上检测）测试 -> 实现跑绿
+- [ ] **Step 5:** 可选 `NetworkxCommunityDetector`（extra）：`monkeypatch` 模拟 networkx 缺失 -> 友好报错 `RuntimeError("社区检测需 networkx：uv sync --extra graph-analytics")` 测试 -> 实现跑绿
+- [ ] **Step 6:** `LLMCommunitySummarizer`：对社区成员实体名+描述喂 LLM 生成 `title`+`summary`（桩 litellm）测试 -> 实现跑绿
+- [ ] **Step 7:** Cognify 串联（build -> **resolve** -> detect -> summarize -> `list[Community]`，access 字段从 chunk 继承）端到端测试 -> 实现跑绿
 
 **验收：**
+- 实体消解为一等公民：名归一化 + 别名合并 + 多 chunk 描述汇总；碎片实体合并为单节点（断言合并前后节点数）
 - 默认社区检测零重依赖、确定性可复现；networkx 路径缺依赖友好报错
 - 社区摘要经 `LLMProvider`，离线测试用桩
 - `Community` 携带 access 字段，供 Task 4 落库与 P2 检索过滤
@@ -379,6 +386,25 @@ class IndexingEngine(ABC):
 
 ---
 
+## 精度策略与跨阶段改进（前瞻）
+
+> [!note] 记录 P1 设计评审中提出的精度担忧与改进方向；P1 落地其中"过门槛"部分，更重的留待对应阶段，全部经可插拔接口接入，不动核心。
+
+**精度投资优先级（ROI 排序，非按阶段）：**
+1. **评估 harness（贯穿项，最大缺口）**--没有尺子不知精度够不够。P1/P2 起建小型 golden Q&A 集 + 指标脚本（忠实度 / 上下文召回 / 答案相关性，RAGAS 式），每次改动跑回归。
+2. **检索精度（P2/P5，第一精度杠杆）**--`VectorStore` 旁加 `SparseIndex`(BM25) + `Reranker` 接口；查询走 稠密∪稀疏∪图 -> RRF 融合 -> 交叉编码器重排。
+3. **实体消解（P1 Task 3，第二杠杆）**--名归一化 + 别名合并 + 多 chunk 描述汇总（本计划已落地为一等公民）。
+4. **抽取质量（P1 Task 2）**--prompt 工程 + 模型可切换（本计划已纳入）。
+5. **切分（中游杠杆）**--结构感知 + overlap 过门槛（本计划已落地）；语义/分层切分推迟 P5。
+
+**GIGO 担忧的缓解（本阶段已做）：** 结构感知切分 + 实体消解把碎片实体拼回去 + 全程 `source_chunk_ids` 可溯源。
+
+**留待后续阶段（不阻塞 P1 验收）：**
+- 混合检索 + 重排：P2/P5。
+- 分层切分 + 上下文富化（Anthropic contextual retrieval）：P5 精化。
+- 跨 chunk 关系补抽 / 别名歧义精解：P8 证据验证硬化。
+- ANN 向量索引（HNSW/IVF）支撑 ≥50 万：P9（`VectorStore` 接口已为此预留）。
+
 **依赖与风险（P1 全量）：**
 - **文档解析重依赖**按 extra 分组（documents-pdf/office/opendocument/rich/email/notebooks）；CI 默认只装基础 + `sys.modules` 桩测接口；真机验证用 `uv sync --extra documents-pdf --extra documents-office ...` 组合。
 - **PDF 仅支持文本型**（可抽取文本）；扫描/图片型需 OCR，不在 P1 范围。
@@ -388,3 +414,6 @@ class IndexingEngine(ABC):
 - **抽取/摘要 LLM** 真实运行需 API key；离线测试全用 `sys.modules` 桩隔离 litellm（沿用 P0 `test_llm_provider` 模式），零真实请求。
 - **团队实体类型硬约束**：`EntitySchemaRegistry` 从 YAML 配置（`CALLIODESMO_ENTITY_SCHEMA_FILE`，默认 `config/entity_schemas.yaml`）按 team 唯一加载；Schema-Constraint 为硬约束（schema 外实体入 `rejected_entities`）；PyYAML 已由 Task 1 引入。
 - **版本钉制**：litellm `>=1.85,<1.91`（>=1.93 无 Windows wheel）；引入 networkx/GraphRAG 时与之协调，避免传递依赖冲突。
+- **精度边界（如实声明）**：跨 chunk 关系抽取、别名/指代歧义在 P1 MVP 不完美；靠结构感知切分 + 实体消解 + `source_chunk_ids` 溯源缓解，P8 证据验证硬化。
+- **评估 harness（贯穿项）**：P1/P2 起建 golden 集 + 指标回归；P1 验证报告以功能测试 + 离线桩为主，质量评测自 P2 接入。
+- **语义/分层切分推迟 P5**：结构感知 + overlap 过门槛；上下文富化（contextual retrieval）与分层父子关系列入 P5 精化。
