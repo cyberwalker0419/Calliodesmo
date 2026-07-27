@@ -8,8 +8,14 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from calliodesmo.api.deps import get_current_context, require_permission
+from calliodesmo.api.deps import (
+    get_community_store,
+    get_current_context,
+    require_permission,
+)
 from calliodesmo.api.schemas import (
+    CommunityOut,
+    CommunityPatchRequest,
     ProjectCreate,
     ProjectMemberAdd,
     ProjectMemberOut,
@@ -393,3 +399,82 @@ async def remove_project_member_endpoint(
         source="api",
     )
     await session.commit()
+
+
+# ---- 文档社区手动管理（Task 7）----
+
+_COMMUNITY_GUARD = Permission.MANAGE_COMMUNITY
+
+
+@router.get("/document-communities", response_model=list[CommunityOut])
+async def list_document_communities(
+    ctx: AccessContext = Depends(get_current_context),
+    store=Depends(get_community_store),
+) -> list[CommunityOut]:
+    """列出 level=1 文档社区（manage_community 守卫）。"""
+    require_permission(ctx, _COMMUNITY_GUARD)
+    records = [r for r in await store.list_communities(access=ctx) if r.level == 1]
+    return [_community_out(r) for r in records]
+
+
+@router.patch("/document-communities/{community_id}", response_model=CommunityOut)
+async def patch_document_community(
+    community_id: str,
+    req: CommunityPatchRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    store=Depends(get_community_store),
+    session: AsyncSession = Depends(get_session),
+) -> CommunityOut:
+    """手动管理：rename / retag / set_access_level（manage_community 守卫，记审计）。
+
+    merge/split 随 P4 版本能力交付，本端点只做可安全重做的操作。
+    """
+    require_permission(ctx, _COMMUNITY_GUARD)
+
+    records = {r.community_id: r for r in await store.list_communities(access=ctx)}
+    rec = records.get(community_id)
+    if rec is None or rec.level != 1:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文档社区不存在或不可见")
+    op: str | None = None
+    if req.title is not None and req.title != rec.title:
+        ok = await store.rename(community_id, req.title, access=ctx)
+        if ok:
+            op = "rename"
+    if req.access_level is not None:
+        try:
+            level = ClearanceLevel[req.access_level.upper()]
+        except KeyError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="未知 access_level"
+            ) from None
+        ok = await store.set_access_level(community_id, level, access=ctx)
+        if ok:
+            op = op or "set_access"
+    if op is None:
+        op = "noop"
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="manage_community",
+        detail={"op": op, "target": community_id},
+        source="api",
+    )
+    await session.commit()
+    all_comms = await store.list_communities(access=ctx)
+    refreshed = next((r for r in all_comms if r.community_id == community_id), None)
+    if refreshed is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文档社区重查失败")
+    return _community_out(refreshed)
+
+
+def _community_out(c) -> CommunityOut:
+    return CommunityOut(
+        community_id=c.community_id,
+        level=c.level,
+        title=c.title,
+        summary=c.summary,
+        member_entity_names=list(c.member_entity_names),
+        metadata=dict(c.metadata),
+        access_level=c.access_level.name,
+        library_scope=c.library_scope.value,
+    )

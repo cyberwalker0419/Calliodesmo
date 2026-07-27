@@ -227,5 +227,10 @@ class CommunityAddDoc(BaseModel):
     note: str = ""
 
 
+class CommunityPatchRequest(BaseModel):
+    title: str | None = None
+    access_level: str | None = None
+
+
 class CommunityRemoveDoc(BaseModel):
     doc_id: str

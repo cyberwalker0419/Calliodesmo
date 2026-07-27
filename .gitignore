@@ -28,3 +28,9 @@ logs/
 .obsidian/
 # --- Codex (本地设置，不上传) ---
 .codex/
+
+# --- P3 Frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
