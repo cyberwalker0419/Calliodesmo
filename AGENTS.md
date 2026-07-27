@@ -12,7 +12,9 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 
 - **P0** 地基脚手架 ✅ 完成
 - **P1** ECL 管线 MVP（抽取/建图/社区/落库/ingest CLI）✅ 完成
-- **P2** 基础检索与 RAG ⏳ 下一步--NativeRAG / LocalSearch / GlobalSearch + 混合检索（RRF）+ 交叉编码器重排 + 答案合成 + 评估 harness
+- **P2** 基础检索与 RAG ✅ 完成
+- **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
+- **P4** Git-like 协作推送 ⏳ 下一步
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 

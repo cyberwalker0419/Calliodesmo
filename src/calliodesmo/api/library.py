@@ -154,12 +154,10 @@ async def get_subgraph(
     return SubgraphResponse(
         nodes=[
             SubgraphNode(
-                SubgraphNode(
-                    name=n.name,
-                    type=n.type,
-                    description=n.description,
-                    access_level=n.access_level.name,
-                )
+                name=n.name,
+                type=n.type,
+                description=n.description,
+                access_level=n.access_level.name,
             )
             for n in view.nodes
         ],
