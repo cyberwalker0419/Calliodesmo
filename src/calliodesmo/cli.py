@@ -237,3 +237,78 @@ def ingest(
     )
     if dump_json or dump_html:
         _dump_outputs(engine, stats, dump_json, dump_html)
+
+
+def _build_default_search_engine(settings):
+    """构造默认搜索引擎（内存 stores + Hash 嵌入 + IdentityReranker + 桩 LLM）。"""
+    from calliodesmo.providers.hash_embedding import HashEmbeddingProvider
+    from calliodesmo.providers.in_memory_community_store import InMemoryCommunityStore
+    from calliodesmo.providers.in_memory_graph_store import InMemoryGraphStore
+    from calliodesmo.providers.in_memory_vector_store import InMemoryVectorStore
+    from calliodesmo.providers.stub_llm import StubLLMProvider
+    from calliodesmo.retrieval.answer_synthesizer import AnswerSynthesizer
+    from calliodesmo.retrieval.global_search import GlobalSearchRetriever
+    from calliodesmo.retrieval.hybrid_retriever import HybridRetriever
+    from calliodesmo.retrieval.identity_reranker import IdentityReranker
+    from calliodesmo.retrieval.in_memory_sparse_index import InMemoryBM25Index
+    from calliodesmo.retrieval.local_search import LocalSearchRetriever
+    from calliodesmo.retrieval.search_engine import DefaultSearchEngine
+    from calliodesmo.retrieval.seed_extractor import SeedExtractor
+
+    llm = StubLLMProvider(model="test/stub")
+    emb = HashEmbeddingProvider(dimension=settings.embedding_dimension or 64)
+    vs = InMemoryVectorStore()
+    graph = InMemoryGraphStore()
+    comm = InMemoryCommunityStore()
+    bm = InMemoryBM25Index()
+    seed = SeedExtractor(llm)
+    native = HybridRetriever(vector_store=vs, embedding_provider=emb, sparse_index=bm)
+    local = LocalSearchRetriever(
+        seed_extractor=seed, graph_store=graph, vector_store=vs, hops=settings.local_search_hops
+    )
+    glob = GlobalSearchRetriever(
+        community_store=comm,
+        graph_store=graph,
+        vector_store=vs,
+        embedding_provider=emb,
+        top_communities=settings.global_top_communities,
+    )
+    synth = AnswerSynthesizer(llm)
+    return DefaultSearchEngine(
+        native_retriever=native,
+        local_retriever=local,
+        global_retriever=glob,
+        reranker=IdentityReranker(),
+        synthesizer=synth,
+    )
+
+
+@app.command()
+def ask(
+    question: str = typer.Argument(..., help="问题文本。"),
+    mode: str = typer.Option(
+        "native_rag", "--mode", help="检索模式：native_rag / local / global。"
+    ),
+    top_k: int = typer.Option(10, "--top-k", help="返回候选数。"),
+) -> None:
+    """问答命令：构造默认引擎 -> 检索 -> 合成答案 -> 打印答案与来源。"""
+    import asyncio
+
+    from calliodesmo.interfaces.retriever import SearchMode
+
+    settings = get_settings()
+    try:
+        mode_enum = SearchMode(mode)
+    except ValueError:
+        typer.echo(f"错误：未知检索模式 {mode}（可选 native_rag / local / global）", err=True)
+        raise typer.Exit(code=1) from None
+
+    engine = _build_default_search_engine(settings)
+    access = _system_access()
+    answer = asyncio.run(engine.query(question, mode=mode_enum, top_k=top_k, access=access))
+    typer.echo(f"[模式] {answer.mode.value}")
+    typer.echo(f"[答案] {answer.text}")
+    if answer.source_chunk_ids:
+        typer.echo(f"[来源] {', '.join(answer.source_chunk_ids)}")
+    else:
+        typer.echo("[来源] 无")

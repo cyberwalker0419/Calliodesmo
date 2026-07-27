@@ -112,7 +112,7 @@ class SearchEngine(ABC):
 
 **验收：**
 - `SparseIndex` / `Reranker` / `Retriever` / `SearchEngine` 四抽象 + `Candidate` / `Answer` / `SearchMode` 共享类型齐全
-- `InMemoryBM25Index` 零依赖、确定性、按 `visible_to` 过滤；`IdentityReranker` 保序降级
+- [ ] `InMemoryBM25Index` 零依赖、确定性、按 `visible_to` 过滤；`IdentityReranker` 保序降级
 - 全程经 `AccessContext`，越权记录不出召回（与 P1 三 store 同构）
 
 ---

@@ -1,4 +1,4 @@
-"""FastAPI 依赖：当前 AccessContext 解析（JWT -> AccessContext）。"""
+"""FastAPI 依赖：当前 AccessContext 解析 + SearchEngine 注入。"""
 
 import uuid
 
@@ -12,6 +12,7 @@ from calliodesmo.auth.security import decode_access_token
 from calliodesmo.auth.service import get_access_context
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
+from calliodesmo.interfaces.retriever import SearchEngine
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -36,3 +37,11 @@ async def get_current_context(
     if context is None:
         raise _CREDENTIALS_EXCEPTION
     return context
+
+
+async def get_search_engine() -> SearchEngine:
+    """默认 SearchEngine 依赖。生产环境应注入实际引擎；测试用 dependency_overrides 覆盖。"""
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="SearchEngine 未配置（需通过依赖注入或 dependency_overrides 提供）",
+    )

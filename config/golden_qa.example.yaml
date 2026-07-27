@@ -1,0 +1,15 @@
+﻿# Golden Q&A 集示例（评估 harness 回归基线）
+# 每条含：问题 / 标准答案 / 相关 chunk_id / 检索模式
+cases:
+  - question: "OpenAI 开发了什么模型？"
+    expected_answer: "GPT-4"
+    relevant_chunk_ids: ["c1"]
+    mode: "native_rag"
+  - question: "GPT-4 是什么？"
+    expected_answer: "大规模语言模型"
+    relevant_chunk_ids: ["c2"]
+    mode: "local"
+  - question: "AI 领域有哪些主题？"
+    expected_answer: "AI 研究与模型"
+    relevant_chunk_ids: ["c1", "c2"]
+    mode: "global"

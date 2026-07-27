@@ -1,18 +1,20 @@
-"""FastAPI 应用工厂：P0 暴露健康检查与 JWT 认证链路（Q&A 端点属 P2）。"""
+"""FastAPI 应用工厂：健康检查 + JWT 认证 + Q&A 查询。"""
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo import __version__
-from calliodesmo.api.deps import get_current_context
-from calliodesmo.api.schemas import MeResponse, TokenResponse
+from calliodesmo.api.deps import get_current_context, get_search_engine
+from calliodesmo.api.schemas import MeResponse, QueryRequest, QueryResponse, TokenResponse
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
+from calliodesmo.auth.models import Permission
 from calliodesmo.auth.security import create_access_token
 from calliodesmo.auth.service import authenticate
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
+from calliodesmo.interfaces.retriever import SearchEngine, SearchMode
 
 
 def create_app() -> FastAPI:
@@ -56,6 +58,41 @@ def create_app() -> FastAPI:
             library_scopes=sorted(s.value for s in context.library_scopes),
             team_ids=sorted(context.team_ids, key=str),
             project_ids=sorted(context.project_ids, key=str),
+        )
+
+    @app.post("/query", response_model=QueryResponse)
+    async def query(
+        req: QueryRequest,
+        context: AccessContext = Depends(get_current_context),
+        engine: SearchEngine = Depends(get_search_engine),
+        session: AsyncSession = Depends(get_session),
+    ) -> QueryResponse:
+        if not context.has_permission(Permission.QUERY):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
+        # 验证 mode
+        try:
+            mode = SearchMode(req.mode)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"未知检索模式：{req.mode}（可选 native_rag / local / global）",
+            ) from None
+        answer = await engine.query(req.question, mode=mode, top_k=req.top_k, access=context)
+        await record_audit(
+            session,
+            user_id=context.user_id,
+            action="query",
+            resource_type="answer",
+            detail={"mode": req.mode, "sources": len(answer.source_chunk_ids)},
+            source="api",
+        )
+        await session.commit()
+        return QueryResponse(
+            answer=answer.text,
+            mode=answer.mode.value,
+            source_chunk_ids=answer.source_chunk_ids,
+            context_chunks=answer.context_chunks,
+            model=answer.model,
         )
 
     return app

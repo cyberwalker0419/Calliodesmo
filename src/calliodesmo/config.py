@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     chunk_size: int = 1200
     chunk_overlap: int = 100
 
+    # P2 检索与 RAG
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    rerank_top_n: int = 20
+    hybrid_enabled: bool = True
+    sparse_enabled: bool = True
+    local_search_hops: int = 1
+    global_top_communities: int = 10
+    default_search_mode: str = "native_rag"
+    chunk_summary_enabled: bool = False
+    eval_golden_file: str = "config/golden_qa.yaml"
+
 
 @lru_cache
 def get_settings() -> Settings:
