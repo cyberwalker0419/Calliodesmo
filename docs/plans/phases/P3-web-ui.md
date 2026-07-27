@@ -12,7 +12,8 @@ created: 2026-07-27
 
 > [!important] 前置条件（开工前确认）
 > - **基线**：P3 分支从 **P2 合并后的 main** 切出。`/query`、`get_search_engine`、`retrieval/` 目前在 `codex/p2-retrieval-rag` 分支未合并；Task 1 的 stores 依赖工厂要求与 `get_search_engine` 共享同一实例，未合并开工必冲突。
-> - **MVP 裁剪线**（预先声明，防超时）：Task 5 子图可视化可降级为实体邻居列表（表格视图）；Task 7 仅保留 rename/retag/access_level/增删文档，merge/split 并入 P4。裁剪线内功能 + Task 8 权限矩阵回归完成即算 P3 MVP 达成，其余持续迭代。
+> - **MVP 裁剪线**（预先声明，防超时）：Task 5 子图可视化可降级为实体邻居列表（表格视图）；Task 7 的 merge/split **整块**（CommunityStore 接口 + `/admin/document-communities` 端点 + UI + Step 5 语义）一律并入 P4，本阶段 Task 7 只做 rename/retag/access_level/增删文档——不出现半切的"接口做了却不验收"。
+> - **MVP 必做清单**（达标线）：Task 1 全量 + Task 2 + Task 3 + Task 4 + Task 5 降级版（交互式子图或邻居表二选一）+ Task 8 权限矩阵回归。命中达标线即 P3 MVP 达成；Task 6、Task 7 完整版、Task 5 子图增强属持续迭代，按周补齐。
 
 **Goal:** 启动 Web UI 并持续迭代：登录与会话、个人/组织库浏览、问答面板、用户与团队/项目管理、文档社区手动管理、角色可见性。**后端补全是 UI 的前置**——兑现路线图“用户/用户组管理 CRUD 延后至 P3 落地，service/CLI/API 管理端点同步补全”：补全用户/团队/项目的 list/update/deactivate service 与 `/admin/*` 管理端点、`/library/*` 只读浏览端点，再在其上构建前端。UI 用 `frontend-design` skill 构建，面向情报分析人员的**操作工具风格**（密集有序、可扫描、可比对、可重复操作），而非营销/编辑风。
 
@@ -113,12 +114,13 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - [ ] **Step 5:** stores 依赖工厂（`get_profile_card_store` 等内存单例，与 `get_search_engine` 共享同一实例）测试 -> 实现跑绿
 - [ ] **Step 6:** CLI `users list/create/deactivate`、`teams create/add-member`（`CliRunner` 断言退出码与输出）测试 -> 实现跑绿
 - [ ] **Step 7:** 软删除与引用完整性：deactivate 后用户不可登录、其历史审计记录保留；`get_access_context` 对 `is_active=False` 返回 None（沿用 P0 逻辑）测试 -> 实现跑绿
-- [ ] **Step 8:** 演示数据：`serve --seed-demo` 启动时对 `data/demo/` 样例文档在 serve 进程内跑 ECL 管线注入内存 stores（解决内存模式 CLI ingest 与 API 跨进程不可见）；seed 后 `/library/profile-cards` 非空测试 -> 实现跑绿
+- [ ] **Step 8:** 演示数据：`serve --seed-demo` 启动时对 `data/demo/` 样例文档在 serve 进程内跑 ECL 管线注入内存 stores（解决内存模式 CLI ingest 与 API 跨进程不可见）；**seed 产物落盘缓存**（如 `data/demo/seed-cache.json`，序列化 ProfileCard/Community/Subgraph 结果），二次 `serve` 命中缓存直接加载、跳过 LLM 管线（首次全量跑慢，重跑别再等一轮 LLM）；**`data/demo/` 文档 clearance 故意拉开梯度**（public/internal/confidential 各备样例，供 Task 8 权限矩阵回归与演示可见性隔离）；seed 后 `/library/profile-cards` 非空测试 -> 实现跑绿
 
 **验收：**
 - 用户/团队/项目 CRUD + 成员管理齐全，`manage_users` / `manage_community` 守卫，管理动作记审计
 - `/library/*` 只读浏览端点按 `visible_to` 过滤、`query` 守卫
 - CLI 管理 + 浏览命令可用；软删除保留审计可追溯
+- 停用用户的既有内容（ingest 文档/社区/ProfileCard）保留且仍按 clearance 对他人可见，属设计预期（情报连续性不因人离开而断）
 - `calliodesmo serve --seed-demo` 后浏览端点返回非空演示数据（UI 演示不面对空库）
 
 ---
@@ -140,7 +142,7 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - Modify: `.github/workflows/ci.yml`（前端 job：`npm ci` / `npm run build` / `vitest`）
 - Test: `frontend/src/api/client.test.ts`（Vitest）
 
-- [ ] **Step 1:** `frontend/` 初始化（Vite React-TS 模板 + Tailwind + shadcn/ui CLI 接入 + `lucide-react`）；`npm run build` 产出 `dist/` 测试（构建通过）
+- [ ] **Step 1:** `frontend/` 初始化（Vite React-TS 模板 + Tailwind + shadcn/ui CLI 接入 + `lucide-react`）；`npm run build` 产出 `dist/` 测试（构建通过）；**图引擎选型 spike（前置）**：脚手架阶段就验证 `react-force-graph`（依赖 three.js）的 React 19 兼容性——最小 demo 渲染几个节点+边能跑通即可，不兼容即定 vis-network 方案。别拖到 Task 5（10 步核心）才试，那时换底层引擎返工损失最大；选型结果回填 Task 5 的图引擎与 `SubgraphResponse` 契约
 - [ ] **Step 2:** `api/client.ts`：`fetch` wrapper 注入 Bearer、401 自动跳登录、统一错误对象；TanStack Query `QueryClient` 配置测试 -> 实现跑绿
 - [ ] **Step 3:** Vite dev proxy（`/api` -> 8000，rewrite 去前缀，逻辑同源，cookie 方案全程一致）+ 后端 API 双挂 `/api` 前缀 + 生产 `StaticFiles` 挂 `frontend/dist`（SPA fallback 到 `index.html`）；`/healthz` 经 proxy 联通测试 -> 实现跑绿
 - [ ] **Step 4:** React Router 骨架（`/login` `/app/*` 占位）+ `RequireAuth` 守卫占位（Task 3 实现）测试 -> 实现跑绿
@@ -269,17 +271,17 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 
 ### Task 7: 文档社区手动管理 UI（选项 A 手动部分）
 
-**目标：** 路线图“手动策略 展 并入 P3”的兑现：在 P1 自动派生（选项 A 自动部分）之上，提供文档社区**手动管理**——命名/打标、设 access_level、合并/拆分、增删文档。后端扩展 `CommunityStore` 手动操作接口 + `/admin/document-communities` 端点（`manage_community` 守卫），前端构建管理 UI。
+**目标：** 路线图"手动策略 展 并入 P3"的兑现：在 P1 自动派生（选项 A 自动部分）之上，提供文档社区**手动管理**——命名/打标、设 access_level、增删文档。后端扩展 `CommunityStore` 手动操作接口 + `/admin/document-communities` 端点（`manage_community` 守卫），前端构建管理 UI。merge/split 随版本能力并入 P4（见下方说明）。
 
-> [!note] 与 P1 自动派生的关系：自动派生建 level=1 文档社区；本 Task 提供手动编辑能力（分析师命名/打标/调 access_level/合并/拆分/增删文档）。手动编辑标记 provenance，自动重派生时不覆盖手改（复用 P1 ProfileCard 的 `locked` 思路）。完整社区版本/分支/回滚为 P4。
+> [!note] 与 P1 自动派生的关系：自动派生建 level=1 文档社区；本 Task 提供手动编辑能力（分析师命名/打标/调 access_level/增删文档）。手动编辑标记 provenance，自动重派生时不覆盖手改（复用 P1 ProfileCard 的 `locked` 思路）。完整社区版本/分支/回滚为 P4。
 
-> [!warning] merge/split 不可逆：社区版本/分支/回滚能力在 P4，本阶段 merge/split 无 undo。按头部 MVP 裁剪线：**默认裁掉 merge/split 的 UI 与端点，并入 P4 随版本能力交付**；若评估后保留，审计必须记录合并前成员快照（操作者/时间/源与目标/完整成员清单），UI 配强确认对话框。Step 5 相应标记为裁剪线外。
+> [!note] merge/split 整块移至 P4：合并/拆分依赖社区版本/分支/回滚能力（P4 才落地），无 undo 不安全。本阶段 Task 7 只实现可安全重做的操作（rename/retag/access_level/增删文档）；merge/split 的 CommunityStore 接口、`/admin/document-communities` 对应端点与 UI 随 P4 版本能力一并交付，不在 P3 出现半切实现。
 
 **Files:**
-- Modify: `src/calliodesmo/interfaces/community_store.py`（`CommunityStore` 扩展手动操作：`rename` / `retag` / `set_access_level` / `add_member_doc` / `remove_member_doc` / `merge_communities` / `split_community`）
+- Modify: `src/calliodesmo/interfaces/community_store.py`（`CommunityStore` 扩展手动操作：`rename` / `retag` / `set_access_level` / `add_member_doc` / `remove_member_doc`）
 - Modify: `src/calliodesmo/providers/in_memory_community_store.py`（实现上述操作，手动编辑置 `metadata["manual"]=True`）
 - Modify: `src/calliodesmo/ecl/community_deriver.py`（自动派生跳过 `metadata["manual"]=True` 的社区，避免覆盖手改）
-- Create: `src/calliodesmo/api/admin.py` 扩展（`/admin/document-communities` GET/POST + `/admin/document-communities/{id}` PATCH 操作：rename/retag/access/merge/split/add-doc/remove-doc）
+- Create: `src/calliodesmo/api/admin.py` 扩展（`/admin/document-communities` GET/POST + `/admin/document-communities/{id}` PATCH 操作：rename/retag/access/add-doc/remove-doc）
 - Create: `frontend/src/features/admin/DocumentCommunityManage.tsx`
 - Test: `tests/test_document_community_manage_api.py`、`frontend/src/features/admin/DocumentCommunityManage.test.tsx`
 
@@ -298,26 +300,16 @@ class CommunityStore(ABC):
     async def add_member_doc(
         self, community_id: str, doc_id: str, *, access: AccessContext, note: str = ""
     ) -> None: ...
-    @abstractmethod
-    async def merge_communities(
-        self, source_id: str, target_id: str, *, access: AccessContext
-    ) -> None: ...
-    @abstractmethod
-    async def split_community(
-        self, community_id: str, member_doc_ids: list[str], *, access: AccessContext
-    ) -> str: ...
 ```
 
-- [ ] **Step 1:** `CommunityStore` 手动操作接口 + `InMemoryCommunityStore` 实现：rename/retag/set_access/add_member_doc/remove_member_doc/merge/split；手动操作置 `metadata["manual"]=True`；`visible_to` 守卫测试 -> 实现跑绿
+- [ ] **Step 1:** `CommunityStore` 手动操作接口 + `InMemoryCommunityStore` 实现：rename/retag/set_access/add_member_doc/remove_member_doc；手动操作置 `metadata["manual"]=True`；`visible_to` 守卫测试 -> 实现跑绿
 - [ ] **Step 2:** 自动派生不覆盖手改：`DocumentCommunityDeriver` 跳过 `metadata["manual"]=True` 的社区；手动命名不被重派生覆盖测试 -> 实现跑绿
 - [ ] **Step 3:** `/admin/document-communities` 端点（GET 列表 + PATCH 各操作）；`manage_community` 守卫；操作记 `action="manage_community"` 审计测试 -> 实现跑绿
-- [ ] **Step 4:** `DocumentCommunityManage` UI：社区命名/打标签/access_level、合并（选源+目标）、拆分（选成员文档）、增删文档；`manage_community` 用户可见测试 -> 实现跑绿
-- [ ] **Step 5:**（裁剪线外，可并入 P4）merge/split 语义：merge 合并成员实体与文档、保留来源；split 按文档集合新建社区；幂等可重复；保留时审计记合并前成员快照 + UI 强确认测试 -> 实现跑绿
+- [ ] **Step 4:** `DocumentCommunityManage` UI：社区命名/打标签/access_level、增删文档；`manage_community` 用户可见测试 -> 实现跑绿
 
 **验收：**
-- 文档社区手动命名/打标/access/合并/拆分/增删文档齐全，`manage_community` 守卫
+- 文档社区手动命名/打标/access/增删文档齐全，`manage_community` 守卫
 - 自动派生不覆盖手动编辑（`manual` 标记）
-- merge/split 语义正确、幂等可重复；操作记审计
 
 ---
 
@@ -358,7 +350,7 @@ class CommunityStore(ABC):
 ## 依赖与风险（P3 全量）
 
 - **前端依赖隔离**：`frontend/package.json` 与后端 Python 依赖隔离；CI 前端 job（`npm ci && npm run build && vitest`，Task 2 Step 5 落地），构建产物挂 FastAPI 静态托管。Node 版本锁定（`.nvmrc`）。
-- **内存 stores 单进程**：UI 走 API，API 进程需注入内存 stores 单例（ingest/query/browse 共享）；prod 持久化随真后端（P9）。内存模式下 CLI `ingest`（独立进程）灌的数据 API 进程不可见——**演示数据统一走 Task 1 Step 8 的 `serve --seed-demo`（serve 进程内自灌），这是 P3 演示的官方路径**。Task 1 stores 依赖工厂为此预留单例。
+- **内存 stores 单进程**：UI 走 API，API 进程需注入内存 stores 单例（ingest/query/browse 共享）；prod 持久化随真后端（P9）。内存模式下 CLI `ingest`（独立进程）灌的数据 API 进程不可见——**演示数据统一走 Task 1 Step 8 的 `serve --seed-demo`（serve 进程内自灌），这是 P3 演示的官方路径**。Task 1 stores 依赖工厂为此预留单例。**seed 性能**：首次 `serve --seed-demo` 跑完整 ECL（含 LLM 调用）较慢，seed 产物落盘缓存（序列化为 `data/demo/seed-cache.json`），二次启动命中缓存直接加载、跳过 LLM；`data/demo/` 文档 clearance 故意拉开梯度（public/internal/confidential 各备样例），Task 8 权限矩阵回归才有覆盖。
 - **P3 依赖 P2**：问答面板（Task 4）依赖 P2 `/query`。**开工前置：`codex/p2-retrieval-rag` 先合并入 main，P3 分支从合并后的 main 切出**（见头部前置条件）；UI 演示用同进程内存 stores + `serve --seed-demo`。
 - **JWT 存储**：httpOnly + SameSite=Lax cookie（防 XSS 读 token）；开发期 Vite proxy 同源 + 生产静态托管同源，无跨源 cookie/CORS 复杂度。Bearer 仅 CLI/脚本。无 refresh token，过期重登。
 - **自注册安全**：默认关（`allow_self_register=False`）；开启时自注册 clearance 上限 INTERNAL，防越权自提；管理员建用户为主路径。
@@ -366,5 +358,5 @@ class CommunityStore(ABC):
 - **软删除与审计**：用户 deactivate 为软删除（`is_active=False`），保留审计可追溯（谁/何时/做了什么/从哪来）；不物理删除，避免级联破坏历史记录。
 - **CORS / 同源**：开发期走 Vite proxy 逻辑同源，默认不需要 CORS middleware；`cors_origins` 配置保留作兜底（默认空 = 关），仅未来确有跨域客户端时开启，生产收紧为实际域名。
 - **测试边界**：后端端点 + 权限守卫用 `pytest` + `httpx`（受限端点做参数化矩阵：端点 × 角色 × 期望状态码）；前端组件用 `vitest` + Testing Library；Playwright 自 Task 2 接入，关键流程（登录/问答/浏览/管理）截图随 Task 推进补齐。前端不进检索精度回归（那是 P2 harness），但权限一致性有回归测试。
-- **版本协调**：前端依赖锁定（package-lock + `.nvmrc`）。React 用 19（2026 新脚手架默认；shadcn/ui 为源码拷贝、兼容性取决于 Radix primitives，Radix/TanStack Query 均已支持 19）；`react-force-graph`（依赖 three.js）的 React 19 兼容性在 Task 5 开工时先 spike 验证，不兼容则落 vis-network 方案。
+- **版本协调**：前端依赖锁定（package-lock + `.nvmrc`）。React 用 19（2026 新脚手架默认；shadcn/ui 为源码拷贝、兼容性取决于 Radix primitives，Radix/TanStack Query 均已支持 19）；`react-force-graph`（依赖 three.js）的 React 19 兼容性在 **Task 2 脚手架阶段**就 spike 验证（见 Task 2 Step 1），不兼容则定 vis-network 方案——避免拖到 Task 5（10 步核心）才发现不兼容、返工换底层引擎。
 - **范围外（本阶段不做）**：审计记录查看 UI（审计只记不看，查看界面随 P4 或后续阶段）；refresh token 会话续期；merge/split（按裁剪线并入 P4）；OIDC/SSO（v2 精化）。
