@@ -12,6 +12,21 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 > [!note] 当前阶段
 > **P3 Web UI 已完成**：登录与会话、个人/组织库浏览、问答面板、用户与团队/项目管理、文档社区手动管理、角色可见性。后端补全 `/admin/*` + `/library/*` + 文档社区手动管理端点，前端为 React 19 SPA（经 Vite dev proxy / 生产 StaticFiles 同源）。检索与重排支持**远端 HTTP 模型**（LLM / 嵌入 / 重排三处均可指向自建服务）。P4 Git-like 协作推送进行中。详见 [路线图](docs/plans/roadmap.md)。
 
+## 5 分钟测试部署（离线、零基础设施）
+
+```bash
+uv sync                         # 装依赖
+cp .env.example .env            # Windows: copy .env.example .env
+# .env 设离线桩（全离线、无需 Postgres/Neo4j/真实模型）：
+#   DATABASE_URL=sqlite+aiosqlite:///./data/calliodesmo-dev.db
+#   LLM_MODEL=test/stub、EMBEDDING_PROVIDER=hash（DIMENSION=64）、RERANKER_PROVIDER=none
+#   ADMIN_PASSWORD=<你的密码>
+uv run calliodesmo db init && uv run calliodesmo db seed
+uv run calliodesmo serve --seed-demo   # -> http://127.0.0.1:8000，登录 admin/<密码>
+```
+
+> 几分钟跑通 API + Web UI + 演示数据。桩模型仅验证管线机制（抽取为写死响应）；真实抽取见下方模型配置。完整测试/生产部署见 [原生部署指南](docs/deploy/native.md)；Docker 全栈见 [Docker 部署指南](docs/deploy/docker.md)。
+
 ## 为什么用它
 
 - **不只是向量检索** - 同时维护原始文本块、实体关系图、社区摘要三层，支持局部（Local）到全局（Global）的跨层级问答。
@@ -254,7 +269,8 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 ## 文档导航
 
 - 📋 [实施路线图](docs/plans/roadmap.md) - P0-P9 年计划
-- 🚀 [原生部署指南](docs/deploy/native.md) - 无 Docker 完整部署（Postgres/pgvector/Neo4j 原生安装）
+- 🚀 [原生部署指南](docs/deploy/native.md) - 测试/开发 + 生产原生部署（按步骤）
+- 🐳 [Docker 部署指南](docs/deploy/docker.md) - 一键全栈（Postgres+pgvector / Neo4j / app）
 - ✅ [P3 验证报告](docs/verification/P3-verification.md) - Web UI 验证（289 passed）
 - 📝 [阶段任务计划](docs/plans/phases/) - P0-P3 bite-sized TDD 步骤
 
