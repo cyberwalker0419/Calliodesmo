@@ -104,15 +104,15 @@ class SearchEngine(ABC):
 
 > [!note] `Candidate` 统一到 chunk 粒度：图检索（LocalSearch）与社区检索（GlobalSearch）召回到实体/社区后，**沿 `source_chunk_ids` 归一到关联 chunk**，使三路候选可同一口径 RRF 融合、同一口径重排与来源标注。归一时保留 `source` 字段标记原始召回来源，便于诊断“哪一路贡献了证据”。
 
-- [ ] **Step 1:** `Candidate` / `Answer` / `SearchMode` 数据模型失败测试（字段齐全、默认值、`SearchMode` 三值）-> 实现跑绿
-- [ ] **Step 2:** `InMemoryBM25Index`：index 建 token 倒排（小写化 + 简单分词，中英兼容：英文按空白/标点、中文按字 + bigram 兜底）；search 返回按 BM25 分降序的 `Candidate`（`source="sparse"`、`rank` 为 1-based 秩）；空索引 search 返空测试 -> 实现跑绿
-- [ ] **Step 3:** `InMemoryBM25Index` 按 `visible_to` 过滤（越权 chunk 不进索引、不出召回）测试 -> 实现跑绿
-- [ ] **Step 4:** `IdentityReranker`：保序（按传入顺序，`rank` 重置为 1..n、`score` 不变）、`top_k` 截断测试 -> 实现跑绿
-- [ ] **Step 5:** 四接口 ABC 不可直接实例化（`abstractmethod` 生效）、子类需实现全部方法测试 -> 实现跑绿
+- [x] **Step 1:** `Candidate` / `Answer` / `SearchMode` 数据模型失败测试（字段齐全、默认值、`SearchMode` 三值）-> 实现跑绿
+- [x] **Step 2:** `InMemoryBM25Index`：index 建 token 倒排（小写化 + 简单分词，中英兼容：英文按空白/标点、中文按字 + bigram 兜底）；search 返回按 BM25 分降序的 `Candidate`（`source="sparse"`、`rank` 为 1-based 秩）；空索引 search 返空测试 -> 实现跑绿
+- [x] **Step 3:** `InMemoryBM25Index` 按 `visible_to` 过滤（越权 chunk 不进索引、不出召回）测试 -> 实现跑绿
+- [x] **Step 4:** `IdentityReranker`：保序（按传入顺序，`rank` 重置为 1..n、`score` 不变）、`top_k` 截断测试 -> 实现跑绿
+- [x] **Step 5:** 四接口 ABC 不可直接实例化（`abstractmethod` 生效）、子类需实现全部方法测试 -> 实现跑绿
 
 **验收：**
 - `SparseIndex` / `Reranker` / `Retriever` / `SearchEngine` 四抽象 + `Candidate` / `Answer` / `SearchMode` 共享类型齐全
-- `InMemoryBM25Index` 零依赖、确定性、按 `visible_to` 过滤；`IdentityReranker` 保序降级
+- [x] `InMemoryBM25Index` 零依赖、确定性、按 `visible_to` 过滤；`IdentityReranker` 保序降级
 - 全程经 `AccessContext`，越权记录不出召回（与 P1 三 store 同构）
 
 ---
@@ -142,11 +142,11 @@ def rrf(
     """
 ```
 
-- [ ] **Step 1:** `rrf` 单路（退化为按原秩排序）、双路相同 chunk 合并（分数相加）、平局按 `chunk_id` 确定性排序、`top_k` 截断测试 -> 实现跑绿
-- [ ] **Step 2:** `rrf` 稀疏命中稠密未命中（或反之）的 chunk 仍被保留（并集，不交）测试 -> 实现跑绿
-- [ ] **Step 3:** `HybridRetriever` 编排：query 经 `EmbeddingProvider.embed` 走 `VectorStore.search`（dense）+ `SparseIndex.search`（sparse）-> 赋 `rank` -> `rrf` -> 返回融合候选（`source` 标注每候选主导来源）测试 -> 实现跑绿
-- [ ] **Step 4:** `HybridRetriever` 全程 `visible_to` 过滤（dense 由 store 过滤、sparse 由 index 过滤；融合后不再二次过滤，因两路已过滤）测试 -> 实现跑绿
-- [ ] **Step 5:** 单路降级：缺 sparse index（注入 `None`）时仅走 dense，不报错（容错）测试 -> 实现跑绿
+- [x] **Step 1:** `rrf` 单路（退化为按原秩排序）、双路相同 chunk 合并（分数相加）、平局按 `chunk_id` 确定性排序、`top_k` 截断测试 -> 实现跑绿
+- [x] **Step 2:** `rrf` 稀疏命中稠密未命中（或反之）的 chunk 仍被保留（并集，不交）测试 -> 实现跑绿
+- [x] **Step 3:** `HybridRetriever` 编排：query 经 `EmbeddingProvider.embed` 走 `VectorStore.search`（dense）+ `SparseIndex.search`（sparse）-> 赋 `rank` -> `rrf` -> 返回融合候选（`source` 标注每候选主导来源）测试 -> 实现跑绿
+- [x] **Step 4:** `HybridRetriever` 全程 `visible_to` 过滤（dense 由 store 过滤、sparse 由 index 过滤；融合后不再二次过滤，因两路已过滤）测试 -> 实现跑绿
+- [x] **Step 5:** 单路降级：缺 sparse index（注入 `None`）时仅走 dense，不报错（容错）测试 -> 实现跑绿
 
 **验收：**
 - `rrf` 基于秩融合、并集不交、确定性平局、`top_k` 截断
@@ -185,11 +185,11 @@ class BgeReranker(Reranker):
     ) -> list[Candidate]: ...
 ```
 
-- [ ] **Step 1:** `BgeReranker` 桩 FlagEmbedding：`rerank` 对 `(query, content)` 打分、按分降序、`top_k` 截断、`rank` 重置、`score` 更新为重排分测试 -> 实现跑绿
-- [ ] **Step 2:** 打原文约束：断言喂 reranker 的文本为 `Candidate.content`（chunk 原文），不喂社区/实体摘要测试 -> 实现跑绿
-- [ ] **Step 3:** 缺依赖友好报错（`monkeypatch`/`sys.modules` 卸载 FlagEmbedding -> `RuntimeError("重排需 FlagEmbedding：uv sync --extra search-rerank")`）测试 -> 实现跑绿
-- [ ] **Step 4:** `config` 新增项（`reranker_model` / `rerank_top_n` / `hybrid_enabled` / `sparse_enabled`）默认值与环境覆盖测试 -> 实现跑绿
-- [ ] **Step 5:** 重排串联：`HybridRetriever` 召回 -> `Reranker.rerank`（默认 `IdentityReranker`，可注入 `BgeReranker`）-> top_k；缺 reranker 注入时退化为保序测试 -> 实现跑绿
+- [x] **Step 1:** `BgeReranker` 桩 FlagEmbedding：`rerank` 对 `(query, content)` 打分、按分降序、`top_k` 截断、`rank` 重置、`score` 更新为重排分测试 -> 实现跑绿
+- [x] **Step 2:** 打原文约束：断言喂 reranker 的文本为 `Candidate.content`（chunk 原文），不喂社区/实体摘要测试 -> 实现跑绿
+- [x] **Step 3:** 缺依赖友好报错（`monkeypatch`/`sys.modules` 卸载 FlagEmbedding -> `RuntimeError("重排需 FlagEmbedding：uv sync --extra search-rerank")`）测试 -> 实现跑绿
+- [x] **Step 4:** `config` 新增项（`reranker_model` / `rerank_top_n` / `hybrid_enabled` / `sparse_enabled`）默认值与环境覆盖测试 -> 实现跑绿
+- [x] **Step 5:** 重排串联：`HybridRetriever` 召回 -> `Reranker.rerank`（默认 `IdentityReranker`，可注入 `BgeReranker`）-> top_k；缺 reranker 注入时退化为保序测试 -> 实现跑绿
 
 **验收：**
 - `BgeReranker` 经 FlagEmbedding 重排，打原文不打摘要，`top_k` 截断与分更新
@@ -242,13 +242,13 @@ class AnswerSynthesizer:
         ...
 ```
 
-- [ ] **Step 1:** `SeedExtractor` 从 query 抽种子实体名（桩 LLM 返回实体名列表）；命中 `GraphStore.get_entity` 的为有效种子、未命中的过滤测试 -> 实现跑绿
-- [ ] **Step 2:** `LocalSearchRetriever` K 跳扩展（默认 `hops=1`）：从种子沿 `GraphStore.neighbors` 收集实体+关系 -> 沿 `source_chunk_ids` 归一 chunk -> 去重；越权邻居被 `GraphStore` 过滤不可见测试 -> 实现跑绿
-- [ ] **Step 3:** `GlobalSearchRetriever`：`CommunityStore.list_communities`（已按 `visible_to` 过滤）-> query 向量对社区摘要标题+摘要文本余弦召回 -> 取 top-N 社区 -> 成员实体归一 chunk 测试 -> 实现跑绿
-- [ ] **Step 4:** `GlobalSearch` 的社区摘要进 LLM 上下文但**不进 rerank、不进稠密索引**（断言 reranker 仅在 Local/Native 通路被调用；Global 不喂 reranker）测试 -> 实现跑绿
-- [ ] **Step 5:** `AnswerSynthesizer` prompt 含来源标注与忠实度约束；桩 LLM 返回带 `[chunk_id]` 标注的答案 -> 解析出 `source_chunk_ids`；候选为空时返回“无可引用证据”而非编造测试 -> 实现跑绿
-- [ ] **Step 6:** `DefaultSearchEngine` 按 `SearchMode` 分派（`native_rag`->`HybridRetriever`、`local`->`LocalSearchRetriever`、`global`->`GlobalSearchRetriever`）-> rerank（仅 Local/Native）-> `AnswerSynthesizer` -> `Answer`（含 `mode` / `source_chunk_ids` / `context_chunks`）端到端测试 -> 实现跑绿
-- [ ] **Step 7:** 三模式全程 `visible_to`：低 clearance 用户跨模式检索均不可见越权 chunk（构造 mixed-access 语料断言）测试 -> 实现跑绿
+- [x] **Step 1:** `SeedExtractor` 从 query 抽种子实体名（桩 LLM 返回实体名列表）；命中 `GraphStore.get_entity` 的为有效种子、未命中的过滤测试 -> 实现跑绿
+- [x] **Step 2:** `LocalSearchRetriever` K 跳扩展（默认 `hops=1`）：从种子沿 `GraphStore.neighbors` 收集实体+关系 -> 沿 `source_chunk_ids` 归一 chunk -> 去重；越权邻居被 `GraphStore` 过滤不可见测试 -> 实现跑绿
+- [x] **Step 3:** `GlobalSearchRetriever`：`CommunityStore.list_communities`（已按 `visible_to` 过滤）-> query 向量对社区摘要标题+摘要文本余弦召回 -> 取 top-N 社区 -> 成员实体归一 chunk 测试 -> 实现跑绿
+- [x] **Step 4:** `GlobalSearch` 的社区摘要进 LLM 上下文但**不进 rerank、不进稠密索引**（断言 reranker 仅在 Local/Native 通路被调用；Global 不喂 reranker）测试 -> 实现跑绿
+- [x] **Step 5:** `AnswerSynthesizer` prompt 含来源标注与忠实度约束；桩 LLM 返回带 `[chunk_id]` 标注的答案 -> 解析出 `source_chunk_ids`；候选为空时返回“无可引用证据”而非编造测试 -> 实现跑绿
+- [x] **Step 6:** `DefaultSearchEngine` 按 `SearchMode` 分派（`native_rag`->`HybridRetriever`、`local`->`LocalSearchRetriever`、`global`->`GlobalSearchRetriever`）-> rerank（仅 Local/Native）-> `AnswerSynthesizer` -> `Answer`（含 `mode` / `source_chunk_ids` / `context_chunks`）端到端测试 -> 实现跑绿
+- [x] **Step 7:** 三模式全程 `visible_to`：低 clearance 用户跨模式检索均不可见越权 chunk（构造 mixed-access 语料断言）测试 -> 实现跑绿
 
 **验收：**
 - NativeRAG（dense+sparse+rerank）、Local（图邻居 K 跳+rerank）、Global（社区摘要向量召回，摘要不进重排）三模式可用
@@ -288,11 +288,11 @@ async def answer_relevance(answer: str, question: str, *, judge: LLMProvider) ->
     """答案相关性：答案是否切题（LLM-as-judge，0-1）。"""
 ```
 
-- [ ] **Step 1:** `GoldenCase` 数据模型 + 从 YAML 加载（问题/标准答案/相关 chunk_id/模式）；空文件 -> 空集测试 -> 实现跑绿
-- [ ] **Step 2:** `context_recall` 确定性计算（召回相关 chunk 占比；无相关 -> 0；全召回 -> 1）测试 -> 实现跑绿
-- [ ] **Step 3:** `faithfulness` / `answer_relevance` LLM-as-judge（桩 LLM 返回 0-1 分数；非法返回 -> 0 且不抛）测试 -> 实现跑绿
-- [ ] **Step 4:** `EvalHarness.run`：对每 golden case 跑 `engine.query` -> 取 `source_chunk_ids` 算 `context_recall`、取 `text` 算 `faithfulness`/`answer_relevance` -> 汇总均值与每条详情 `EvalReport` 测试 -> 实现跑绿
-- [ ] **Step 5:** 回归断言：给定固定语料 + 桩 LLM/reranker，harness 输出确定性（两次运行同输入同输出），可作回归基线测试 -> 实现跑绿
+- [x] **Step 1:** `GoldenCase` 数据模型 + 从 YAML 加载（问题/标准答案/相关 chunk_id/模式）；空文件 -> 空集测试 -> 实现跑绿
+- [x] **Step 2:** `context_recall` 确定性计算（召回相关 chunk 占比；无相关 -> 0；全召回 -> 1）测试 -> 实现跑绿
+- [x] **Step 3:** `faithfulness` / `answer_relevance` LLM-as-judge（桩 LLM 返回 0-1 分数；非法返回 -> 0 且不抛）测试 -> 实现跑绿
+- [x] **Step 4:** `EvalHarness.run`：对每 golden case 跑 `engine.query` -> 取 `source_chunk_ids` 算 `context_recall`、取 `text` 算 `faithfulness`/`answer_relevance` -> 汇总均值与每条详情 `EvalReport` 测试 -> 实现跑绿
+- [x] **Step 5:** 回归断言：给定固定语料 + 桩 LLM/reranker，harness 输出确定性（两次运行同输入同输出），可作回归基线测试 -> 实现跑绿
 
 **验收：**
 - golden Q&A 集从 YAML 加载；`context_recall` 确定性、`faithfulness`/`answer_relevance` LLM-as-judge
@@ -314,10 +314,10 @@ async def answer_relevance(answer: str, question: str, *, judge: LLMProvider) ->
 - Modify: `src/calliodesmo/config.py`（新增 `chunk_summary_enabled: bool = False`）
 - Test: `tests/test_chunk_summarizer.py`
 
-- [ ] **Step 1:** `LLMChunkSummarizer` 桩 LLM 生成 ~100 token 摘要；空 chunk / 超短 chunk 返原文截断测试 -> 实现跑绿
-- [ ] **Step 2:** 摘要不进稠密索引：`LoadService` 写 `ChunkRecord` 时 `content` 仍为 chunk 原文，摘要入 `metadata["summary"]`，断言 `VectorStore` 收到的 `content` 不被摘要替换测试 -> 实现跑绿
-- [ ] **Step 3:** 开关默认关：`chunk_summary_enabled=False` 时 `ECLIndexingEngine` 不调 LLM、`metadata["summary"]` 缺省；开启时按需生测试 -> 实现跑绿
-- [ ] **Step 4:** 展示层消费：`Candidate` 召回后可携带 `metadata["summary"]` 供 UI 列表预览（NativeRAG 模式断言候选含摘要）测试 -> 实现跑绿
+- [x] **Step 1:** `LLMChunkSummarizer` 桩 LLM 生成 ~100 token 摘要；空 chunk / 超短 chunk 返原文截断测试 -> 实现跑绿
+- [x] **Step 2:** 摘要不进稠密索引：`LoadService` 写 `ChunkRecord` 时 `content` 仍为 chunk 原文，摘要入 `metadata["summary"]`，断言 `VectorStore` 收到的 `content` 不被摘要替换测试 -> 实现跑绿
+- [x] **Step 3:** 开关默认关：`chunk_summary_enabled=False` 时 `ECLIndexingEngine` 不调 LLM、`metadata["summary"]` 缺省；开启时按需生测试 -> 实现跑绿
+- [x] **Step 4:** 展示层消费：`Candidate` 召回后可携带 `metadata["summary"]` 供 UI 列表预览（NativeRAG 模式断言候选含摘要）测试 -> 实现跑绿
 
 **验收：**
 - L0 chunk 短摘要按需生成（~100 token），默认关，开关开时 ingest 触发
@@ -379,12 +379,12 @@ async def query(
     return QueryResponse(...)
 ```
 
-- [ ] **Step 1:** `POST /query`：认证 + `Permission.QUERY` 守卫（缺权限 403）；桩 `SearchEngine` 返回固定 `Answer` -> `QueryResponse`；来源标注透传测试 -> 实现跑绿
-- [ ] **Step 2:** 三模式参数路由（`mode` 取 `native_rag`/`local`/`global`，非法值 400）；`top_k` 边界（<=0 -> 422）测试 -> 实现跑绿
-- [ ] **Step 3:** 审计：`/query` 记 `action="query"`、`detail={mode, sources_count}`、`source="api"` 测试 -> 实现跑绿
-- [ ] **Step 4:** CLI `ask <question> [--mode] [--top-k]`：构造默认引擎（内存 stores + `HashEmbeddingProvider` + `IdentityReranker` + 桩 LLM）-> 打印答案 + 来源 chunk_id；`CliRunner` 断言退出码 0 测试 -> 实现跑绿
-- [ ] **Step 5:** CLI 失败友好报错（无 `query` 权限用户 -> 提示；LLM 缺 key -> 指引 `CALLIODESMO_LLM_API_KEY`）测试 -> 实现跑绿
-- [ ] **Step 6:** 端到端（离线）：ingest 样例语料 -> `/query`（native_rag）召回相关 chunk + 答案标注来源；低 clearance 用户不可见越权 chunk 测试 -> 实现跑绿
+- [x] **Step 1:** `POST /query`：认证 + `Permission.QUERY` 守卫（缺权限 403）；桩 `SearchEngine` 返回固定 `Answer` -> `QueryResponse`；来源标注透传测试 -> 实现跑绿
+- [x] **Step 2:** 三模式参数路由（`mode` 取 `native_rag`/`local`/`global`，非法值 400）；`top_k` 边界（<=0 -> 422）测试 -> 实现跑绿
+- [x] **Step 3:** 审计：`/query` 记 `action="query"`、`detail={mode, sources_count}`、`source="api"` 测试 -> 实现跑绿
+- [x] **Step 4:** CLI `ask <question> [--mode] [--top-k]`：构造默认引擎（内存 stores + `HashEmbeddingProvider` + `IdentityReranker` + 桩 LLM）-> 打印答案 + 来源 chunk_id；`CliRunner` 断言退出码 0 测试 -> 实现跑绿
+- [x] **Step 5:** CLI 失败友好报错（无 `query` 权限用户 -> 提示；LLM 缺 key -> 指引 `CALLIODESMO_LLM_API_KEY`）测试 -> 实现跑绿
+- [x] **Step 6:** 端到端（离线）：ingest 样例语料 -> `/query`（native_rag）召回相关 chunk + 答案标注来源；低 clearance 用户不可见越权 chunk 测试 -> 实现跑绿
 
 **验收：**
 - `POST /query` 认证 + `query` 权限守卫 + 三模式 + `top_k` + 来源标注 + 审计

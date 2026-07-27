@@ -223,7 +223,20 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
     vector_store = InMemoryVectorStore()
     graph_store = InMemoryGraphStore()
     community_store = InMemoryCommunityStore()
-    load_service = LoadService(vector_store, graph_store, community_store, embedding_provider)
+    # L0 chunk 摘要按需补生：chunk_summary_enabled 时经 LLM
+    # 生成摘要入 metadata["summary"]
+    chunk_summarizer = None
+    if getattr(settings, "chunk_summary_enabled", False):
+        from calliodesmo.ecl.chunk_summarizer import LLMChunkSummarizer
+
+        chunk_summarizer = LLMChunkSummarizer(llm, enabled=True)
+    load_service = LoadService(
+        vector_store,
+        graph_store,
+        community_store,
+        embedding_provider,
+        chunk_summarizer=chunk_summarizer,
+    )
     deriver = DocumentCommunityDeriver(llm, community_store)
     profile_card_store = InMemoryProfileCardStore()
     profile_deriver = DeterministicProfileCardDeriver(llm=None)  # 确定性聚合，narrative 默认不生成

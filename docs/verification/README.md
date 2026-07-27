@@ -13,8 +13,8 @@ tags:
 | 报告 | 阶段 | 结论 | 日期 |
 | --- | --- | --- | --- |
 | [[docs/verification/P0-verification\|P0 验证报告]] | P0 地基脚手架 + 非 Docker 部署 | ✅ 33 passed / ruff 0 error / bootstrap 幂等实测 | 2026-07-26 |
-| P1 验证报告 | ECL 管线（Extract/Cognify/Load） | 待 P1 完成后补 | — |
-| P2 验证报告 | 基础检索与 RAG | 待 P2 完成后补 | — |
+| [[docs/verification/P1-verification\|P1 验证报告]] | ECL 管线（Extract/Cognify/Load） | ✅ 124 passed | 2026-07-27 |
+| [[docs/verification/P2-verification\|P2 验证报告]] | 基础检索与 RAG | ✅ 219 passed / ruff 0 error | 2026-07-27 |
 
 ## 目录结构
 

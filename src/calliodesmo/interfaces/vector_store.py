@@ -43,3 +43,6 @@ class VectorStore(ABC):
     async def search(
         self, query_vector: list[float], *, top_k: int, access: AccessContext
     ) -> list[VectorHit]: ...
+
+    @abstractmethod
+    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[ChunkRecord]: ...

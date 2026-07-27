@@ -26,3 +26,5 @@ logs/
 
 # --- Obsidian vault (本地配置，整目录不上传) ---
 .obsidian/
+# --- Codex (本地设置，不上传) ---
+.codex/

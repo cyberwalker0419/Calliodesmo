@@ -33,17 +33,23 @@ class InMemoryVectorStore(VectorStore):
             if not visible_to(rec, access):
                 continue
             score = _cosine(query_vector, rec.vector)
+            metadata = dict(rec.metadata)
+            metadata.setdefault("doc_id", rec.doc_id)
             scored.append(
                 VectorHit(
                     chunk_id=rec.chunk_id,
                     score=score,
                     content=rec.content,
-                    metadata=dict(rec.metadata),
+                    metadata=metadata,
                 )
             )
         # score 降序，平局按 chunk_id 升序（确定性）
         scored.sort(key=lambda h: (-h.score, h.chunk_id))
         return scored[:top_k]
+
+    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[ChunkRecord]:
+        """按 chunk_id 批量查记录（图/社区召回归一 chunk 时用）。"""
+        return [self._records[cid] for cid in chunk_ids if cid in self._records]
 
     def __len__(self) -> int:
         return len(self._records)

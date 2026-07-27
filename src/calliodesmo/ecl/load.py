@@ -4,11 +4,12 @@
 - ExtractionResult -> EntityRecord/RelationRecord -> GraphStore
 - Community -> CommunityRecord -> CommunityStore
 - access 字段从 chunk（doc）继承，贯通三 store 供 AccessContext 过滤
+- L0 chunk 摘要按需补生（summary_enabled 时填 metadata["summary"]，content 保持原文）
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.interfaces.cognify import Community
@@ -17,6 +18,9 @@ from calliodesmo.interfaces.embedding import EmbeddingProvider
 from calliodesmo.interfaces.extractor import ExtractionResult
 from calliodesmo.interfaces.graph_store import EntityRecord, GraphStore, RelationRecord
 from calliodesmo.interfaces.vector_store import ChunkRecord, VectorStore
+
+if TYPE_CHECKING:
+    from calliodesmo.ecl.chunk_summarizer import LLMChunkSummarizer
 
 
 def _access_from_chunk(chunk) -> dict[str, Any]:
@@ -42,11 +46,13 @@ class LoadService:
         graph_store: GraphStore,
         community_store: CommunityStore,
         embedding_provider: EmbeddingProvider,
+        chunk_summarizer: LLMChunkSummarizer | None = None,
     ) -> None:
         self.vector_store = vector_store
         self.graph_store = graph_store
         self.community_store = community_store
         self.embedding_provider = embedding_provider
+        self.chunk_summarizer = chunk_summarizer
 
     async def load(
         self,
@@ -67,21 +73,28 @@ class LoadService:
         if not chunks:
             return
         embed = await self.embedding_provider.embed([c.content for c in chunks])
-        records = [
-            ChunkRecord(
-                chunk_id=c.chunk_id,
-                doc_id=c.doc_id,
-                content=c.content,
-                vector=vec,
-                metadata=dict(c.metadata),
-                access_level=c.access_level,
-                library_scope=c.library_scope,
-                owner_id=c.owner_id,
-                project_id=c.project_id,
-                team_id=c.team_id,
+        records = []
+        for c, vec in zip(chunks, embed.vectors, strict=True):
+            metadata = dict(c.metadata)
+            # L0 chunk 摘要按需补生：summary_enabled 时填 metadata["summary"]，content 保持原文
+            if self.chunk_summarizer is not None:
+                summary = await self.chunk_summarizer.summarize(c.content)
+                if summary:
+                    metadata["summary"] = summary
+            records.append(
+                ChunkRecord(
+                    chunk_id=c.chunk_id,
+                    doc_id=c.doc_id,
+                    content=c.content,
+                    vector=vec,
+                    metadata=metadata,
+                    access_level=c.access_level,
+                    library_scope=c.library_scope,
+                    owner_id=c.owner_id,
+                    project_id=c.project_id,
+                    team_id=c.team_id,
+                )
             )
-            for c, vec in zip(chunks, embed.vectors, strict=True)
-        ]
         await self.vector_store.upsert_chunks(records)
 
     async def _load_graph(self, result: ExtractionResult, base: dict[str, Any]) -> None:
