@@ -50,9 +50,7 @@ class Settings(BaseSettings):
     # P2 检索与 RAG
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     reranker_provider: str = "none"  # none | local | remote（remote 走 HTTP rerank 服务）
-    reranker_api_base: str | None = (
-        None  # remote 时指向 rerank 服务（如 http://rerank-host:8083）
-    )
+    reranker_api_base: str | None = None  # remote 时指向 rerank 服务（如 http://rerank-host:8083）
     reranker_api_key: str | None = None
     rerank_top_n: int = 20
     hybrid_enabled: bool = True

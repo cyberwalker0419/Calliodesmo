@@ -29,7 +29,7 @@ async def test_http_reranker_orders_by_relevance_desc():
             },
         )
 
-    rr = HttpReranker("http://192.168.50.97:8083", transport=_mock(handler))
+    rr = HttpReranker("http://rerank-host:8083", transport=_mock(handler))
     out = await rr.rerank("张三是谁", [_c("c0", "李四在北京"), _c("c1", "张三是工程师")], top_k=10)
     assert [c.chunk_id for c in out] == ["c1", "c0"]
     assert out[0].rank == 1
@@ -109,7 +109,7 @@ def test_build_reranker_remote_returns_http_reranker():
     from calliodesmo.retrieval.http_reranker import HttpReranker
 
     r = build_reranker(
-        Settings(reranker_provider="remote", reranker_api_base="http://192.168.50.97:8083")
+        Settings(reranker_provider="remote", reranker_api_base="http://rerank-host:8083")
     )
     assert isinstance(r, HttpReranker)
-    assert r._api_base == "http://192.168.50.97:8083"
+    assert r._api_base == "http://rerank-host:8083"
