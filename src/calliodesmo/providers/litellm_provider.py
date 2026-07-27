@@ -8,6 +8,13 @@
 from calliodesmo.interfaces.llm import LLMMessage, LLMProvider, LLMResponse
 
 
+def _short_model(model: str | None) -> str:
+    """模型标识短化：llama.cpp 等本地服务回显的常是文件路径，取 basename 避免泄露服务器路径。"""
+    if not model:
+        return ""
+    return model.replace("\\", "/").rsplit("/", 1)[-1]
+
+
 class LiteLLMProvider(LLMProvider):
     def __init__(
         self,
@@ -57,7 +64,7 @@ class LiteLLMProvider(LLMProvider):
             }
         return LLMResponse(
             content=choice.message.content or "",
-            model=response.model,
+            model=_short_model(response.model),
             usage=usage,
             raw=response,
         )

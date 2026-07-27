@@ -200,3 +200,61 @@ async def test_subgraph_empty_seeds_rejected(session):
         assert resp.status_code == 422
     finally:
         deps.reset_app_stores()
+
+
+async def test_subgraph_case_insensitive_seed(session):
+    """档案卡展示名（小写）与图库原始名（混合大小写）不一时，按大小写不敏感命中。"""
+    deps.reset_app_stores()
+    user_id, token = await _seed(session)
+    stores = deps.get_app_stores()
+    await stores.graph_store.upsert_graph(
+        [
+            EntityRecord(
+                name="Mixed Case Entity",
+                type="person",
+                description="混合大小写名",
+                access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=user_id,
+            ),
+            EntityRecord(
+                name="Other",
+                type="person",
+                description="邻居",
+                access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=user_id,
+            ),
+        ],
+        [
+            RelationRecord(
+                source="Mixed Case Entity",
+                target="Other",
+                type="knows",
+                description="",
+                access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=user_id,
+            ),
+        ],
+    )
+    try:
+        async with _make_client(session) as c:
+            # 用小写名查实体详情（图库存的是混合大小写）
+            ent = await c.get("/library/entities/mixed case entity", headers=_auth(token))
+            assert ent.status_code == 200
+            assert ent.json()["name"] == "Mixed Case Entity"
+            # neighbors 也应命中（用解析后的实体名匹配关系端点）
+            assert any(n["name"] == "Other" for n in ent.json()["neighbors"])
+            # 用小写名拉子图 -> 命中并展开邻居
+            resp = await c.get(
+                "/library/subgraph",
+                params={"seeds": "mixed case entity", "hops": 1, "limit": 50},
+                headers=_auth(token),
+            )
+            assert resp.status_code == 200
+            names = {n["name"] for n in resp.json()["nodes"]}
+            assert names == {"Mixed Case Entity", "Other"}
+            assert resp.json()["expanded_seeds"] == ["Mixed Case Entity"]
+    finally:
+        deps.reset_app_stores()

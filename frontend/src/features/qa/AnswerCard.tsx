@@ -14,7 +14,11 @@ export function AnswerCard({ result }: { result: QueryResponse }) {
         <Quote className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">答案</span>
         <Badge variant="secondary">{result.mode}</Badge>
-        {result.model && <span className="text-xs text-muted-foreground">{result.model}</span>}
+        {result.model && (
+          <span className="text-xs text-muted-foreground" title={result.model}>
+            {result.model.split(/[\\/]/).pop()}
+          </span>
+        )}
       </div>
       <p className="whitespace-pre-wrap text-sm leading-relaxed">{result.answer}</p>
       {result.source_chunk_ids.length > 0 && (

@@ -31,6 +31,10 @@ class InMemoryGraphStore(GraphStore):
 
     async def get_entity(self, name: str, *, access: AccessContext) -> EntityRecord | None:
         rec = self._entities.get(name)
+        if rec is None:
+            # 大小写不敏感回退：档案卡展示名与图库原始名可能大小写不一
+            key = name.strip().lower()
+            rec = next((e for e in self._entities.values() if e.name.strip().lower() == key), None)
         if rec is None or not visible_to(rec, access):
             return None
         return rec
@@ -44,10 +48,10 @@ class InMemoryGraphStore(GraphStore):
         rel_hits: list[RelationRecord] = []
         neighbor_names: set[str] = set()
         for r in self._relations.values():
-            if r.source == name or r.target == name:
+            if r.source == ent.name or r.target == ent.name:
                 if visible_to(r, access):
                     rel_hits.append(r)
-                    neighbor_names.add(r.target if r.source == name else r.source)
+                    neighbor_names.add(r.target if r.source == ent.name else r.source)
         neighbors = [
             self._entities[n]
             for n in neighbor_names
@@ -68,12 +72,12 @@ class InMemoryGraphStore(GraphStore):
         frontier: list[str] = []
         for seed in seeds:
             ent = await self.get_entity(seed, access=access)
-            if ent is None or seed in seen:
+            if ent is None or ent.name in seen:
                 continue
-            seen.add(seed)
+            seen.add(ent.name)
             view.nodes.append(ent)
-            view.expanded_seeds.append(seed)
-            frontier.append(seed)
+            view.expanded_seeds.append(ent.name)
+            frontier.append(ent.name)
 
         truncated = False
         for _ in range(max(hops, 0)):

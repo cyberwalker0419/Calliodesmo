@@ -151,8 +151,12 @@ def _cache_exists(cache_file: Path) -> bool:
 
 
 def _list_demo_files(demo_dir: Path) -> list[Path]:
-    files = sorted(p for p in demo_dir.glob("*.md") if p.is_file())
-    return files + sorted(p for p in demo_dir.glob("*.txt") if p.is_file())
+    """列出演示目录下所有文档文件（按加载器注册表分发：.md/.txt/.docx/.pdf 等）。
+
+    仅 glob 文件，后缀分发由 ``LoaderRegistry.resolve`` 负责；未注册后缀会在
+    ingest 时抛 ValueError 提示安装对应 extra（与 CLI ingest 一致）。
+    """
+    return sorted(p for p in demo_dir.glob("*") if p.is_file())
 
 
 def _write_cache(cache_file: Path, payload: dict) -> None:
