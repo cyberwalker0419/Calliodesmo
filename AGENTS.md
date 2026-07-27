@@ -49,21 +49,33 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 | 质量 | pytest + pytest-asyncio · Ruff · GitHub Actions |
 
 ## 项目结构
-
 ```
 src/calliodesmo/
-├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me）
+├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me、/query）
 ├── auth/         三维权限：models / security(Argon2+JWT) / context / service
 ├── audit/        审计日志（谁/何时/做了什么/从哪来）
 ├── db/           异步 SQLAlchemy 引擎与声明式基类
-├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine）
-├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore ...
+├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
+├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine ...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
+├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
+├── eval/         P2 评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / harness
 ├── stores/       profile_card_store / visibility
 ├── config.py     pydantic-settings（CALLIODESMO_ 前缀）
-└── cli.py        Typer：db init / db seed / serve / ingest
-docs/plans/        Obsidian vault：roadmap / monthly / weekly / phases
-config/            extraction_templates.yaml（团队抽取模板）
+├── models.py     ORM 模型集中导入（保证 Base.metadata 注册完整）
+└── cli.py        Typer：db init / db seed / serve / ingest / ask
+docs/
+├── deploy/               部署文档（native.md：非 Docker 原生部署）
+├── plans/                Obsidian vault：roadmap / monthly/<YYYY-MM> / weekly/<YYYY-Www> / phases/P<n>-<slug>
+│   ├── phases/           阶段任务计划（P0-P3 已有，checkbox 跟踪）
+│   ├── monthly/          月计划
+│   └── weekly/           周计划（含日计划表）
+├── verification/         各阶段验证报告（README 索引 + P0/P1/P2 验证报告 + pytest 输出/证据）
+└── model-selection.md    模型选型说明
+tests/                     pytest 测试（内存 SQLite + sys.modules 桩，离线可跑）
+config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml（评估 golden 集）
+scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）
+.github/workflows/ci.yml   CI：ruff + pytest
 ```
 
 ## 代码约定
