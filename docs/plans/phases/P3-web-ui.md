@@ -10,12 +10,16 @@ created: 2026-07-27
 
 > **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P2-retrieval-rag|P2]] / [[docs/plans/phases/P4-git-collab|P4]]。
 
+> [!important] 前置条件（开工前确认）
+> - **基线**：P3 分支从 **P2 合并后的 main** 切出。`/query`、`get_search_engine`、`retrieval/` 目前在 `codex/p2-retrieval-rag` 分支未合并；Task 1 的 stores 依赖工厂要求与 `get_search_engine` 共享同一实例，未合并开工必冲突。
+> - **MVP 裁剪线**（预先声明，防超时）：Task 5 子图可视化可降级为实体邻居列表（表格视图）；Task 7 仅保留 rename/retag/access_level/增删文档，merge/split 并入 P4。裁剪线内功能 + Task 8 权限矩阵回归完成即算 P3 MVP 达成，其余持续迭代。
+
 **Goal:** 启动 Web UI 并持续迭代：登录与会话、个人/组织库浏览、问答面板、用户与团队/项目管理、文档社区手动管理、角色可见性。**后端补全是 UI 的前置**——兑现路线图“用户/用户组管理 CRUD 延后至 P3 落地，service/CLI/API 管理端点同步补全”：补全用户/团队/项目的 list/update/deactivate service 与 `/admin/*` 管理端点、`/library/*` 只读浏览端点，再在其上构建前端。UI 用 `frontend-design` skill 构建，面向情报分析人员的**操作工具风格**（密集有序、可扫描、可比对、可重复操作），而非营销/编辑风。
 
-**Architecture:** 前端为独立 SPA（`frontend/` 目录，与 `src/` 平级），与后端 FastAPI 解耦。开发期 Vite dev server（5173）+ FastAPI（8000）+ CORS；生产期前端构建产物由 FastAPI 静态托管（`StaticFiles` 挂 `frontend/dist`），同源免 CORS。后端沿用 P0/P1 的 `AccessContext` 依赖与审计：管理端点 `/admin/*` 需 `manage_users` / `manage_community` 权限守卫（403），浏览端点 `/library/*` 与 P2 `/query` 需 `query` 权限；**后端为权限唯一真相**，前端隐藏/禁用仅 UX。stores 注入：内存 stores 单例经 FastAPI 依赖工厂共享（ingest/query/browse 同进程），prod 持久化随真后端（P9）。
+**Architecture:** 前端为独立 SPA（`frontend/` 目录，与 `src/` 平级），与后端 FastAPI 解耦。开发期 Vite dev server（5173）经 **dev proxy** 将 `/api` 转发 FastAPI（8000），前后端逻辑同源（httpOnly cookie 全程可用，无需 CORS middleware）；生产期前端构建产物由 FastAPI 静态托管（`StaticFiles` 挂 `frontend/dist`），同源免 CORS。后端沿用 P0/P1 的 `AccessContext` 依赖与审计：管理端点 `/admin/*` 需 `manage_users` / `manage_community` 权限守卫（403），浏览端点 `/library/*` 与 P2 `/query` 需 `query` 权限；**后端为权限唯一真相**，前端隐藏/禁用仅 UX。stores 注入：内存 stores 单例经 FastAPI 依赖工厂共享（ingest/query/browse 同进程），prod 持久化随真后端（P9）。
 
 **Tech Stack:**
-- 前端：React 18 + Vite + TypeScript · Tailwind CSS · shadcn/ui（Radix primitives + `lucide-react` 图标）· TanStack Query（数据获取/缓存/失效）· React Router（路由 + 受保护路由）
+- 前端：React 19 + Vite + TypeScript · Tailwind CSS · shadcn/ui（源码拷贝而非 npm 依赖，兼容性取决于 Radix primitives + `lucide-react` 图标）· TanStack Query（数据获取/缓存/失效）· React Router（路由 + 受保护路由）
 - 构建：Vite（dev）/ 构建产物 FastAPI 静态托管（prod）
 - 后端（P0/P1 基础上扩展）：FastAPI `/admin/*` + `/library/*` 端点 · `require_permission` 守卫 helper · stores 依赖工厂
 - 测试：后端 `pytest` + `httpx`（端点 + 权限守卫）；前端 `vitest` + `@testing-library/react` + Playwright（关键流程截图）
@@ -35,8 +39,9 @@ created: 2026-07-27
 - Modify: `src/calliodesmo/api/app.py`（`include_router` + `require_permission` 守卫接线）
 - Modify: `src/calliodesmo/api/deps.py`（`require_permission(ctx, perm)` helper + `get_profile_card_store` / `get_community_store` / `get_graph_store` 内存单例工厂）
 - Modify: `src/calliodesmo/api/schemas.py`（`UserOut` / `UserCreate` / `UserUpdate` / `TeamOut` / `ProjectOut` / `ProfileCardOut` / `CommunityOut` / `EntityOut`）
-- Modify: `src/calliodesmo/cli.py`（`users list/create/deactivate`、`teams create/add-member`）
-- Test: `tests/test_admin_api.py`、`tests/test_library_api.py`、`tests/test_admin_cli.py`
+- Modify: `src/calliodesmo/cli.py`（`users list/create/deactivate`、`teams create/add-member`、`serve --seed-demo`）
+- Create: `data/demo/`（2-3 篇样例情报文档，含可演示的实体/关系/社区）
+- Test: `tests/test_admin_api.py`、`tests/test_library_api.py`、`tests/test_admin_cli.py`、`tests/test_serve_seed_demo.py`
 
 **权限守卫 helper（`api/deps.py`）：**
 
@@ -108,37 +113,44 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - [ ] **Step 5:** stores 依赖工厂（`get_profile_card_store` 等内存单例，与 `get_search_engine` 共享同一实例）测试 -> 实现跑绿
 - [ ] **Step 6:** CLI `users list/create/deactivate`、`teams create/add-member`（`CliRunner` 断言退出码与输出）测试 -> 实现跑绿
 - [ ] **Step 7:** 软删除与引用完整性：deactivate 后用户不可登录、其历史审计记录保留；`get_access_context` 对 `is_active=False` 返回 None（沿用 P0 逻辑）测试 -> 实现跑绿
+- [ ] **Step 8:** 演示数据：`serve --seed-demo` 启动时对 `data/demo/` 样例文档在 serve 进程内跑 ECL 管线注入内存 stores（解决内存模式 CLI ingest 与 API 跨进程不可见）；seed 后 `/library/profile-cards` 非空测试 -> 实现跑绿
 
 **验收：**
 - 用户/团队/项目 CRUD + 成员管理齐全，`manage_users` / `manage_community` 守卫，管理动作记审计
 - `/library/*` 只读浏览端点按 `visible_to` 过滤、`query` 守卫
 - CLI 管理 + 浏览命令可用；软删除保留审计可追溯
+- `calliodesmo serve --seed-demo` 后浏览端点返回非空演示数据（UI 演示不面对空库）
 
 ---
 
 ### Task 2: 前端工程脚手架
 
-**目标：** 初始化 `frontend/` SPA 工程（React + Vite + TS + Tailwind + shadcn/ui），建 API 客户端（JWT 注入）、TanStack Query 配置、React Router 骨架；后端配 CORS（开发）+ 静态托管（生产），前端能联通 `/healthz`。
+**目标：** 初始化 `frontend/` SPA 工程（React + Vite + TS + Tailwind + shadcn/ui），建 API 客户端（同源 cookie 会话 + JWT 注入）、TanStack Query 配置、React Router 骨架；开发期 Vite dev proxy 同源 + 生产静态托管，前端能联通 `/healthz`。
 
 **Files:**
 - Create: `frontend/`（`package.json` / `vite.config.ts` / `tsconfig.json` / `tailwind.config.ts` / `postcss.config.js` / `index.html`）
-- Create: `frontend/src/api/client.ts`（fetch wrapper + `Authorization: Bearer` 注入 + 统一错误处理）
+- Create: `frontend/src/api/client.ts`（fetch wrapper：同源 cookie 会话为主 + `Authorization: Bearer` 兼容注入 + 统一错误处理）
 - Create: `frontend/src/main.tsx` / `App.tsx`（QueryClientProvider + RouterProvider）
 - Create: `frontend/src/routes.tsx`（路由表 + 受保护路由占位）
-- Modify: `src/calliodesmo/api/app.py`（CORS middleware + `StaticFiles` 挂 `frontend/dist`，生产同源）
-- Modify: `src/calliodesmo/config.py`（`cors_origins: list[str]`，默认 `["http://localhost:5173"]`；`allow_self_register: bool = False`）
+- Modify: `src/calliodesmo/api/app.py`（`StaticFiles` 挂 `frontend/dist`，生产同源；API 路由双挂 `/api` 前缀，前端 baseURL 固定 `/api`）
+- Modify: `src/calliodesmo/config.py`（`allow_self_register: bool = False`；`cors_origins: list[str]` 仅兜底，默认空 = 关闭）
 - Modify: `.gitignore`（`frontend/node_modules/` `frontend/dist/`）
+- Modify: `frontend/vite.config.ts`（dev proxy：`/api` -> `http://localhost:8000`，rewrite 去前缀）
+- Create: `frontend/playwright.config.ts`（桌面 + 移动两视口）
+- Modify: `.github/workflows/ci.yml`（前端 job：`npm ci` / `npm run build` / `vitest`）
 - Test: `frontend/src/api/client.test.ts`（Vitest）
 
 - [ ] **Step 1:** `frontend/` 初始化（Vite React-TS 模板 + Tailwind + shadcn/ui CLI 接入 + `lucide-react`）；`npm run build` 产出 `dist/` 测试（构建通过）
 - [ ] **Step 2:** `api/client.ts`：`fetch` wrapper 注入 Bearer、401 自动跳登录、统一错误对象；TanStack Query `QueryClient` 配置测试 -> 实现跑绿
-- [ ] **Step 3:** 后端 CORS（开发期放行 5173）+ 生产 `StaticFiles` 挂 `frontend/dist`（SPA fallback 到 `index.html`）；`/healthz` 联通测试 -> 实现跑绿
+- [ ] **Step 3:** Vite dev proxy（`/api` -> 8000，rewrite 去前缀，逻辑同源，cookie 方案全程一致）+ 后端 API 双挂 `/api` 前缀 + 生产 `StaticFiles` 挂 `frontend/dist`（SPA fallback 到 `index.html`）；`/healthz` 经 proxy 联通测试 -> 实现跑绿
 - [ ] **Step 4:** React Router 骨架（`/login` `/app/*` 占位）+ `RequireAuth` 守卫占位（Task 3 实现）测试 -> 实现跑绿
+- [ ] **Step 5:** Playwright 接入（`@playwright/test` + 桌面/移动视口配置 + 登录页冒烟截图用例）；CI 前端 job（`npm ci` / `npm run build` / `vitest`）跑通测试 -> 实现跑绿
 
 **验收：**
 - `frontend/` 独立工程可 `npm run dev`（5173）与 `npm run build`
 - API 客户端注入 JWT、401 处理；TanStack Query 配置就绪
-- 后端开发 CORS + 生产静态托管；`/healthz` 前端可联通
+- 开发期 Vite proxy 同源 + 生产静态托管；`/healthz` 前端可联通
+- Playwright 冒烟截图可跑；CI 含前端构建 + 测试 job
 
 ---
 
@@ -146,25 +158,28 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 
 **目标：** 登录页（`POST /auth/token`）+ 会话管理（JWT 存 httpOnly cookie 优先）+ `AccessContext` 全局注入（`GET /auth/me`）+ 受保护路由 + 登出。自注册默认关（管理员建用户为主，`CALLIODESMO_ALLOW_SELF_REGISTER` 开关）。
 
-> [!note] JWT 存储：优先 httpOnly + SameSite cookie（防 XSS 读 token）；localStorage 次选（简单但有 XSS 暴露风险）。同源部署（Task 2 静态托管）下 cookie 方案无 CORS 复杂度。自注册默认关闭，防开放注册滥用。
+> [!note] JWT 存储：httpOnly + SameSite=Lax cookie（防 XSS 读 token）；开发期经 Vite proxy 同源（Task 2）、生产静态托管同源，cookie 全程无跨源复杂度（跨源 cookie 需 SameSite=None + Secure，本地 http 浏览器拒收——这正是选 proxy 方案的原因）；Bearer 头仅保留给 CLI/脚本，不作前端主路径。**会话策略：无 refresh token，JWT 过期即 401 -> 清会话重登**（v1 从简）。自注册默认关闭，防开放注册滥用。
 
 **Files:**
-- Create: `frontend/src/features/auth/LoginPage.tsx` / `AuthContext.tsx` / `RequireAuth.tsx`
+- Create: `frontend/src/features/auth/LoginPage.tsx` / `AuthContext.tsx` / `RequireAuth.tsx` / `ChangePasswordForm.tsx`
 - Modify: `frontend/src/api/client.ts`（token 读写 + 401 拦截）
-- Modify: `src/calliodesmo/api/app.py`（`/auth/token` 支持下发 httpOnly cookie；`POST /auth/logout` 清 cookie）
+- Modify: `src/calliodesmo/api/app.py`（`/auth/token` 支持下发 httpOnly cookie；`POST /auth/logout` 清 cookie；`POST /auth/change-password` 自助改密）
+- Modify: `src/calliodesmo/auth/service.py`（`change_password`：旧密码校验 + Argon2 重哈希）
 - Modify: `src/calliodesmo/config.py`（`allow_self_register`，默认 `False`）
-- Test: `frontend/src/features/auth/*.test.tsx`、`tests/test_auth_cookie_api.py`
+- Test: `frontend/src/features/auth/*.test.tsx`、`tests/test_auth_cookie_api.py`、`tests/test_change_password.py`
 
 - [ ] **Step 1:** 登录页表单 -> `POST /auth/token` -> 存 token；凭证错误显示“用户名或密码错误”；登录后跳 `/app` 测试 -> 实现跑绿
 - [ ] **Step 2:** `AuthContext`：启动拉 `/auth/me` 注入全局 `AccessContext`（clearance/permissions/scopes/team_ids/project_ids）；401/失效清会话跳登录测试 -> 实现跑绿
 - [ ] **Step 3:** `RequireAuth` 守卫：无 token 跳 `/login` 并记回跳地址；登出清会话测试 -> 实现跑绿
-- [ ] **Step 4:** `/auth/token` httpOnly + SameSite cookie 下发 + `/auth/logout` 清 cookie；cookie 与 Bearer 双支持（开发期兼容）测试 -> 实现跑绿
+- [ ] **Step 4:** `/auth/token` httpOnly + SameSite=Lax cookie 下发 + `/auth/logout` 清 cookie（开发期经 proxy 同源，无跨源 cookie 复杂度）；Bearer 仅 CLI/脚本用测试 -> 实现跑绿
 - [ ] **Step 5:** 自注册：`allow_self_register=False` 时 `/register` 端点 404/403；开启时管理员外可注册（含 clearance 上限 INTERNAL，防越权自提）测试 -> 实现跑绿
+- [ ] **Step 6:** 自助改密码：`POST /auth/change-password`（旧密码校验 + Argon2 重哈希 + 记 `action="change_password"` 审计）；设置页改密表单；改密后旧会话失效重登测试 -> 实现跑绿
 
 **验收：**
 - 登录/登出/会话失效完整；`AccessContext` 全局可用
-- JWT httpOnly cookie（防 XSS）+ Bearer 兼容
+- JWT httpOnly cookie（防 XSS）；无 refresh，过期 401 重登路径明确
 - 自注册默认关、开启时防越权自提 clearance
+- 用户可自助改密码（旧密码校验 + 审计 + 改密后重登）
 
 ---
 
@@ -258,6 +273,8 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 
 > [!note] 与 P1 自动派生的关系：自动派生建 level=1 文档社区；本 Task 提供手动编辑能力（分析师命名/打标/调 access_level/合并/拆分/增删文档）。手动编辑标记 provenance，自动重派生时不覆盖手改（复用 P1 ProfileCard 的 `locked` 思路）。完整社区版本/分支/回滚为 P4。
 
+> [!warning] merge/split 不可逆：社区版本/分支/回滚能力在 P4，本阶段 merge/split 无 undo。按头部 MVP 裁剪线：**默认裁掉 merge/split 的 UI 与端点，并入 P4 随版本能力交付**；若评估后保留，审计必须记录合并前成员快照（操作者/时间/源与目标/完整成员清单），UI 配强确认对话框。Step 5 相应标记为裁剪线外。
+
 **Files:**
 - Modify: `src/calliodesmo/interfaces/community_store.py`（`CommunityStore` 扩展手动操作：`rename` / `retag` / `set_access_level` / `add_member_doc` / `remove_member_doc` / `merge_communities` / `split_community`）
 - Modify: `src/calliodesmo/providers/in_memory_community_store.py`（实现上述操作，手动编辑置 `metadata["manual"]=True`）
@@ -295,7 +312,7 @@ class CommunityStore(ABC):
 - [ ] **Step 2:** 自动派生不覆盖手改：`DocumentCommunityDeriver` 跳过 `metadata["manual"]=True` 的社区；手动命名不被重派生覆盖测试 -> 实现跑绿
 - [ ] **Step 3:** `/admin/document-communities` 端点（GET 列表 + PATCH 各操作）；`manage_community` 守卫；操作记 `action="manage_community"` 审计测试 -> 实现跑绿
 - [ ] **Step 4:** `DocumentCommunityManage` UI：社区命名/打标签/access_level、合并（选源+目标）、拆分（选成员文档）、增删文档；`manage_community` 用户可见测试 -> 实现跑绿
-- [ ] **Step 5:** merge/split 语义：merge 合并成员实体与文档、保留来源；split 按文档集合新建社区；幂等可重复测试 -> 实现跑绿
+- [ ] **Step 5:**（裁剪线外，可并入 P4）merge/split 语义：merge 合并成员实体与文档、保留来源；split 按文档集合新建社区；幂等可重复；保留时审计记合并前成员快照 + UI 强确认测试 -> 实现跑绿
 
 **验收：**
 - 文档社区手动命名/打标/access/合并/拆分/增删文档齐全，`manage_community` 守卫
@@ -311,7 +328,7 @@ class CommunityStore(ABC):
 **Files:**
 - Create: `frontend/src/auth/useAccess.ts`（`AccessContext` hook：`can(perm)` / `clearance >= level` / `hasScope`）
 - Modify: `frontend/src/App.tsx`（导航按权限显隐：无 `query` 隐藏问答、无 `manage_users` 隐藏管理）
-- Test: `frontend/src/auth/useAccess.test.ts`、`tests/test_permission_isolation.py`（前后端一致性）
+- Test: `frontend/src/auth/useAccess.test.ts`、`tests/test_permission_isolation.py`（后端参数化矩阵：每个受限端点 × analyst/reviewer/admin/匿名 × 期望状态码）
 
 - [ ] **Step 1:** `useAccess` hook：`can(Permission)` / `clearanceAtLeast(level)` / `hasScope(scope)`；权限驱动渲染（无权组件返回 null/disabled）测试 -> 实现跑绿
 - [ ] **Step 2:** clearance 隔离：低 clearance 用户浏览/问答看不到高 access_level 数据（后端 `visible_to` 已过滤，前端不渲染不存在的）；UI 无越权数据泄露测试 -> 实现跑绿
@@ -340,13 +357,14 @@ class CommunityStore(ABC):
 
 ## 依赖与风险（P3 全量）
 
-- **前端依赖隔离**：`frontend/package.json` 与后端 Python 依赖隔离；CI 加 node 构建（`npm ci && npm run build`），构建产物挂 FastAPI 静态托管。Node 版本锁定（`.nvmrc`）。
-- **内存 stores 单进程**：UI 走 API，API 进程需注入内存 stores 单例（ingest/query/browse 共享）；prod 持久化随真后端（P9）。P3 演示需同进程：`calliodesmo ingest` 与 `serve` 在内存模式下需同进程注入（或等待真后端接入）。Task 1 stores 依赖工厂为此预留单例。
-- **P3 依赖 P2**：问答面板（Task 4）依赖 P2 `/query`；若 P2 未接入真后端，UI 演示用同进程内存 stores。P3 与 P2 可并行推进，Task 4 在 P2 `/query` 就绪后接。
-- **JWT 存储**：优先 httpOnly + SameSite cookie（防 XSS 读 token）；同源部署（Task 2 静态托管）下无 CORS/cookie 复杂度。localStorage 次选（简单但 XSS 暴露），仅开发期兼容。
+- **前端依赖隔离**：`frontend/package.json` 与后端 Python 依赖隔离；CI 前端 job（`npm ci && npm run build && vitest`，Task 2 Step 5 落地），构建产物挂 FastAPI 静态托管。Node 版本锁定（`.nvmrc`）。
+- **内存 stores 单进程**：UI 走 API，API 进程需注入内存 stores 单例（ingest/query/browse 共享）；prod 持久化随真后端（P9）。内存模式下 CLI `ingest`（独立进程）灌的数据 API 进程不可见——**演示数据统一走 Task 1 Step 8 的 `serve --seed-demo`（serve 进程内自灌），这是 P3 演示的官方路径**。Task 1 stores 依赖工厂为此预留单例。
+- **P3 依赖 P2**：问答面板（Task 4）依赖 P2 `/query`。**开工前置：`codex/p2-retrieval-rag` 先合并入 main，P3 分支从合并后的 main 切出**（见头部前置条件）；UI 演示用同进程内存 stores + `serve --seed-demo`。
+- **JWT 存储**：httpOnly + SameSite=Lax cookie（防 XSS 读 token）；开发期 Vite proxy 同源 + 生产静态托管同源，无跨源 cookie/CORS 复杂度。Bearer 仅 CLI/脚本。无 refresh token，过期重登。
 - **自注册安全**：默认关（`allow_self_register=False`）；开启时自注册 clearance 上限 INTERNAL，防越权自提；管理员建用户为主路径。
 - **越权保护（后端唯一真相）**：前端隐藏/禁用仅 UX；每个受限端点后端守卫全覆盖（`require_permission` + `visible_to`），越权直击 403。Task 8 权限矩阵回归保证前后端一致。
 - **软删除与审计**：用户 deactivate 为软删除（`is_active=False`），保留审计可追溯（谁/何时/做了什么/从哪来）；不物理删除，避免级联破坏历史记录。
-- **CORS / 同源**：开发期 CORS 放行 Vite 5173；生产同源静态托管免 CORS。`cors_origins` 可配，生产收紧为实际域名。
-- **测试边界**：后端端点 + 权限守卫用 `pytest` + `httpx`；前端组件用 `vitest` + Testing Library；关键流程用 Playwright 截图。前端不进检索精度回归（那是 P2 harness），但权限一致性有回归测试。
-- **版本协调**：前端依赖锁定（package-lock）；引入 shadcn/ui/TanStack Query 等时注意 React 18 主版本兼容。
+- **CORS / 同源**：开发期走 Vite proxy 逻辑同源，默认不需要 CORS middleware；`cors_origins` 配置保留作兜底（默认空 = 关），仅未来确有跨域客户端时开启，生产收紧为实际域名。
+- **测试边界**：后端端点 + 权限守卫用 `pytest` + `httpx`（受限端点做参数化矩阵：端点 × 角色 × 期望状态码）；前端组件用 `vitest` + Testing Library；Playwright 自 Task 2 接入，关键流程（登录/问答/浏览/管理）截图随 Task 推进补齐。前端不进检索精度回归（那是 P2 harness），但权限一致性有回归测试。
+- **版本协调**：前端依赖锁定（package-lock + `.nvmrc`）。React 用 19（2026 新脚手架默认；shadcn/ui 为源码拷贝、兼容性取决于 Radix primitives，Radix/TanStack Query 均已支持 19）；`react-force-graph`（依赖 three.js）的 React 19 兼容性在 Task 5 开工时先 spike 验证，不兼容则落 vis-network 方案。
+- **范围外（本阶段不做）**：审计记录查看 UI（审计只记不看，查看界面随 P4 或后续阶段）；refresh token 会话续期；merge/split（按裁剪线并入 P4）；OIDC/SSO（v2 精化）。
