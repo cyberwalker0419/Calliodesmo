@@ -10,14 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 
-/** 实体列表：搜索 + 多选（勾选=图谱种子）+ 单击聚焦看详情 */
 function EntityList({
   selected,
+  graphNodes,
   onToggle,
   onFocus,
   scope,
 }: {
   selected: string[];
+  graphNodes: string[];
   onToggle: (name: string) => void;
   onFocus: (name: string) => void;
   scope: string | null;
@@ -27,52 +28,54 @@ function EntityList({
     queryKey: ["profile-cards", scope],
     queryFn: () => api.get<ProfileCardOut[]>("/library/profile-cards", { scope: scope ?? undefined }),
   });
+  const graphSet = useMemo(() => new Set(graphNodes), [graphNodes]);
   const filtered = useMemo(
-    () =>
-      (data ?? []).filter((c) => !q || c.entity_name.toLowerCase().includes(q.toLowerCase())),
+    () => (data ?? []).filter((c) => !q || c.entity_name.toLowerCase().includes(q.toLowerCase())),
     [data, q]
   );
   return (
     <div className="space-y-2">
-      <Input
-        placeholder="搜索实体名..."
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        className="h-8"
-      />
+      <Input placeholder="搜索实体名..." value={q} onChange={(e) => setQ(e.target.value)} className="h-8" />
       {isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : !filtered.length ? (
         <p className="text-sm text-muted-foreground">无可见实体（检查权限或种子演示数据）。</p>
       ) : (
         <div className="max-h-[420px] divide-y overflow-auto rounded-md border">
-          {filtered.map((c) => (
-            <div
-              key={c.entity_name}
-              className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/60"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(c.entity_name)}
-                onChange={() => onToggle(c.entity_name)}
-                className="h-3.5 w-3.5"
-              />
-              <button
-                onClick={() => onFocus(c.entity_name)}
-                className="flex flex-1 items-center justify-between gap-2 truncate text-left"
+          {filtered.map((c) => {
+            const inGraph = graphSet.has(c.entity_name);
+            return (
+              <div
+                key={c.entity_name}
+                className={
+                  "flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent/60 " +
+                  (inGraph ? "bg-amber-50 dark:bg-amber-950/30" : "")
+                }
               >
-                <span className="truncate font-medium">{c.entity_name}</span>
-                <span className="flex shrink-0 items-center gap-1">
-                  {c.entity_type && <Badge variant="secondary">{c.entity_type}</Badge>}
-                  <Badge variant="outline">{c.access_level}</Badge>
-                </span>
-              </button>
-            </div>
-          ))}
+                <input
+                  type="checkbox"
+                  checked={selected.includes(c.entity_name)}
+                  onChange={() => onToggle(c.entity_name)}
+                  className="h-3.5 w-3.5"
+                />
+                <button
+                  onClick={() => onFocus(c.entity_name)}
+                  className="flex flex-1 items-center justify-between gap-2 truncate text-left"
+                >
+                  <span className="truncate font-medium">{c.entity_name}</span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {inGraph && <Badge className="bg-amber-500 px-1 text-[10px]">图中</Badge>}
+                    {c.entity_type && <Badge variant="secondary">{c.entity_type}</Badge>}
+                    <Badge variant="outline">{c.access_level}</Badge>
+                  </span>
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        勾选多个实体可在右侧图谱合并查看其关系网络（多选）。
+        勾选多个实体合并查看关系网络；展开图谱后图中实体会在此高亮（图中）。
       </p>
     </div>
   );
@@ -137,7 +140,6 @@ function ProfileCardDetail({ name }: { name: string }) {
   );
 }
 
-/** 社区导航：显示社区主题（为何归为一组）+ 成员实体 */
 function CommunityNav({
   onSelect,
   scope,
@@ -177,9 +179,7 @@ function CommunityNav({
                   <Badge variant="outline">{c.access_level}</Badge>
                 </span>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {c.summary || "（社区无摘要）"}
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{c.summary || "（社区无摘要）"}</p>
               <div className="mt-1 text-xs text-muted-foreground">
                 社区主题/归组依据由 LLM 据成员共现与语义生成；点击成员可在图谱查看其关系。
               </div>
@@ -207,11 +207,11 @@ function CommunityNav({
 export function LibraryPage() {
   const [tab, setTab] = useState("graph");
   const [selected, setSelected] = useState<string[]>([]);
+  const [graphNodes, setGraphNodes] = useState<string[]>([]);
   const [focused, setFocused] = useState<string | null>(null);
   const [scope, setScope] = useState<ScopeValue>(null);
   const toggle = (n: string) =>
     setSelected((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
-  // 社区成员点击：选中该实体 + 聚焦 + 跳图谱
   const fromCommunity = (n: string) => {
     setSelected([n]);
     setFocused(n);
@@ -232,6 +232,7 @@ export function LibraryPage() {
           <div className="space-y-3">
             <EntityList
               selected={selected}
+              graphNodes={graphNodes}
               onToggle={toggle}
               onFocus={setFocused}
               scope={scope}
@@ -240,7 +241,12 @@ export function LibraryPage() {
           </div>
           <div className="h-[600px]">
             {selected.length ? (
-              <EntityGraph initialSeeds={selected} scope={scope} />
+              <EntityGraph
+                initialSeeds={selected}
+                scope={scope}
+                onSeedsChange={setSelected}
+                onNodes={setGraphNodes}
+              />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 勾选左侧实体（可多选）查看关系图谱。

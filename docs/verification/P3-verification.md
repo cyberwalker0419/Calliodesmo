@@ -160,3 +160,19 @@ uv run calliodesmo serve --seed-demo   # serve 进程内灌演示数据 + 缓存
 ## 演示数据梯度
 
 `data/demo/` 文档按文件名前缀拉开 clearance 梯度（`public__*` / `internal__*` / `confidential__*`），供 Task 8 权限矩阵回归与演示可见性隔离。seed 产物落盘缓存 `data/demo/seed-cache.json`，二次 `serve --seed-demo` 命中缓存直接加载、跳过 LLM。
+
+## 待办：实体社区检测改用模块度算法（Louvain/Leiden）
+
+> 状态：暂缓（用户要求最后做）。记录于 2026-07-28。
+
+**问题**：实体社区（level 0）当前两个检测器都是**连通分量**（`ConnectedComponentsDetector` 默认；`NetworkxCommunityDetector` 也只 `nx.connected_components`），**非 Leiden/Louvain 稠密子群**。当实体关系图高度连通时，几乎所有实体塞进一个社区 -> 意义不明。`AGENTS.md` 写的"Leiden 社区检测"与代码不符。
+
+**改法**：
+1. `NetworkxCommunityDetector` 从 `nx.connected_components` 改为 `nx.community.louvain_communities`（稠密子群，按模块度划分）。
+2. 装网络分析 extra：`uv sync --extra graph-analytics`。
+3. `CognifyPipeline` 默认用 `NetworkxCommunityDetector`（或加配置 `community_detector=networkx|connected`）。
+4. 社区 `title`/`summary` 由 LLM 据成员实体生成（已有 `LLMCommunitySummarizer`）；改进提示词让 summary 明确说明"为何这些实体归一组"。
+5. 重新建图（清缓存 + `serve --seed-demo`）才生效。
+6. 更正 `AGENTS.md` 的"Leiden"说法与实现一致。
+
+**影响文件**：`src/calliodesmo/ecl/cognify.py`、`config.py`、`AGENTS.md`、`.env.example`。
