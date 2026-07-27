@@ -53,6 +53,14 @@ scripts/bootstrap.sh --sqlite      # 零依赖开发模式
 > curl http://127.0.0.1:8000/auth/me -H "Authorization: Bearer <token>"
 > ```
 
+### 模型与演示数据
+
+LLM / 嵌入 / 重排三层均可本地或远端，配置见根 [README](../../README.md#部署模型配置三层可切换) 与 `.env.example`（本地 BGE-M3 / Ollama / llama.cpp，或远端 HTTP 服务）。内存 stores 模式下演示数据统一走 serve 进程内自灌（CLI ingest 跨进程不可见）：
+
+```bash
+uv run calliodesmo serve --seed-demo   # 对 data/demo/ 跑 ECL 注入内存 stores 单例，缓存 seed-cache.json
+```
+
 ## 二、PostgreSQL 16 + pgvector 原生安装
 
 ### Ubuntu / Debian（推荐，最省心）
@@ -146,8 +154,8 @@ uv run calliodesmo db init && uv run calliodesmo db seed
 ```
 
 > [!warning] 能力边界
-> 可用：P0 全部（认证/权限/审计/CLI/API）、测试套件。
-> 不可用：**pgvector 向量检索（P2 起）** 与 **Neo4j 语义层建图（P1 起）**——届时必须切到原生或 Docker 的 Postgres/Neo4j。测试套件本身用内存 SQLite，不受影响。
+> SQLite 开发模式可用：认证/权限/审计/CLI/API/Web UI 全功能、检索与问答（向量库/图库/社区库降级为内存实现）、测试套件。
+> 不可用：**pgvector 持久化向量检索** 与 **Neo4j 持久化语义层**——生产部署需切到原生或 Docker 的 Postgres+Neo4j（仅改 `.env` 连接串，应用层无感）。测试套件本身用内存 SQLite，不受影响。
 
 ## 五、生产部署要点（原生）
 
@@ -163,5 +171,7 @@ uv run calliodesmo db init && uv run calliodesmo db seed
 - [ ] `uv run calliodesmo db init && uv run calliodesmo db seed` 成功
 - [ ] `uv run calliodesmo serve` 后 `/healthz` 返回 ok
 - [ ] `/auth/token` 拿到 JWT，`/auth/me` 返回 AccessContext JSON
+- [ ] `POST /query` 返回带来源标注的答案；`GET /library/profile-cards` 返回档案卡（需先 ingest 或 `serve --seed-demo`）
+- [ ] 浏览器打开 http://127.0.0.1:8000 可登录并问答/浏览（P3 Web UI）
 - [ ] Postgres 中 `SELECT * FROM roles;` 有 analyst/reviewer/admin；`audit_logs` 有 login 记录
-- [ ] Neo4j 浏览器可登录（P1 建图前的连通性确认）
+- [ ] Neo4j 浏览器可登录（语义层建图前的连通性确认）
