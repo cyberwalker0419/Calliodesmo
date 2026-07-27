@@ -7,6 +7,7 @@ import uuid
 import typer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from calliodesmo import __version__
 from calliodesmo.config import get_settings
@@ -153,7 +154,9 @@ async def _seed_demo_async(settings):
             typer.echo(f"错误：管理员 {settings.admin_username} 不存在（先运行 db seed）", err=True)
             raise typer.Exit(code=1)
         demo_team = (
-            await session.execute(select(Team).where(Team.name == "演示团队"))
+            await session.execute(
+                select(Team).options(selectinload(Team.members)).where(Team.name == "演示团队")
+            )
         ).scalar_one_or_none()
         if demo_team is None:
             demo_team = await create_team(
