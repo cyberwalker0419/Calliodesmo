@@ -22,7 +22,7 @@ from calliodesmo.api.schemas import (
 )
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
-from calliodesmo.auth.models import Permission
+from calliodesmo.auth.models import LibraryScope, Permission
 from calliodesmo.db.session import get_session
 from calliodesmo.interfaces.profile_card import ProfileCard
 
@@ -50,11 +50,15 @@ def _card_out(card: ProfileCard) -> ProfileCardOut:
 
 @router.get("/profile-cards", response_model=list[ProfileCardOut])
 async def list_profile_cards(
+    scope: LibraryScope | None = Query(default=None, description="按库范围过滤"),
     ctx: AccessContext = Depends(get_current_context),
     store=Depends(get_profile_card_store),
 ) -> list[ProfileCardOut]:
     require_permission(ctx, _GUARD)
-    return [_card_out(c) for c in await store.list(access=ctx)]  # store 内已 visible_to 过滤
+    cards = await store.list(access=ctx)  # store 内已 visible_to 过滤
+    if scope is not None:
+        cards = [c for c in cards if c.library_scope == scope]
+    return [_card_out(c) for c in cards]
 
 
 @router.get("/profile-cards/{entity_name}", response_model=ProfileCardOut)
@@ -73,6 +77,7 @@ async def get_profile_card(
 @router.get("/communities", response_model=list[CommunityOut])
 async def list_communities(
     level: int | None = Query(default=None, ge=0),
+    scope: LibraryScope | None = Query(default=None, description="按库范围过滤"),
     ctx: AccessContext = Depends(get_current_context),
     store=Depends(get_community_store),
 ) -> list[CommunityOut]:
@@ -80,6 +85,8 @@ async def list_communities(
     records = await store.list_communities(access=ctx)
     if level is not None:
         records = [r for r in records if r.level == level]
+    if scope is not None:
+        records = [r for r in records if r.library_scope == scope]
     return [
         CommunityOut(
             community_id=r.community_id,
@@ -140,6 +147,7 @@ async def get_subgraph(
     seeds: str = Query(..., description="种子实体名，逗号分隔（多种子）"),
     hops: int = Query(default=1, ge=0, le=5),
     limit: int = Query(default=50, ge=1, le=500),
+    scope: LibraryScope | None = Query(default=None, description="按库范围过滤节点与边"),
     ctx: AccessContext = Depends(get_current_context),
     store=Depends(get_graph_store),
 ) -> SubgraphResponse:
@@ -151,6 +159,12 @@ async def get_subgraph(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="seeds 不能为空"
         )
     view = await store.subgraph(seed_list, hops=hops, limit=limit, access=ctx)
+    nodes = view.nodes
+    edges = view.edges
+    if scope is not None:
+        nodes = [n for n in nodes if n.library_scope == scope]
+        keep = {n.name for n in nodes}
+        edges = [e for e in edges if e.source in keep and e.target in keep]
     return SubgraphResponse(
         nodes=[
             SubgraphNode(
@@ -159,11 +173,11 @@ async def get_subgraph(
                 description=n.description,
                 access_level=n.access_level.name,
             )
-            for n in view.nodes
+            for n in nodes
         ],
         edges=[
             SubgraphEdge(source=e.source, target=e.target, type=e.type, description=e.description)
-            for e in view.edges
+            for e in edges
         ],
         expanded_seeds=list(view.expanded_seeds),
         truncated=view.truncated,

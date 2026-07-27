@@ -3,15 +3,23 @@ import { useMemo, useState } from "react";
 import { api } from "@/api/client";
 import type { CommunityOut, EntityOut, ProfileCardOut } from "@/api/types";
 import { EntityGraph } from "./EntityGraph";
+import { ScopeSwitcher, type ScopeValue } from "./ScopeSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-function ProfileCardList({ onSelect }: { onSelect: (name: string) => void }) {
+function ProfileCardList({
+  onSelect,
+  scope,
+}: {
+  onSelect: (name: string) => void;
+  scope: string | null;
+}) {
   const { data, isLoading } = useQuery({
-    queryKey: ["profile-cards"],
-    queryFn: () => api.get<ProfileCardOut[]>("/library/profile-cards"),
+    queryKey: ["profile-cards", scope],
+    queryFn: () =>
+      api.get<ProfileCardOut[]>("/library/profile-cards", { scope: scope ?? undefined }),
   });
   if (isLoading) return <Skeleton className="h-20 w-full" />;
   if (!data?.length)
@@ -72,11 +80,21 @@ function ProfileCardDetail({ name }: { name: string }) {
   );
 }
 
-function CommunityNav({ onSelect }: { onSelect: (name: string) => void }) {
+function CommunityNav({
+  onSelect,
+  scope,
+}: {
+  onSelect: (name: string) => void;
+  scope: string | null;
+}) {
   const [level, setLevel] = useState("1");
   const { data, isLoading } = useQuery({
-    queryKey: ["communities", level],
-    queryFn: () => api.get<CommunityOut[]>("/library/communities", { level: Number(level) }),
+    queryKey: ["communities", level, scope],
+    queryFn: () =>
+      api.get<CommunityOut[]>("/library/communities", {
+        level: Number(level),
+        scope: scope ?? undefined,
+      }),
   });
   return (
     <div className="space-y-3">
@@ -120,7 +138,7 @@ function CommunityNav({ onSelect }: { onSelect: (name: string) => void }) {
   );
 }
 
-function EntityDetail({ name }: { name: string }) {
+function EntityDetail({ name, scope }: { name: string; scope: string | null }) {
   const { data, isLoading } = useQuery({
     queryKey: ["entity", name],
     queryFn: () => api.get<EntityOut>(`/library/entities/${encodeURIComponent(name)}`),
@@ -154,7 +172,7 @@ function EntityDetail({ name }: { name: string }) {
               {data.relations.map((r, i) => (
                 <li key={i}>
                   <span className="font-medium">{r.source}</span>
-                  <span className="text-muted-foreground"> —{r.type ?? ""}→ </span>
+                  <span className="text-muted-foreground">{` -${r.type ?? ""}-> `}</span>
                   <span className="font-medium">{r.target}</span>
                 </li>
               ))}
@@ -163,7 +181,7 @@ function EntityDetail({ name }: { name: string }) {
         )}
       </div>
       <div className="h-[420px]">
-        <EntityGraph initialSeeds={seeds} />
+        <EntityGraph initialSeeds={seeds} scope={scope} />
       </div>
     </div>
   );
@@ -171,9 +189,13 @@ function EntityDetail({ name }: { name: string }) {
 
 export function LibraryPage() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [scope, setScope] = useState<ScopeValue>(null);
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">知识库浏览</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold">知识库浏览</h1>
+        <ScopeSwitcher value={scope} onChange={setScope} />
+      </div>
       <Tabs defaultValue="cards">
         <TabsList>
           <TabsTrigger value="cards">档案卡</TabsTrigger>
@@ -181,14 +203,18 @@ export function LibraryPage() {
           <TabsTrigger value="entity">实体详情</TabsTrigger>
         </TabsList>
         <TabsContent value="cards" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ProfileCardList onSelect={setSelected} />
+          <ProfileCardList onSelect={setSelected} scope={scope} />
           {selected && <ProfileCardDetail name={selected} />}
         </TabsContent>
         <TabsContent value="communities">
-          <CommunityNav onSelect={setSelected} />
+          <CommunityNav onSelect={setSelected} scope={scope} />
         </TabsContent>
         <TabsContent value="entity">
-          {selected ? <EntityDetail name={selected} /> : <p className="text-sm text-muted-foreground">从档案卡或社区选择一个实体查看详情与子图。</p>}
+          {selected ? (
+            <EntityDetail name={selected} scope={scope} />
+          ) : (
+            <p className="text-sm text-muted-foreground">从档案卡或社区选择一个实体查看详情与子图。</p>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -26,13 +26,13 @@ interface GraphLink {
   label?: string;
 }
 
-export function EntityGraph({ initialSeeds }: { initialSeeds: string[] }) {
+export function EntityGraph({ initialSeeds, scope = null }: { initialSeeds: string[]; scope?: string | null }) {
   const [seeds, setSeeds] = useState<string[]>(initialSeeds);
   const [hops, setHops] = useState(1);
   const [limit, setLimit] = useState(50);
   const [selected, setSelected] = useState<SubgraphNode | null>(null);
   const expandedRef = useRef<Set<string>>(new Set(initialSeeds));
-  const { data, isFetching } = useSubgraph(seeds, hops, limit);
+  const { data, isFetching } = useSubgraph(seeds, hops, limit, scope);
 
   useEffect(() => {
     setSeeds(initialSeeds);

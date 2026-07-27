@@ -13,7 +13,7 @@ from calliodesmo.interfaces.community_store import CommunityStore
 from calliodesmo.interfaces.embedding import EmbeddingProvider
 from calliodesmo.interfaces.graph_store import GraphStore
 from calliodesmo.interfaces.llm import LLMProvider
-from calliodesmo.interfaces.retriever import SparseIndex
+from calliodesmo.interfaces.retriever import Reranker, SparseIndex
 from calliodesmo.interfaces.vector_store import VectorStore
 from calliodesmo.retrieval.answer_synthesizer import AnswerSynthesizer
 from calliodesmo.retrieval.global_search import GlobalSearchRetriever
@@ -81,6 +81,29 @@ def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
     from calliodesmo.providers.hash_embedding import HashEmbeddingProvider
 
     return HashEmbeddingProvider(dimension=settings.embedding_dimension or 64)
+
+
+def build_reranker(settings: Settings) -> Reranker:
+    """重排器路由：none（保序降级）| local（FlagEmbedding extra）| remote（HTTP rerank 服务）。"""
+    name = (settings.reranker_provider or "none").lower()
+    if name == "remote":
+        if not settings.reranker_api_base:
+            raise RuntimeError(
+                "remote 重排需设 CALLIODESMO_RERANKER_API_BASE"
+                "（如 http://rerank-host:8083，llama.cpp llama-server --rerank）"
+            )
+        from calliodesmo.retrieval.http_reranker import HttpReranker
+
+        return HttpReranker(
+            api_base=settings.reranker_api_base,
+            model=settings.reranker_model,
+            api_key=settings.reranker_api_key,
+        )
+    if name == "local":
+        from calliodesmo.retrieval.bge_reranker import BgeReranker
+
+        return BgeReranker(model=settings.reranker_model)
+    return IdentityReranker()
 
 
 def build_default_search_engine(

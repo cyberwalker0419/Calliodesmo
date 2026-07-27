@@ -8,7 +8,7 @@
 
 P3 启动了 Web UI 并补全了管理后端。在 P0/P1/P2 的三层知识图谱与检索能力之上，新增了 `/admin/*` 管理端点、`/library/*` 只读浏览端点、文档社区手动管理后端，并构建了面向情报分析人员的操作工具风格 SPA（React 19 + Vite + TypeScript + Tailwind + shadcn/ui 源码拷贝）。前端经 dev proxy（`/api` 转发 FastAPI）与生产 StaticFiles 同源托管两种模式运行；后端为权限唯一真相，三维正交权限模型（角色 RBAC + clearance + scope）在 UI 与 API 双层一致。
 
-**后端测试结果：279 passed / 0 failed / 0 errors**
+**后端测试结果：289 passed / 0 failed / 0 errors**
 **Ruff：All checks passed!（check + format）**
 **前端测试结果：vitest 5 passed（API 客户端契约）**
 **前端构建：`npm run build` 通过（dist 产物由 FastAPI StaticFiles 托管）**
@@ -120,7 +120,7 @@ P3 启动了 Web UI 并补全了管理后端。在 P0/P1/P2 的三层知识图�
 ```bash
 # 后端
 uv sync
-uv run pytest -q                    # 279 passed
+uv run pytest -q                    # 289 passed
 uv run ruff check . && uv run ruff format --check .   # All checks passed!
 
 # 前端
@@ -134,11 +134,26 @@ uv run calliodesmo serve --seed-demo   # serve 进程内灌演示数据 + 缓存
 # 浏览器打开 http://localhost:8000 （生产静态托管）或 dev: cd frontend && npm run dev
 ```
 
+## 收尾补充：ScopeSwitcher + 远端重排 provider
+
+### ScopeSwitcher（Task 5 Step 10 完整实现）
+- **后端**：`/library/profile-cards` `/library/communities` `/library/subgraph` 新增可选 `scope` 查询参（`LibraryScope` 枚举校验，无效值 422），按 `record.library_scope` 后置过滤；权限仍由 `visible_to` 兜底（后端唯一真相不变）。
+- **前端**：`frontend/src/features/library/ScopeSwitcher.tsx`——按成员关系判定“有权 scope”（personal 恒有；project 需 `project_ids` 非空；team 需 `team_ids` 非空，与 `visible_to` 一致而非 `library_scopes`，避免角色 scope 与实际可见数据不同步）；无权 scope 禁用不可选；切换后档案卡/社区/子图均随 scope 过滤（`useSubgraph` 透传）。
+- **测试**：`tests/test_library_scope_filter.py`（3：profile-cards / communities / subgraph 的 scope 收窄 + 无效值 422）。
+- 顺带修复 `LibraryPage.tsx` 一处被 `tsc -b` 增量缓存掩盖的既有 TS1382（`->` 箭头文本改模板字面量）。
+
+### 远端重排 provider（接入已部署的 bge-reranker-v2-m3）
+- **新增** `HttpReranker`（`src/calliodesmo/retrieval/http_reranker.py`）：零重依赖（仅 httpx），POST `{api_base}/rerank`，按 `relevance_score` 降序、`index` 映射回候选；兼容 llama.cpp（`relevance_score`）与 Cohere/Jina（`score`）。
+- **配置**：`reranker_provider`（none|local|remote）+ `reranker_api_base` + `reranker_api_key`（`config.py` + `.env.example`）；`.env` 指向 `http://rerank-host:8083`（部署的 bge-reranker-v2-m3）。
+- **接线**：`build_reranker(settings)` 路由 + `get_search_engine` 注入；默认 `none` 保持 `IdentityReranker` 降级行为不变（向后兼容）。
+- **测试**：`tests/test_http_reranker.py`（5 重排契约 + 2 路由）；实调远端 rerank 服务冒烟通过（“张三是谁” 相关 chunk 排序正确）。
+
+> 注：完整 `serve --seed-demo` 端到端演示需 LLM（ECL 抽取/摘要）；本次仅提供重排服务，待接入 LLM 后即可跑通。
 ## 已知边界与后续
 
 - **merge/split**：按裁剪线并入 P4（依赖社区版本/分支/回滚能力）。
 - **Playwright 截图**：配置已就绪（`frontend/playwright.config.ts` 桌面+移动双视口），关键流程截图随后续迭代补齐。
-- **ScopeSwitcher**：Task 5 Step 10 库视图 scope 切换为预留接口（当前按 AccessContext 自动过滤），完整 scope 切换 UI 随迭代补齐。
+- **ScopeSwitcher**：Task 5 Step 10 已完整实现（详见下方收尾补充）。
 - **审计查看 UI**：审计只记不看（查看界面随 P4 或后续阶段）。
 - **refresh token**：v1 从简，JWT 过期重登。
 

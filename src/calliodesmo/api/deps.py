@@ -125,15 +125,17 @@ async def get_search_engine() -> SearchEngine:
     stores = get_app_stores()
     if stores.search_engine is not None:
         return stores.search_engine
-    from calliodesmo.retrieval.factory import build_default_search_engine
+    from calliodesmo.retrieval.factory import build_default_search_engine, build_reranker
 
+    settings = get_settings()
     try:
         engine = build_default_search_engine(
-            get_settings(),
+            settings,
             vector_store=stores.vector_store,
             graph_store=stores.graph_store,
             community_store=stores.community_store,
             sparse_index=stores.sparse_index,
+            reranker=build_reranker(settings),
         )
     except RuntimeError as exc:
         raise HTTPException(
