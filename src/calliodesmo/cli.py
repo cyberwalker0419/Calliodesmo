@@ -16,6 +16,10 @@ from calliodesmo.ecl.engine import build_default_indexing_engine
 app = typer.Typer(help="Calliodesmo：三层知识图谱驱动的智能情报分析平台。")
 db_app = typer.Typer(help="数据库管理命令。")
 app.add_typer(db_app, name="db")
+users_app = typer.Typer(help="用户管理命令。")
+app.add_typer(users_app, name="users")
+teams_app = typer.Typer(help="团队管理命令。")
+app.add_typer(teams_app, name="teams")
 
 #: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -99,11 +103,85 @@ def serve(
     host: str = typer.Option("127.0.0.1", help="监听地址。"),
     port: int = typer.Option(8000, help="监听端口。"),
     reload: bool = typer.Option(False, "--reload", help="开发模式自动重载。"),
+    seed_demo: bool = typer.Option(
+        False, "--seed-demo", help="启动前注入 data/demo/ 演示数据（serve 进程内自灌）。"
+    ),
 ) -> None:
-    """启动 API 服务（uvicorn，无需 Docker 的原生部署入口）。"""
+    """启动 API 服务（uvicorn，无需 Docker 的原生部署入口）。
+
+    --seed-demo：serve 进程内对 data/demo/ 跑 ECL 注入内存 stores 单例
+    （内存模式 CLI ingest 跨进程不可见，演示数据统一走此路径）；产物落盘缓存，
+    二次启动命中缓存直接加载、跳过 LLM。
+    """
     import uvicorn
 
+    if seed_demo:
+        _seed_demo_for_serve()
     uvicorn.run("calliodesmo.api.app:app", host=host, port=port, reload=reload)
+
+
+def _seed_demo_for_serve() -> None:
+    """serve --seed-demo：确保演示团队 + 管理员成员，然后注入演示数据到 stores 单例。"""
+    from calliodesmo.api.deps import get_app_stores
+
+    settings = get_settings()
+    report = asyncio.run(_seed_demo_async(settings))
+    stores = get_app_stores()
+    typer.echo(
+        f"演示数据已注入（{report.source}）：文档 {report.documents} / 块 {report.chunks} / "
+        f"档案卡 {len(stores.profile_card_store)} / 社区 {len(stores.community_store)}"
+    )
+
+
+async def _seed_demo_async(settings):
+    from pathlib import Path
+
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.api.deps import get_app_stores
+    from calliodesmo.auth.context import AccessContext
+    from calliodesmo.auth.models import ClearanceLevel, Permission, Team, User
+    from calliodesmo.auth.service import add_team_member, create_team
+    from calliodesmo.ecl.demo_seed import seed_demo_stores
+
+    engine = create_async_engine(settings.database_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        admin = (
+            await session.execute(select(User).where(User.username == settings.admin_username))
+        ).scalar_one_or_none()
+        if admin is None:
+            typer.echo(f"错误：管理员 {settings.admin_username} 不存在（先运行 db seed）", err=True)
+            raise typer.Exit(code=1)
+        demo_team = (
+            await session.execute(select(Team).where(Team.name == "演示团队"))
+        ).scalar_one_or_none()
+        if demo_team is None:
+            demo_team = await create_team(
+                session, name="演示团队", description="serve --seed-demo 演示团队"
+            )
+            await session.flush()
+            await session.refresh(demo_team, ["members"])
+        if not any(m.user_id == admin.id for m in demo_team.members):
+            await add_team_member(session, user=admin, team=demo_team, role_in_team="manager")
+        await session.commit()
+        team_id = demo_team.id
+        admin_id = admin.id
+    await engine.dispose()
+
+    access = AccessContext(
+        user_id=admin_id,
+        username=settings.admin_username,
+        clearance=ClearanceLevel.SECRET,
+        permissions=frozenset(set(Permission)),
+        team_ids=frozenset({team_id}),
+    )
+    return await seed_demo_stores(
+        get_app_stores(),
+        settings,
+        demo_dir=Path(settings.demo_dir),
+        cache_file=Path(settings.demo_cache_file),
+        access=access,
+    )
 
 
 def _system_access():
@@ -312,3 +390,121 @@ def ask(
         typer.echo(f"[来源] {', '.join(answer.source_chunk_ids)}")
     else:
         typer.echo("[来源] 无")
+
+
+# ---- P3 用户/团队管理命令 ----
+
+
+async def _with_session(fn):
+    """开异步会话执行 fn(session)，返回其结果。"""
+    import calliodesmo.models  # noqa: F401
+
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        result = await fn(session)
+        await session.commit()
+    await engine.dispose()
+    return result
+
+
+@users_app.command("list")
+def users_list() -> None:
+    """列出全部用户（含 clearance / 激活状态）。"""
+    from calliodesmo.auth.service import list_users
+
+    users = asyncio.run(_with_session(list_users))
+    for u in users:
+        state = "激活" if u.is_active else "已停用"
+        typer.echo(f"{u.username}\t{u.clearance.name}\t{state}")
+
+
+@users_app.command("create")
+def users_create(
+    username: str = typer.Argument(..., help="用户名。"),
+    password: str = typer.Option(..., "--password", help="初始密码。"),
+    clearance: str = typer.Option(
+        "INTERNAL", "--clearance", help="访问等级（PUBLIC/INTERNAL/CONFIDENTIAL/SECRET）。"
+    ),
+) -> None:
+    """创建用户（幂等：用户名已存在则报错退出）。"""
+    from calliodesmo.auth.models import ClearanceLevel
+    from calliodesmo.auth.service import create_user, get_user_by_username
+
+    try:
+        level = ClearanceLevel[clearance.upper()]
+    except KeyError:
+        typer.echo(f"错误：未知 clearance {clearance}", err=True)
+        raise typer.Exit(code=1) from None
+
+    async def _op(session):
+        if await get_user_by_username(session, username) is not None:
+            return None
+        return await create_user(session, username=username, password=password, clearance=level)
+
+    user = asyncio.run(_with_session(_op))
+    if user is None:
+        typer.echo(f"错误：用户名 {username} 已存在", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"用户 {username} 已创建（clearance={level.name}）。")
+
+
+@users_app.command("deactivate")
+def users_deactivate(username: str = typer.Argument(..., help="用户名。")) -> None:
+    """停用用户（软删除：is_active=False，保留审计可追溯）。"""
+    from calliodesmo.auth.service import deactivate_user, get_user_by_username
+
+    async def _op(session):
+        user = await get_user_by_username(session, username)
+        if user is None:
+            return None
+        return await deactivate_user(session, user_id=user.id)
+
+    user = asyncio.run(_with_session(_op))
+    if user is None:
+        typer.echo(f"错误：用户 {username} 不存在", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"用户 {username} 已停用。")
+
+
+@teams_app.command("create")
+def teams_create(
+    name: str = typer.Argument(..., help="团队名。"),
+    description: str = typer.Option("", "--description", help="团队描述。"),
+) -> None:
+    """创建团队。"""
+    from calliodesmo.auth.service import create_team
+
+    team = asyncio.run(_with_session(lambda s: create_team(s, name=name, description=description)))
+    typer.echo(f"团队 {team.name} 已创建。")
+
+
+@teams_app.command("add-member")
+def teams_add_member(
+    team_name: str = typer.Argument(..., help="团队名。"),
+    username: str = typer.Argument(..., help="用户名。"),
+    role_in_team: str = typer.Option(
+        "member", "--role", help="组内角色（member/manager/reviewer）。"
+    ),
+) -> None:
+    """把用户加入团队。"""
+    from sqlalchemy import select as _select
+
+    from calliodesmo.auth.models import Team
+    from calliodesmo.auth.service import add_team_member, get_user_by_username
+
+    async def _op(session):
+        team = (
+            await session.execute(_select(Team).where(Team.name == team_name))
+        ).scalar_one_or_none()
+        user = await get_user_by_username(session, username)
+        if team is None or user is None:
+            return None
+        return await add_team_member(session, user=user, team=team, role_in_team=role_in_team)
+
+    member = asyncio.run(_with_session(_op))
+    if member is None:
+        typer.echo(f"错误：团队 {team_name} 或用户 {username} 不存在", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"用户 {username} 已加入团队 {team_name}（{role_in_team}）。")
