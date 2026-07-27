@@ -1,4 +1,4 @@
-﻿# P2 基础检索与 RAG 验证报告
+# P2 基础检索与 RAG 验证报告
 
 > 验证日期：2026-07-27
 > 阶段：P2 基础检索与 RAG（[[docs/plans/phases/P2-retrieval-rag|P2 计划]]）

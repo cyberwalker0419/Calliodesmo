@@ -1,4 +1,4 @@
-﻿"""P2 检索域：混合检索 / 三模式 / 答案合成 / 评估 harness。"""
+"""P2 检索域：混合检索 / 三模式 / 答案合成 / 评估 harness。"""
 
 from calliodesmo.retrieval.fusion import rrf
 from calliodesmo.retrieval.hybrid_retriever import HybridRetriever
