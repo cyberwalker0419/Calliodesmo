@@ -14,7 +14,6 @@ const TYPE_COLORS: Record<string, string> = {
   model: "#9333ea",
   location: "#ea580c",
 };
-
 const LEGEND: Array<[string, string]> = [
   ["person", "#2563eb"],
   ["organization", "#16a34a"],
@@ -38,16 +37,20 @@ interface GraphLink {
   label?: string;
 }
 
+const CENTER_ZOOM = 1.0; // 初始/居中缩放（避免过大）
+
 export function EntityGraph({
   initialSeeds,
   scope = null,
   onSeedsChange,
   onNodes,
+  centerOnName,
 }: {
   initialSeeds: string[];
   scope?: string | null;
   onSeedsChange?: (seeds: string[]) => void;
   onNodes?: (names: string[]) => void;
+  centerOnName?: string | null;
 }) {
   const [seeds, setSeeds] = useState<string[]>(initialSeeds);
   const [hops, setHops] = useState(1);
@@ -57,30 +60,60 @@ export function EntityGraph({
   const expandedRef = useRef<Set<string>>(new Set(initialSeeds));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fgRef = useRef<any>(null);
-  const didInitialFit = useRef(false);
+  // 节点对象缓存：跨重拉保留位置（切回同一实体图布局不抖动）
+  const nodeCacheRef = useRef<Map<string, GraphNode>>(new Map());
+  // 待居中目标（仅触发时居中，不随每次重拉乱动）
+  const pendingCenterRef = useRef<string | null>(null);
+  // 展开后一次性把图中实体同步勾选
+  const autoSyncRef = useRef(false);
   const { data, isFetching } = useSubgraph(seeds, hops, limit, scope);
 
   useEffect(() => {
     setSeeds(initialSeeds);
     expandedRef.current = new Set(initialSeeds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSeeds.join("|")]);
 
-  // 报告当前图中实体给父组件（列表高亮）
+  // 列表勾选实体 -> 居中到该实体（仅触发时居中，切回不抖动）
   useEffect(() => {
-    onNodes?.((data?.nodes ?? []).map((n) => n.name));
-  }, [data, onNodes]);
+    if (centerOnName) pendingCenterRef.current = centerOnName;
+  }, [centerOnName]);
+
+  // 报告图中实体 + 展开后一次性同步勾选
+  useEffect(() => {
+    const names = (data?.nodes ?? []).map((n) => n.name);
+    onNodes?.(names);
+    if (autoSyncRef.current && onSeedsChange) {
+      autoSyncRef.current = false;
+      onSeedsChange(names);
+    }
+  }, [data, onNodes, onSeedsChange]);
 
   const { nodes, links } = useMemo(() => {
     const raw = data?.nodes ?? [];
     const edges = data?.edges ?? [];
-    const gn: GraphNode[] = raw.map((n) => ({
-      id: n.name,
-      name: n.name,
-      type: n.type ?? "unknown",
-      color: TYPE_COLORS[(n.type ?? "").toLowerCase()] ?? "#64748b",
-      expanded: expandedRef.current.has(n.name),
-      focus: focusIds.includes(n.name),
-    }));
+    const cache = nodeCacheRef.current;
+    const gn: GraphNode[] = [];
+    for (const n of raw) {
+      let node = cache.get(n.name);
+      if (!node) {
+        node = {
+          id: n.name,
+          name: n.name,
+          type: n.type ?? "unknown",
+          color: TYPE_COLORS[(n.type ?? "").toLowerCase()] ?? "#64748b",
+          x: undefined,
+          y: undefined,
+        };
+        cache.set(n.name, node);
+      }
+      // 刷新非位置字段
+      node.type = n.type ?? "unknown";
+      node.color = TYPE_COLORS[(n.type ?? "").toLowerCase()] ?? "#64748b";
+      node.expanded = expandedRef.current.has(n.name);
+      node.focus = focusIds.includes(n.name);
+      gn.push(node);
+    }
     const gl: GraphLink[] = edges.map((e: SubgraphEdge) => ({
       source: e.source,
       target: e.target,
@@ -89,17 +122,29 @@ export function EntityGraph({
     return { nodes: gn, links: gl };
   }, [data, focusIds]);
 
+  const centerOn = useCallback((name: string | null) => {
+    const fg = fgRef.current;
+    if (!fg || !name) return;
+    const node = nodeCacheRef.current.get(name);
+    if (node && node.x != null && node.y != null) {
+      fg.centerAt(node.x, node.y, 400);
+      fg.zoom(CENTER_ZOOM, 400);
+    }
+  }, []);
+
   const onNodeClick = useCallback(
     (node: GraphNode, ev: MouseEvent) => {
-      // Alt+单击：设/取消焦点
       if (ev.altKey) {
-        setFocusIds((prev) =>
-          prev.includes(node.id) ? prev.filter((x) => x !== node.id) : [...prev, node.id]
-        );
+        // 设/取消焦点 -> 居中最后一个焦点
+        setFocusIds((prev) => {
+          const next = prev.includes(node.id) ? prev.filter((x) => x !== node.id) : [...prev, node.id];
+          pendingCenterRef.current = next.length ? next[next.length - 1] : null;
+          return next;
+        });
         return;
       }
-      // Ctrl/Shift+单击：展开/折叠（增减种子，同步到父级勾选）
       if (ev.ctrlKey || ev.shiftKey) {
+        // 展开/折叠 -> 居中操作节点 + 一次性同步勾选图中实体
         const next = new Set(seeds);
         if (next.has(node.id)) {
           next.delete(node.id);
@@ -109,83 +154,48 @@ export function EntityGraph({
           expandedRef.current.add(node.id);
         }
         const arr = [...next];
+        pendingCenterRef.current = node.id;
+        autoSyncRef.current = true;
         setSeeds(arr);
-        onSeedsChange?.(arr);
         return;
       }
       const raw = data?.nodes.find((n) => n.name === node.id);
       setSelected(raw ?? null);
     },
-    [data, seeds, onSeedsChange]
+    [data, seeds]
   );
 
   const fitAll = useCallback(() => {
     try {
-      fgRef.current?.zoomToFit(80, 60);
+      fgRef.current?.zoomToFit(100, 80);
     } catch {
       /* ignore */
     }
   }, []);
 
   const centerOnFocus = useCallback(() => {
-    const fg = fgRef.current;
-    if (!fg) return;
-    const fns = focusIds.length
-      ? nodes.filter((n) => focusIds.includes(n.id) && n.x != null && n.y != null)
-      : nodes.filter((n) => n.x != null && n.y != null);
-    if (!fns.length) {
-      fitAll();
-      return;
-    }
-    const xs = fns.map((n) => n.x as number);
-    const ys = fns.map((n) => n.y as number);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    fg.centerAt((minX + maxX) / 2, (minY + maxY) / 2, 400);
-    const spread = Math.max(maxX - minX, maxY - minY, 1);
-    fg.zoom(Math.max(0.5, Math.min(6, 700 / (spread + 120))), 400);
-  }, [focusIds, nodes, fitAll]);
+    const target = focusIds.length ? focusIds[focusIds.length - 1] : seeds[0] ?? null;
+    centerOn(target);
+  }, [focusIds, seeds, centerOn]);
 
   return (
     <div className="flex h-full flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1 text-xs text-muted-foreground">
           跳数
-          <Input
-            type="number"
-            min={0}
-            max={5}
-            value={hops}
-            onChange={(e) => setHops(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
-            className="h-7 w-14"
-          />
+          <Input type="number" min={0} max={5} value={hops} onChange={(e) => setHops(Math.max(0, Math.min(5, Number(e.target.value) || 0)))} className="h-7 w-14" />
         </label>
         <label className="flex items-center gap-1 text-xs text-muted-foreground">
           上限
-          <Input
-            type="number"
-            min={1}
-            max={500}
-            value={limit}
-            onChange={(e) => setLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
-            className="h-7 w-16"
-          />
+          <Input type="number" min={1} max={500} value={limit} onChange={(e) => setLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))} className="h-7 w-16" />
         </label>
         <Button type="button" size="sm" variant="outline" onClick={fitAll} className="h-7 gap-1 px-2 text-xs">
           <Crosshair className="h-3 w-3" /> 居中全部
         </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={focusIds.length ? "default" : "outline"}
-          onClick={centerOnFocus}
-          className="h-7 gap-1 px-2 text-xs"
-        >
+        <Button type="button" size="sm" variant={focusIds.length ? "default" : "outline"} onClick={centerOnFocus} className="h-7 gap-1 px-2 text-xs">
           <Star className="h-3 w-3" /> 居中焦点{focusIds.length ? `(${focusIds.length})` : ""}
         </Button>
-        {data?.truncated && (
-          <Badge variant="outline" className="text-amber-600">已截断</Badge>
-        )}
+        {data?.truncated && <Badge variant="outline" className="text-amber-600">已截断</Badge>}
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           <Info className="h-3 w-3" /> 单击看详情；Alt+单击设焦点；Ctrl/Shift+单击展开折叠
         </span>
@@ -211,22 +221,18 @@ export function EntityGraph({
         {isFetching && nodes.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">加载子图…</div>
         ) : nodes.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            无可见子图（检查权限或勾选种子实体）
-          </div>
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">无可见子图（检查权限或勾选种子实体）</div>
         ) : (
           <ForceGraph2D
             ref={fgRef}
             graphData={{ nodes, links }}
             nodeId="id"
-            nodeLabel={(n: GraphNode) =>
-              `${n.name}${n.type && n.type !== "unknown" ? `（${n.type}）` : ""}${n.focus ? " ★" : ""}`
-            }
+            nodeLabel={(n: GraphNode) => `${n.name}${n.type && n.type !== "unknown" ? `（${n.type}）` : ""}${n.focus ? " ★" : ""}`}
             onEngineStop={() => {
-              // 仅首次挂载自适应居中；后续操作（展开/折叠/选择）不自动重置视图
-              if (!didInitialFit.current) {
-                fitAll();
-                didInitialFit.current = true;
+              // 仅当有待居中目标时居中（选择/展开/焦点触发）；否则保留用户视图不动
+              if (pendingCenterRef.current) {
+                centerOn(pendingCenterRef.current);
+                pendingCenterRef.current = null;
               }
             }}
             nodeCanvasObject={(node: GraphNode, ctx, globalScale) => {

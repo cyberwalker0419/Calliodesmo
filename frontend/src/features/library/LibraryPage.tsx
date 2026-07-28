@@ -209,12 +209,21 @@ export function LibraryPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [graphNodes, setGraphNodes] = useState<string[]>([]);
   const [focused, setFocused] = useState<string | null>(null);
+  const [centerOnName, setCenterOnName] = useState<string | null>(null);
   const [scope, setScope] = useState<ScopeValue>(null);
   const toggle = (n: string) =>
-    setSelected((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
+    setSelected((prev) => {
+      if (prev.includes(n)) {
+        setCenterOnName(null);
+        return prev.filter((x) => x !== n);
+      }
+      setCenterOnName(n);
+      return [...prev, n];
+    });
   const fromCommunity = (n: string) => {
     setSelected([n]);
     setFocused(n);
+    setCenterOnName(n);
     setTab("graph");
   };
   return (
@@ -246,6 +255,7 @@ export function LibraryPage() {
                 scope={scope}
                 onSeedsChange={setSelected}
                 onNodes={setGraphNodes}
+                centerOnName={centerOnName}
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
