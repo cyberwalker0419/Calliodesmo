@@ -8,10 +8,12 @@
 
 P4 在 P0-P3 三层知识图谱与检索/问答/浏览能力之上，新增 **Git-like 协作推送**：个人库 -> 项目库 -> 团队库的**贡献/审核/合并状态机**与**图谱合并**（实体按 `name` 去重、关系并集、来源打标），审核指派到组，自审阻断，全程审计。API+CLI 优先，复用 P3 `require_permission` / `visible_to` / `record_audit` / `AppStores` 依赖工厂。
 
-本阶段 MVP 必做（Task 1-5 + Task 9 Step 5 权限矩阵回归）已全部达标；Task 6（抽取模板 review-gated 沉淀）/ Task 7-8（文档社区选项 B）按计划属持续迭代，留后续补齐。
+本阶段 MVP 必做（Task 1-5 + Task 9 Step 5 权限矩阵回归）已全部达标；持续迭代项 Task 6（抽取模板 review-gated 沉淀）/ Task 7（独立嵌入聚类引擎）/ Task 8（社区版本/合并/回滚）/ Task 9 前端 ContributionsPanel 亦已落地；Task 9 ContributionDetail/CommunityVersions UI 留后续补齐。
 
-**后端测试结果：332 passed / 1 skipped / 1 failed**
+**后端测试结果：350 passed / 1 skipped / 1 failed**
 **Ruff：All checks passed!（check + format）**
+**前端三件套：lint 0 错 / vitest 5 passed / build 成功**
+**前端 preview_* 闭环：ContributionsPanel 渲染 + 建推送流程验证通过（无 console error）**
 
 > [!note] 关于 1 failed
 > `tests/test_ingest_cli.py::test_ingest_llm_missing_key` 为 **pre-existing 环境问题**，非 P4 引入：本地 `.env` 残留 `CALLIODESMO_LLM_API_KEY` 导致 `delenv` 未真正清空（pydantic-settings 仍从 `.env` 文件加载），缺 key 校验未触发；叠加 litellm 远程 cost map fetch 的 SSL 证书告警。已用 `git stash` 验证：stash 掉全部 P4 改动后该测试**同样失败**。CI 环境无 `.env`，该测试应通过。
@@ -100,6 +102,54 @@ P4 计划对照现有代码与业界方案修订，落实审查报告三类改�
 | 匿名访问受限端点 -> 401 | ✅ | `test_create_requires_auth` |
 
 > 前端 Task 9（ContributionsPanel/CommunityVersions UI）属持续迭代，按周补齐（P4 计划前置声明）。
+
+### Task 6: 抽取模板 review-gated 沉淀 ✅
+
+| 验收项 | 状态 | 证据 |
+|--------|------|------|
+| `collect_discovered_types`（template_conforming=False 聚合+计数，空类型过滤） | ✅ | `collab/template_review.py` |
+| `ExtractionTemplateRegistry.sediment` 写回 YAML（preferred 追加去重保序，幂等，失败友好报错） | ✅ | `ecl/extraction_template.py` |
+| review-gated 状态（approved 进模板 -> conforming=True 不再收集） | ✅ | `test_collect_discovered_types` |
+| API `GET /collab/template-types` + `POST .../approve`（approve 守卫） | ✅ | `api/collab.py` |
+| CLI `templates list-types/approve-type` | ✅ | `cli.py` |
+
+测试文件：`tests/test_template_review.py`（5）+ `tests/test_collab_api.py`（+1 端点测试）
+
+### Task 7: 独立文档嵌入聚类引擎（选项 B） ✅
+
+| 验收项 | 状态 | 证据 |
+|--------|------|------|
+| `DocCommunityClusterer`（按 doc_id 聚合 chunk 嵌入 -> 阈值连通分量聚类） | ✅ | `ecl/doc_community_clusterer.py` |
+| `docc-` 前缀 + level=2（与实体 comm-/选项 A doc- id 隔离，A1 修订） | ✅ | `test_cluster_prefix_level_metadata` |
+| metadata source=min_intra_similarity 质量信号（B5） | ✅ | 同上 |
+| config 开关 `doc_community_clustering` + `doc_cluster_threshold` | ✅ | `config.py` |
+| engine 接入（ingest 后派生，开关控制） | ✅ | `ecl/engine.py` |
+
+测试文件：`tests/test_doc_community_clusterer.py`（6）
+
+### Task 8: 社区版本/合并/回滚 ✅
+
+| 验收项 | 状态 | 证据 |
+|--------|------|------|
+| `CommunityVersion` ORM（JSON snapshot）+ models.py 注册 | ✅ | `collab/community_version.py` |
+| `CommunityVersionService`（create/list/rollback append 式不删历史，B3 修订） | ✅ | `test_rollback_append_creates_new_version` |
+| `CommunityStore.merge/split` 接口 + in_memory 实现 | ✅ | `interfaces/community_store.py` + `in_memory_community_store.py` |
+| 手动编辑自动生成版本快照（patch 端点） | ✅ | `api/admin.py` |
+| API `/admin/community-versions` + rollback + merge/split（manage_community 守卫） | ✅ | 同上 |
+
+测试文件：`tests/test_community_version.py`（6）
+
+### Task 9: 前端协作推送 UI（核心）✅
+
+| 验收项 | 状态 | 证据 |
+|--------|------|------|
+| `ContributionsPanel`（列表 + 建推送表单 + submit/approve/reject/merge 操作） | ✅ | `frontend/src/features/collab/ContributionsPanel.tsx` |
+| 权限驱动渲染（无 push 隐藏建推送、无 approve 隐藏审核/合并） | ✅ | `useAccess.canPush/canApprove` |
+| 自审禁用 approve/merge（前端 UX，后端守卫） | ✅ | `isSelf(c)` disabled |
+| 路由 `/app/collab` + 导航入口（push 显隐） | ✅ | `routes.tsx` + `App.tsx` |
+| 三件套（lint/test/build）+ preview_* 闭环 | ✅ | 建推送流程验证通过 |
+
+> ContributionDetail（差异清单详情）+ CommunityVersions UI 属持续迭代，留后续补齐。
 
 ## 测试隔离与原理
 
