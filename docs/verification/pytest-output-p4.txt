@@ -1,0 +1,3 @@
+=========================== short test summary info ===========================
+FAILED tests/test_ingest_cli.py::test_ingest_llm_missing_key - assert 0 == 1
+1 failed, 350 passed, 1 skipped, 7 warnings in 25.50s

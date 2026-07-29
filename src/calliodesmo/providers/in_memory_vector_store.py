@@ -51,5 +51,11 @@ class InMemoryVectorStore(VectorStore):
         """按 chunk_id 批量查记录（图/社区召回归一 chunk 时用）。"""
         return [self._records[cid] for cid in chunk_ids if cid in self._records]
 
+    async def list_chunks(self, *, access: AccessContext) -> list[ChunkRecord]:
+        """枚举当前可见的全部 chunk（按 visible_to 过滤），供推送收集。"""
+        from calliodesmo.stores.visibility import visible_to
+
+        return [c for c in self._records.values() if visible_to(c, access)]
+
     def __len__(self) -> int:
         return len(self._records)

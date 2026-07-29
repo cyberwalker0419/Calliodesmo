@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
+import { CommunityVersionsDialog } from "./CommunityVersionsDialog";
 
 const LEVELS = ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "SECRET"];
 
@@ -43,7 +44,7 @@ export function DocumentCommunityManage() {
         <FolderKanban className="h-5 w-5" /> 文档社区手动管理
       </h1>
       <p className="text-sm text-muted-foreground">
-        在自动派生之上手动命名、设 access_level。merge/split 随 P4 版本能力交付。
+        在自动派生之上手动命名、设 access_level；版本回滚/合并/拆分见各行「版本」按钮。
       </p>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -93,6 +94,7 @@ function CommunityRow({
   onAccess: (level: string) => void;
 }) {
   const [title, setTitle] = useState(c.title);
+  const [versionOpen, setVersionOpen] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md border p-3">
       <div className="flex-1">
@@ -120,6 +122,14 @@ function CommunityRow({
       >
         重命名
       </Button>
+      <Button size="sm" variant="secondary" onClick={() => setVersionOpen(true)}>
+        版本
+      </Button>
+      <CommunityVersionsDialog
+        community={c}
+        open={versionOpen}
+        onOpenChange={setVersionOpen}
+      />
     </div>
   );
 }

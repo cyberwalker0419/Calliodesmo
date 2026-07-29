@@ -78,3 +78,46 @@ class ExtractionTemplateRegistry:
 
     def __contains__(self, team: object) -> bool:
         return self.get(team) is not None  # type: ignore[arg-type]
+
+    def sediment(
+        self, team: str, approved_types: list[str], *, path: str | Path | None = None
+    ) -> ExtractionTemplate:
+        """把已批准类型沉淀进团队模板（preferred_entity_types 追加，去重保序），可选写回 YAML。
+
+        写回失败（只读/路径无权）抛 RuntimeError，不崩溃。团队无模板则新建条目。
+        重复批准幂等（去重保序）。
+        """
+        tmpl = self.get(team)
+        if tmpl is None:
+            tmpl = ExtractionTemplate(team=team, preferred_entity_types=list(approved_types))
+            self._templates[team] = tmpl
+        else:
+            tmpl.preferred_entity_types = list(
+                dict.fromkeys(tmpl.preferred_entity_types + list(approved_types))
+            )
+        if path is not None:
+            self._write_yaml(path)
+        return tmpl
+
+    def _write_yaml(self, path: str | Path) -> None:
+        """写回 YAML（全部团队模板），失败抛 RuntimeError（友好报错不崩溃）。"""
+        import yaml
+
+        data = {
+            "templates": [
+                {
+                    "team": t.team,
+                    "preferred_entity_types": list(t.preferred_entity_types),
+                    "type_descriptions": dict(t.type_descriptions),
+                    "relation_types": list(t.relation_types),
+                    "instructions": t.instructions,
+                }
+                for t in self._templates.values()
+            ]
+        }
+        try:
+            Path(path).write_text(
+                yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8"
+            )
+        except OSError as exc:
+            raise RuntimeError(f"模板写回失败（{path}）：{exc}") from exc

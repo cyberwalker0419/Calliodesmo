@@ -5,7 +5,11 @@
   合并时 ``template_conforming`` 取并集（任一 conforming 则合并后 conforming）
 - ``LLMAliasResolver``（可选）：LLM 判别名/指代合并，未启用回退纯名归一化
 - ``ConnectedComponentsDetector``（默认，零重依赖、确定性、按 name 排序可复现）
-- ``NetworkxCommunityDetector``（extra graph-analytics）：缺依赖友好报错
+- ``NetworkxCommunityDetector``（extra graph-analytics）：networkx Louvain 社区检测
+  （modularity 优化，seed 固定保确定性）；缺依赖友好报错。
+  Leiden 留 v2（graph-leiden extra，同模式接入）
+- ``build_community_detector``：按配置名装配检测器
+  （connected_components | networkx_louvain | leiden[未实现]）
 - ``LLMCommunitySummarizer``：社区成员实体名+描述喂 LLM 生成 title+summary
 - ``CognifyPipeline``：串联 build -> resolve -> detect -> summarize
 
@@ -272,14 +276,22 @@ class ConnectedComponentsDetector(CommunityDetector):
 
 
 class NetworkxCommunityDetector(CommunityDetector):
-    """可选（extra graph-analytics）：缺依赖友好报错。"""
+    """可选（extra graph-analytics）：networkx Louvain 社区检测（modularity 优化）。
+
+    相比默认的连通分量，Louvain 基于模块度优化产出更紧凑的社区；seed 固定保确定性
+    （与 ConnectedComponentsDetector 一样按首成员名排序，可复现）。缺依赖友好报错。
+    Leiden（保证社区内连通性）留 v2，届时按 graph-leiden extra 同模式接入。
+    """
+
+    def __init__(self, *, resolution: float = 1.0, seed: int = 42) -> None:
+        self.resolution = resolution
+        self.seed = seed
 
     def detect(self, graph: dict, *, access: AccessContext) -> list[Community]:
         try:
             import networkx as nx
         except ImportError as exc:
             raise RuntimeError("社区检测需 networkx：uv sync --extra graph-analytics") from exc
-        import networkx as nx
 
         nodes: dict[str, GraphNode] = graph["nodes"]
         g = nx.Graph()
@@ -288,10 +300,13 @@ class NetworkxCommunityDetector(CommunityDetector):
         for e in graph["edges"]:
             if e.source in nodes and e.target in nodes:
                 g.add_edge(e.source, e.target)
+        # Louvain：模块度优化社区检测；seed 固定保确定性
+        groups = nx.community.louvain_communities(g, resolution=self.resolution, seed=self.seed)
+        # 按首成员名排序，与 ConnectedComponentsDetector 输出顺序一致
+        groups = sorted((sorted(c) for c in groups), key=lambda c: c[0] if c else "")
         fields = _data_access_fields(access)
         communities: list[Community] = []
-        for idx, comp in enumerate(sorted(nx.connected_components(g), key=lambda c: sorted(c)[0])):
-            members = sorted(comp)
+        for idx, members in enumerate(groups):
             communities.append(
                 Community(
                     community_id=f"comm-{idx}",
@@ -301,11 +316,32 @@ class NetworkxCommunityDetector(CommunityDetector):
                     else f"{members[0]} 等 {len(members)} 实体",
                     summary="",
                     member_entity_names=members,
-                    metadata={"size": len(members)},
+                    metadata={"size": len(members), "algo": "louvain"},
                     **fields,
                 )
             )
         return communities
+
+
+def build_community_detector(
+    name: str, *, resolution: float = 1.0, seed: int = 42
+) -> CommunityDetector:
+    """按配置名装配社区检测器（可插拔；Leiden 留 v2）。
+
+    - ``connected_components``（默认）：零依赖连通分量，确定性。
+    - ``networkx_louvain``：networkx Louvain（modularity），需 extra graph-analytics。
+    - ``leiden``：v2，需 extra graph-leiden；当前未实现，抛 NotImplementedError 指引。
+    未知值回退默认连通分量。
+    """
+    key = (name or "connected_components").lower()
+    if key == "networkx_louvain":
+        return NetworkxCommunityDetector(resolution=resolution, seed=seed)
+    if key == "leiden":
+        raise NotImplementedError(
+            "Leiden 社区检测留 v2：届时 uv sync --extra graph-leiden 后配置"
+            " CALLIODESMO_COMMUNITY_DETECTOR=leiden"
+        )
+    return ConnectedComponentsDetector()
 
 
 # ============ 社区摘要 ============

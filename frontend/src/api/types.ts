@@ -84,6 +84,14 @@ export interface CommunityOut {
   library_scope: string;
 }
 
+export interface CommunityVersionOut {
+  id: string;
+  community_id: string;
+  version: number;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface EntityBrief {
   name: string;
   type: string | null;
@@ -136,6 +144,37 @@ export interface QueryResponse {
   source_chunk_ids: string[];
   context_chunks: Array<{ chunk_id: string; content: string; score?: number }>;
   model: string;
+}
+
+export interface ContributionOut {
+  id: string;
+  source_user_id: string;
+  source_scope: string;
+  target_scope: string;
+  target_project_id: string | null;
+  target_team_id: string | null;
+  title: string;
+  description: string;
+  status: string;
+  doc_ids: string[];
+  assignee_id: string | null;
+  reviewed_by: string | null;
+  merged_at: string | null;
+  created_at: string;
+  version: number;
+}
+
+export interface DiffOut {
+  new_entities: number;
+  new_relations: number;
+  chunks: number;
+  communities: number;
+  conflicts: number;
+  // 明细清单（取自 manifest；冲突仅计数，同名不同义明细留 v2）
+  entity_names: string[];
+  relation_summaries: string[][]; // [source, target, type]
+  chunk_ids: string[];
+  community_ids: string[];
 }
 
 export type SearchMode = "native_rag" | "local" | "global";

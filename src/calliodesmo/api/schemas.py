@@ -1,6 +1,7 @@
 """API 请求/响应模型。"""
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -234,3 +235,94 @@ class CommunityPatchRequest(BaseModel):
 
 class CommunityRemoveDoc(BaseModel):
     doc_id: str
+
+
+class CommunityVersionOut(BaseModel):
+    id: uuid.UUID
+    community_id: str
+    version: int
+    created_at: datetime
+    created_by: uuid.UUID | None = None
+
+
+class CommunityMergeRequest(BaseModel):
+    target_id: str
+    source_ids: list[str]
+
+
+class CommunitySplitRequest(BaseModel):
+    doc_groups: list[list[str]]
+
+
+# ---- /collab 协作推送 ----
+
+
+class ContributionCreate(BaseModel):
+    source_scope: str
+    target_scope: str
+    target_project_id: uuid.UUID | None = None
+    target_team_id: uuid.UUID | None = None
+    title: str = Field(min_length=1, max_length=255)
+    doc_ids: list[str] = Field(default_factory=list)
+    description: str = ""
+
+
+class ContributionOut(BaseModel):
+    id: uuid.UUID
+    source_user_id: uuid.UUID
+    source_scope: str
+    target_scope: str
+    target_project_id: uuid.UUID | None
+    target_team_id: uuid.UUID | None
+    title: str
+    description: str
+    status: str
+    doc_ids: list[str]
+    assignee_id: uuid.UUID | None
+    reviewed_by: uuid.UUID | None
+    merged_at: datetime | None
+    created_at: datetime
+    version: int
+
+
+class DiffOut(BaseModel):
+    """差异清单摘要 + 明细（供审核人审阅）。
+
+    计数字段为聚合摘要；``*_names``/``*_summaries``/``*_ids`` 为明细清单，
+    直接取自 ``contribution.manifest``（push 时已落库，零额外查询）。
+    冲突仅给计数（``conflicts``）--同名不同义实体明细留 v2（见 push.compute_overlap）。
+    """
+
+    new_entities: int
+    new_relations: int
+    chunks: int
+    communities: int
+    conflicts: int
+    entity_names: list[str]
+    relation_summaries: list[list[str]]  # [source, target, type]
+    chunk_ids: list[str]
+    community_ids: list[str]
+
+
+class RejectRequest(BaseModel):
+    reason: str = ""
+
+
+# ---- /collab 抽取模板 review-gated ----
+
+
+class TemplateTypeOut(BaseModel):
+    type: str
+    count: int
+    status: str
+
+
+class TemplateTypeApproveRequest(BaseModel):
+    team: str
+    type: str = Field(min_length=1)
+
+
+class TemplateTypeApproveOut(BaseModel):
+    team: str
+    type: str
+    status: str

@@ -107,5 +107,13 @@ class InMemoryGraphStore(GraphStore):
         view.edges.sort(key=lambda r: (r.source, r.target, r.type or ""))  # 确定性
         return view
 
+    async def list_entities(self, *, access: AccessContext) -> list[EntityRecord]:
+        """枚举当前可见的全部实体（按 visible_to 过滤）。"""
+        return [e for e in self._entities.values() if visible_to(e, access)]
+
+    async def list_relations(self, *, access: AccessContext) -> list[RelationRecord]:
+        """枚举当前可见的全部关系（按 visible_to 过滤）。"""
+        return [r for r in self._relations.values() if visible_to(r, access)]
+
     def __len__(self) -> int:
         return len(self._entities)

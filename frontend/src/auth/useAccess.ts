@@ -21,6 +21,8 @@ export function makeAccess(me: MeResponse | null) {
     hasManageUsers: () => perms.has(PERMISSIONS.MANAGE_USERS),
     hasManageCommunity: () => perms.has(PERMISSIONS.MANAGE_COMMUNITY),
     canQuery: () => perms.has(PERMISSIONS.QUERY),
+    canPush: () => perms.has(PERMISSIONS.PUSH),
+    canApprove: () => perms.has(PERMISSIONS.APPROVE),
     clearanceAtLeast: (level: string) =>
       (CLEARANCE_RANK[level] ?? 0) <= clearance,
     hasScope: (scope: string) => scopes.has(scope),

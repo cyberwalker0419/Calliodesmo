@@ -234,6 +234,39 @@ def test_networkx_missing_dependency(monkeypatch):
         NetworkxCommunityDetector().detect(graph, access=_ctx())
 
 
+# ---- Step 5b: Louvain 装配与确定性 ----
+
+
+def test_build_community_detector_routing():
+    from calliodesmo.ecl.cognify import build_community_detector
+
+    assert isinstance(build_community_detector("connected_components"), ConnectedComponentsDetector)
+    assert isinstance(build_community_detector("networkx_louvain"), NetworkxCommunityDetector)
+    # 未知值回退默认连通分量
+    assert isinstance(build_community_detector("unknown"), ConnectedComponentsDetector)
+    # leiden 留 v2，未实现
+    with pytest.raises(NotImplementedError):
+        build_community_detector("leiden")
+
+
+def test_networkx_louvain_seed_deterministic():
+    """同一图两次 Louvain（seed 固定）产出相同社区划分。需 networkx extra。"""
+    try:
+        import networkx  # noqa: F401
+    except ImportError:
+        pytest.skip("需 graph-analytics extra：uv sync --extra graph-analytics")
+    graph = EntityRelationGraphBuilder().build(_result())
+    det1 = NetworkxCommunityDetector(seed=42)
+    det2 = NetworkxCommunityDetector(seed=42)
+    c1 = det1.detect(graph, access=_ctx())
+    c2 = det2.detect(graph, access=_ctx())
+    # seed 固定 -> 两次划分一致
+    assert [c.member_entity_names for c in c1] == [c.member_entity_names for c in c2]
+    # 所有实体都被分到某社区（Louvain 不丢节点）
+    all_members = {m for c in c1 for m in c.member_entity_names}
+    assert {"OpenAI", "GPT-4", "Sam Altman"} <= all_members
+
+
 # ---- Step 6: 社区摘要 ----
 
 

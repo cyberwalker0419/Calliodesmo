@@ -78,3 +78,13 @@ class GraphStore(ABC):
         全程 visible_to 过滤（越权节点/边不入子图）；返回去重后的节点与边。
         """
         ...
+
+    @abstractmethod
+    async def list_entities(self, *, access: AccessContext) -> list[EntityRecord]:
+        """枚举当前可见的全部实体（按 visible_to 过滤），供推送收集。"""
+        ...
+
+    @abstractmethod
+    async def list_relations(self, *, access: AccessContext) -> list[RelationRecord]:
+        """枚举当前可见的全部关系（按 visible_to 过滤），供推送收集。"""
+        ...

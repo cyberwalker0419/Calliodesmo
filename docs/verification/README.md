@@ -15,6 +15,8 @@ tags:
 | [[docs/verification/P0-verification\|P0 验证报告]] | P0 地基脚手架 + 非 Docker 部署 | ✅ 33 passed / ruff 0 error / bootstrap 幂等实测 | 2026-07-26 |
 | [[docs/verification/P1-verification\|P1 验证报告]] | ECL 管线（Extract/Cognify/Load） | ✅ 124 passed | 2026-07-27 |
 | [[docs/verification/P2-verification\|P2 验证报告]] | 基础检索与 RAG | ✅ 219 passed / ruff 0 error | 2026-07-27 |
+| [[docs/verification/P3-verification\|P3 验证报告]] | Web UI | ✅ 289 passed / ruff 0 error | 2026-07-27 |
+| [[docs/verification/P4-verification\|P4 验证报告]] | Git-like 协作推送 | ✅ 332 passed / 1 skipped / 1 failed(pre-existing) / ruff 0 error | 2026-07-29 |
 
 ## 目录结构
 
@@ -22,7 +24,13 @@ tags:
 docs/verification/
 ├── README.md                 # 本索引
 ├── P0-verification.md        # P0 验证报告（四要素）
+├── P1-verification.md        # P1 验证报告
+├── P2-verification.md        # P2 验证报告
+├── P3-verification.md        # P3 验证报告
+├── P4-verification.md        # P4 验证报告
 ├── pytest-output.txt         # 证据：pytest 原始输出
+├── pytest-output-p3.txt      # 证据：P3 pytest 输出
+├── pytest-output-p4.txt      # 证据：P4 pytest 输出
 └── bootstrap-evidence.txt    # 证据：bootstrap 两次运行（幂等）+ DB 内容佐证
 ```
 
