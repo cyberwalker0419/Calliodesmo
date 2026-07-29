@@ -21,6 +21,8 @@ users_app = typer.Typer(help="用户管理命令。")
 app.add_typer(users_app, name="users")
 teams_app = typer.Typer(help="团队管理命令。")
 app.add_typer(teams_app, name="teams")
+contributions_app = typer.Typer(help="贡献请求(MR)管理命令。")
+app.add_typer(contributions_app, name="contributions")
 
 #: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -511,3 +513,151 @@ def teams_add_member(
         typer.echo(f"错误：团队 {team_name} 或用户 {username} 不存在", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"用户 {username} 已加入团队 {team_name}（{role_in_team}）。")
+
+
+# ---- P4 贡献请求(MR) 命令 ----
+
+
+@contributions_app.command("list")
+def contributions_list() -> None:
+    """列出全部贡献请求（管理员视角，不过滤）。"""
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.collab.models import Contribution
+
+    async def _op(session):
+        result = await session.execute(select(Contribution).order_by(Contribution.created_at))
+        return result.scalars().all()
+
+    items = asyncio.run(_with_session(_op))
+    if not items:
+        typer.echo("（无贡献请求）")
+        return
+    for c in items:
+        typer.echo(
+            f"{c.id}\t{c.status.value}\t{c.title}\t{c.source_scope.value}->{c.target_scope.value}"
+        )
+
+
+@contributions_app.command("show")
+def contributions_show(contribution_id: str = typer.Argument(..., help="贡献 id。")) -> None:
+    """查看贡献详情。"""
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.collab.models import Contribution
+
+    async def _op(session):
+        return await session.get(Contribution, uuid.UUID(contribution_id))
+
+    c = asyncio.run(_with_session(_op))
+    if c is None:
+        typer.echo(f"错误：贡献 {contribution_id} 不存在", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"id: {c.id}")
+    typer.echo(f"status: {c.status.value}")
+    typer.echo(f"title: {c.title}")
+    typer.echo(f"scope: {c.source_scope.value} -> {c.target_scope.value}")
+    typer.echo(f"doc_ids: {c.doc_ids}")
+    typer.echo(f"assignee: {c.assignee_id}")
+    typer.echo(f"version: {c.version}")
+
+
+def _collab_op(fn):
+    """跑贡献状态机操作，捕获 ContributionError/ValueError 返回异常对象。"""
+    result = asyncio.run(_with_session(fn))
+    return result
+
+
+@contributions_app.command("submit")
+def contributions_submit(contribution_id: str = typer.Argument(..., help="贡献 id。")) -> None:
+    """提交贡献（draft -> submitted）。"""
+    from calliodesmo.collab.service import ContributionError, ContributionService
+
+    svc = ContributionService()
+    cid = uuid.UUID(contribution_id)
+
+    async def _op(session):
+        try:
+            return await svc.submit(session, cid, user_id=SYSTEM_USER_ID, source="cli")
+        except (ContributionError, ValueError) as exc:
+            return exc
+
+    result = _collab_op(_op)
+    if isinstance(result, Exception):
+        typer.echo(f"错误：{result}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"贡献 {contribution_id} 已提交（assignee={result.assignee_id}）。")
+
+
+@contributions_app.command("approve")
+def contributions_approve(contribution_id: str = typer.Argument(..., help="贡献 id。")) -> None:
+    """审核通过贡献（submitted -> approved）。"""
+    from calliodesmo.collab.service import ContributionError, ContributionService
+
+    svc = ContributionService()
+    cid = uuid.UUID(contribution_id)
+
+    async def _op(session):
+        try:
+            return await svc.approve(session, cid, user_id=SYSTEM_USER_ID, source="cli")
+        except (ContributionError, ValueError) as exc:
+            return exc
+
+    result = _collab_op(_op)
+    if isinstance(result, Exception):
+        typer.echo(f"错误：{result}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"贡献 {contribution_id} 已审核通过。")
+
+
+@contributions_app.command("merge")
+def contributions_merge(contribution_id: str = typer.Argument(..., help="贡献 id。")) -> None:
+    """合并贡献（approved -> merged）。
+
+    注意：跨进程内存 stores 为空，实际合并需在 serve 进程内（stores 有数据时）；
+    CLI merge 主要用于状态收尾与流程演示。
+    """
+    from calliodesmo.api.deps import get_app_stores
+    from calliodesmo.auth.context import AccessContext
+    from calliodesmo.auth.models import ClearanceLevel, Permission
+    from calliodesmo.auth.service import get_access_context
+    from calliodesmo.collab.merge import MergeService
+    from calliodesmo.collab.models import Contribution
+    from calliodesmo.collab.service import ContributionError
+
+    merge_svc = MergeService()
+    cid = uuid.UUID(contribution_id)
+
+    async def _op(session):
+        c = await session.get(Contribution, cid)
+        if c is None:
+            return None
+        source_access = await get_access_context(session, c.source_user_id)
+        if source_access is None:
+            return None
+        target_access = AccessContext(
+            user_id=SYSTEM_USER_ID,
+            username="system",
+            clearance=ClearanceLevel.SECRET,
+            permissions=frozenset({Permission.APPROVE}),
+            project_ids=frozenset({c.target_project_id}) if c.target_project_id else frozenset(),
+            team_ids=frozenset({c.target_team_id}) if c.target_team_id else frozenset(),
+        )
+        try:
+            return await merge_svc.merge(
+                session,
+                cid,
+                stores=get_app_stores(),
+                source_access=source_access,
+                target_access=target_access,
+                source="cli",
+            )
+        except ContributionError as exc:
+            return exc
+
+    result = _collab_op(_op)
+    if result is None:
+        typer.echo(f"错误：贡献 {contribution_id} 或源用户不存在", err=True)
+        raise typer.Exit(code=1)
+    if isinstance(result, Exception):
+        typer.echo(f"错误：{result}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"贡献 {contribution_id} 已合并。")

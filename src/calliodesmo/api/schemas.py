@@ -1,6 +1,7 @@
 """API 请求/响应模型。"""
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -234,3 +235,46 @@ class CommunityPatchRequest(BaseModel):
 
 class CommunityRemoveDoc(BaseModel):
     doc_id: str
+
+
+# ---- /collab 协作推送 ----
+
+
+class ContributionCreate(BaseModel):
+    source_scope: str
+    target_scope: str
+    target_project_id: uuid.UUID | None = None
+    target_team_id: uuid.UUID | None = None
+    title: str = Field(min_length=1, max_length=255)
+    doc_ids: list[str] = Field(default_factory=list)
+    description: str = ""
+
+
+class ContributionOut(BaseModel):
+    id: uuid.UUID
+    source_user_id: uuid.UUID
+    source_scope: str
+    target_scope: str
+    target_project_id: uuid.UUID | None
+    target_team_id: uuid.UUID | None
+    title: str
+    description: str
+    status: str
+    doc_ids: list[str]
+    assignee_id: uuid.UUID | None
+    reviewed_by: uuid.UUID | None
+    merged_at: datetime | None
+    created_at: datetime
+    version: int
+
+
+class DiffOut(BaseModel):
+    new_entities: int
+    new_relations: int
+    chunks: int
+    communities: int
+    conflicts: int
+
+
+class RejectRequest(BaseModel):
+    reason: str = ""
