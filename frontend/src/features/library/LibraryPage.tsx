@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import type { CommunityOut, ProfileCardOut } from "@/api/types";
 import { EntityGraph } from "./EntityGraph";
@@ -9,15 +9,16 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { normName, hasName } from "@/lib/names";
 
 function EntityList({
-  selected,
+  seeds,
   graphNodes,
   onToggle,
   onFocus,
   scope,
 }: {
-  selected: string[];
+  seeds: string[];
   graphNodes: string[];
   onToggle: (name: string) => void;
   onFocus: (name: string) => void;
@@ -28,7 +29,8 @@ function EntityList({
     queryKey: ["profile-cards", scope],
     queryFn: () => api.get<ProfileCardOut[]>("/library/profile-cards", { scope: scope ?? undefined }),
   });
-  const graphSet = useMemo(() => new Set(graphNodes), [graphNodes]);
+  const graphSet = useMemo(() => new Set(graphNodes.map(normName)), [graphNodes]);
+  const seedSet = useMemo(() => new Set(seeds.map(normName)), [seeds]);
   const filtered = useMemo(
     () => (data ?? []).filter((c) => !q || c.entity_name.toLowerCase().includes(q.toLowerCase())),
     [data, q]
@@ -43,7 +45,9 @@ function EntityList({
       ) : (
         <div className="max-h-[420px] divide-y overflow-auto rounded-md border">
           {filtered.map((c) => {
-            const inGraph = graphSet.has(c.entity_name);
+            const key = normName(c.entity_name);
+            const inGraph = graphSet.has(key);
+            const isSeed = seedSet.has(key);
             return (
               <div
                 key={c.entity_name}
@@ -54,7 +58,7 @@ function EntityList({
               >
                 <input
                   type="checkbox"
-                  checked={selected.includes(c.entity_name)}
+                  checked={inGraph}
                   onChange={() => onToggle(c.entity_name)}
                   className="h-3.5 w-3.5"
                 />
@@ -64,7 +68,7 @@ function EntityList({
                 >
                   <span className="truncate font-medium">{c.entity_name}</span>
                   <span className="flex shrink-0 items-center gap-1">
-                    {inGraph && <Badge className="bg-amber-500 px-1 text-[10px]">图中</Badge>}
+                    {isSeed && <Badge className="bg-amber-500 px-1 text-[10px]">种子</Badge>}
                     {c.entity_type && <Badge variant="secondary">{c.entity_type}</Badge>}
                     <Badge variant="outline">{c.access_level}</Badge>
                   </span>
@@ -75,7 +79,7 @@ function EntityList({
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        勾选多个实体合并查看关系网络；展开图谱后图中实体会在此高亮（图中）。
+        勾选实体查看其关系网络；图中出现的实体会自动勾选，取消勾选将其从图中移除（种子 = 已展开的实体）。
       </p>
     </div>
   );
@@ -206,22 +210,39 @@ function CommunityNav({
 
 export function LibraryPage() {
   const [tab, setTab] = useState("graph");
-  const [selected, setSelected] = useState<string[]>([]);
+  // seeds = 展开集合（图谱查询种子）；hidden = 用户从图中移除的实体；graphNodes = 当前图中实体
+  const [seeds, setSeeds] = useState<string[]>([]);
+  const [hidden, setHidden] = useState<string[]>([]);
   const [graphNodes, setGraphNodes] = useState<string[]>([]);
   const [focused, setFocused] = useState<string | null>(null);
   const [centerOnName, setCenterOnName] = useState<string | null>(null);
   const [scope, setScope] = useState<ScopeValue>(null);
-  const toggle = (n: string) =>
-    setSelected((prev) => {
-      if (prev.includes(n)) {
-        setCenterOnName(null);
-        return prev.filter((x) => x !== n);
-      }
+
+  // 无种子时图已卸载，同步清空“图中”集合，避免残留勾选
+  useEffect(() => {
+    if (seeds.length === 0) setGraphNodes([]);
+  }, [seeds.length]);
+
+  // 勾选 = 该实体当前在图中；取消勾选 = 从图中移除（折叠种子 + 隐藏以杜绝作为邻居残留）
+  const toggle = (n: string) => {
+    if (hasName(graphNodes, n)) {
+      if (hasName(seeds, n)) setSeeds((s) => s.filter((x) => normName(x) !== normName(n)));
+      setHidden((h) => (hasName(h, n) ? h : [...h, n]));
+      setCenterOnName(null);
+    } else {
+      setHidden((h) => h.filter((x) => normName(x) !== normName(n)));
+      if (!hasName(seeds, n)) setSeeds((s) => [...s, n]);
       setCenterOnName(n);
-      return [...prev, n];
-    });
+    }
+  };
+  // 点实体名：看档案 + 视角移到该节点（若在图中）
+  const focusEntity = (n: string) => {
+    setFocused(n);
+    if (hasName(graphNodes, n)) setCenterOnName(n);
+  };
   const fromCommunity = (n: string) => {
-    setSelected([n]);
+    setSeeds([n]);
+    setHidden([]);
     setFocused(n);
     setCenterOnName(n);
     setTab("graph");
@@ -240,20 +261,21 @@ export function LibraryPage() {
         <TabsContent value="graph" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-3">
             <EntityList
-              selected={selected}
+              seeds={seeds}
               graphNodes={graphNodes}
               onToggle={toggle}
-              onFocus={setFocused}
+              onFocus={focusEntity}
               scope={scope}
             />
             {focused && <ProfileCardDetail name={focused} />}
           </div>
           <div className="h-[600px]">
-            {selected.length ? (
+            {seeds.length ? (
               <EntityGraph
-                initialSeeds={selected}
+                initialSeeds={seeds}
+                hidden={hidden}
                 scope={scope}
-                onSeedsChange={setSelected}
+                onSeedsChange={setSeeds}
                 onNodes={setGraphNodes}
                 centerOnName={centerOnName}
               />

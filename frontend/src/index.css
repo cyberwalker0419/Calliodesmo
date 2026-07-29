@@ -50,3 +50,13 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+/* 实体图谱：Cytoscape 画布撑满宿主。
+   .cy-container 用 absolute inset-0 贴满 .entity-graph-host（flex-1 有高度），
+   Cytoscape 据容器 clientWidth/Height 设 canvas 分辨率；这里只兜底确保内部层不塌成 0。
+   不直接覆盖 canvas 的 width/height 属性（与 Cytoscape 内部分辨率逻辑冲突）。 */
+.entity-graph-host .cy-container,
+.entity-graph-host .cy-container > div {
+  width: 100%;
+  height: 100%;
+}
