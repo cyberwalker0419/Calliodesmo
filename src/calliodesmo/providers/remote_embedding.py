@@ -23,7 +23,7 @@ class RemoteEmbeddingProvider(EmbeddingProvider):
         dimension: int = 1024,
         api_key: str = "local",
         timeout: float = 60.0,
-        max_chars_per_slice: int = 5000,  # 远端 token 上限 8192 -> 约 6000 字符，留余量
+        max_chars_per_slice: int = 400,  # 远端 token 上限 ~512；中文 400 字符约 200 token
     ) -> None:
         self._api_base = api_base.rstrip("/")
         if not self._api_base.endswith("/v1"):
@@ -45,16 +45,21 @@ class RemoteEmbeddingProvider(EmbeddingProvider):
         return [text[i : i + self._max_chars] for i in range(0, len(text), self._max_chars)]
 
     async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        # 分批（每批 4 条）避免远端批量上限返回 500；按原始顺序拼接
+        out: list[list[float]] = []
         async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(
-                f"{self._api_base}/embeddings",
-                json={"model": self._model, "input": texts},
-                headers={"Authorization": f"Bearer {self._api_key}"},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-        items = sorted(data["data"], key=lambda d: d.get("index", 0))
-        return [item["embedding"] for item in items]
+            for i in range(0, len(texts), 4):
+                batch = texts[i : i + 4]
+                resp = await client.post(
+                    f"{self._api_base}/embeddings",
+                    json={"model": self._model, "input": batch},
+                    headers={"Authorization": f"Bearer {self._api_key}"},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                for item in sorted(data["data"], key=lambda d: d.get("index", 0)):
+                    out.append(item["embedding"])
+        return out
 
     @staticmethod
     def _mean_pool(vectors: list[list[float]]) -> list[float]:

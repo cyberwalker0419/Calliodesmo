@@ -326,3 +326,15 @@ class TemplateTypeApproveOut(BaseModel):
     team: str
     type: str
     status: str
+
+
+# ---- /ingest 文档上传 ----
+
+
+class IngestStatsOut(BaseModel):
+    documents: int
+    chunks: int
+    entities: int
+    relations: int
+    communities: int
+    profile_cards: int
