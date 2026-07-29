@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     extraction_template_file: str = "config/extraction_templates.yaml"
     chunk_size: int = 1200
     chunk_overlap: int = 100
+    # 社区检测算法：connected_components（默认零依赖）| networkx_louvain（需 extra graph-analytics）
+    # | leiden（v2，需 extra graph-leiden，暂未实现）
+    community_detector: str = "connected_components"
+    community_resolution: float = 1.0  # louvain/leiden 模块度分辨率（越大社区越细）
+    community_seed: int = 42  # louvain/leiden 随机种子（保确定性）
 
     # P2 检索与 RAG
     reranker_model: str = "BAAI/bge-reranker-v2-m3"

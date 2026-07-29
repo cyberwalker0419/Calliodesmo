@@ -226,7 +226,16 @@ def build_default_indexing_engine(
         )
     else:
         embedding_provider = HashEmbeddingProvider(dimension=settings.embedding_dimension or 64)
-    cognify = CognifyPipeline(summarizer=None)  # CLI 默认不跑 LLM 社区摘要（省调用）
+    from calliodesmo.ecl.cognify import build_community_detector
+
+    detector = build_community_detector(
+        settings.community_detector,
+        resolution=settings.community_resolution,
+        seed=settings.community_seed,
+    )
+    cognify = CognifyPipeline(
+        detector=detector, summarizer=None
+    )  # CLI 默认不跑 LLM 社区摘要（省调用）
     # 注意：用 is None 而非 or——stores 实现 __len__，空库为假
     vector_store = vector_store if vector_store is not None else InMemoryVectorStore()
     graph_store = graph_store if graph_store is not None else InMemoryGraphStore()
