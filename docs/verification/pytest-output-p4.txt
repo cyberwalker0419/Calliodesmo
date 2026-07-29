@@ -1,0 +1,60 @@
+tests/test_subgraph_api.py::test_subgraph_requires_query_permission PASSED [ 96%]
+tests/test_subgraph_api.py::test_subgraph_empty_seeds_rejected PASSED    [ 97%]
+tests/test_subgraph_api.py::test_subgraph_case_insensitive_seed PASSED   [ 97%]
+tests/test_text_loader.py::test_load_directory PASSED                    [ 97%]
+tests/test_text_loader.py::test_load_single_file PASSED                  [ 97%]
+tests/test_text_loader.py::test_unsupported_suffix PASSED                [ 98%]
+tests/test_text_loader.py::test_missing_source PASSED                    [ 98%]
+tests/test_visibility.py::test_clearance_ordered_comparison PASSED       [ 98%]
+tests/test_visibility.py::test_personal_scope_owner_match PASSED         [ 99%]
+tests/test_visibility.py::test_project_scope_membership PASSED           [ 99%]
+tests/test_visibility.py::test_team_scope_membership PASSED              [ 99%]
+tests/test_visibility.py::test_community_record_visible_to PASSED        [100%]
+
+================================== FAILURES ===================================
+_________________________ test_ingest_llm_missing_key _________________________
+
+tmp_path = WindowsPath('D:/ROG/Temp/pytest-of-ROG/pytest-92/test_ingest_llm_missing_key0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000286DFAA6B10>
+
+    def test_ingest_llm_missing_key(tmp_path, monkeypatch):
+        _setup_db(tmp_path, monkeypatch)
+        monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "openai/gpt-4o-mini")
+        monkeypatch.delenv("CALLIODESMO_LLM_API_KEY", raising=False)
+        get_settings.cache_clear()
+        (tmp_path / "note.md").write_text("OpenAI ¿ª·¢ÁË GPT-4¡£", encoding="utf-8")
+        try:
+            result = runner.invoke(app, ["ingest", str(tmp_path / "note.md")])
+        finally:
+            get_settings.cache_clear()
+>       assert result.exit_code == 1
+E       assert 0 == 1
+E        +  where 0 = <Result okay>.exit_code
+
+tests\test_ingest_cli.py:133: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  LiteLLM:get_model_cost_map.py:271 LiteLLM: Failed to fetch remote model cost map from https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010). Falling back to local backup.
+============================== warnings summary ===============================
+tests/test_security.py::test_jwt_roundtrip
+tests/test_security.py::test_jwt_expired
+tests/test_security.py::test_jwt_wrong_secret
+  D:\ROG\Documents\My_Project\Calliodesmo\.venv\Lib\site-packages\jwt\api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 6 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_security.py::test_jwt_roundtrip
+tests/test_security.py::test_jwt_expired
+  D:\ROG\Documents\My_Project\Calliodesmo\.venv\Lib\site-packages\jwt\api_jwt.py:368: InsecureKeyLengthWarning: The HMAC key is 6 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_security.py::test_jwt_wrong_secret
+  D:\ROG\Documents\My_Project\Calliodesmo\.venv\Lib\site-packages\jwt\api_jwt.py:368: InsecureKeyLengthWarning: The HMAC key is 12 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_subgraph_api.py::test_subgraph_empty_seeds_rejected
+  D:\ROG\Documents\My_Project\Calliodesmo\.venv\Lib\site-packages\fastapi\routing.py:350: StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    return await dependant.call(**values)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_ingest_cli.py::test_ingest_llm_missing_key - assert 0 == 1
+============ 1 failed, 332 passed, 1 skipped, 7 warnings in 24.81s ============
