@@ -138,6 +138,32 @@ export interface QueryResponse {
   model: string;
 }
 
+export interface ContributionOut {
+  id: string;
+  source_user_id: string;
+  source_scope: string;
+  target_scope: string;
+  target_project_id: string | null;
+  target_team_id: string | null;
+  title: string;
+  description: string;
+  status: string;
+  doc_ids: string[];
+  assignee_id: string | null;
+  reviewed_by: string | null;
+  merged_at: string | null;
+  created_at: string;
+  version: number;
+}
+
+export interface DiffOut {
+  new_entities: number;
+  new_relations: number;
+  chunks: number;
+  communities: number;
+  conflicts: number;
+}
+
 export type SearchMode = "native_rag" | "local" | "global";
 
 export const CLEARANCE_RANK: Record<string, number> = {

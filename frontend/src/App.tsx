@@ -1,4 +1,4 @@
-import { Library, MessageSquareText, Settings, Users, Network, FolderKanban } from "lucide-react";
+import { Library, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAccess } from "@/auth/useAccess";
@@ -52,6 +52,9 @@ export default function AppLayout() {
         <nav className="flex w-56 shrink-0 flex-col gap-1 border-r p-3">
           {access.canQuery() && <NavItem to="/app/qa" icon={MessageSquareText} label="问答面板" />}
           {access.canQuery() && <NavItem to="/app/library" icon={Library} label="知识库浏览" />}
+          {access.canPush() && (
+            <NavItem to="/app/collab" icon={GitPullRequest} label="协作推送" />
+          )}
           {access.hasManageUsers() && (
             <>
               <div className="mt-3 px-3 pb-1 text-xs font-medium uppercase text-muted-foreground">
