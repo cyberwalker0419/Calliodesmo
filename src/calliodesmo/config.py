@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     community_detector: str = "connected_components"
     community_resolution: float = 1.0  # louvain/leiden 模块度分辨率（越大社区越细）
     community_seed: int = 42  # louvain/leiden 随机种子（保确定性）
+    # 文档社区选项 B（独立嵌入聚类，不依赖实体图）
+    doc_community_clustering: bool = True  # ingest 后派生文档聚类社区
+    doc_cluster_threshold: float = 0.7  # 文档嵌入相似度阈值（>= 阈值连边 -> 连通分量）
 
     # P2 检索与 RAG
     reranker_model: str = "BAAI/bge-reranker-v2-m3"

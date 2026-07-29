@@ -12,6 +12,7 @@ from pathlib import Path
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.ecl.cognify import CognifyPipeline
 from calliodesmo.ecl.community_deriver import DocumentCommunityDeriver
+from calliodesmo.ecl.doc_community_clusterer import DocCommunityClusterer
 from calliodesmo.ecl.load import LoadService
 from calliodesmo.ecl.profile_card_deriver import DeterministicProfileCardDeriver
 from calliodesmo.interfaces.chunker import Chunker
@@ -35,6 +36,7 @@ class ECLIndexingEngine(IndexingEngine):
         profile_deriver: ProfileCardDeriver | None = None,
         profile_card_store: InMemoryProfileCardStore | None = None,
         enable_profile_cards: bool = True,
+        doc_clusterer: DocCommunityClusterer | None = None,
     ) -> None:
         self.loader = loader
         self.chunker = chunker
@@ -45,6 +47,7 @@ class ECLIndexingEngine(IndexingEngine):
         self.profile_deriver = profile_deriver
         self.profile_card_store = profile_card_store
         self.enable_profile_cards = enable_profile_cards
+        self.doc_clusterer = doc_clusterer
         # 最近一次 ingest 的中间结果（供调用方 dump 详情）
         self.last_merged = None
         self.last_communities = []
@@ -83,8 +86,12 @@ class ECLIndexingEngine(IndexingEngine):
         # Load：落三层个人库
         await self.load_service.load(all_chunks, merged, communities, access=access)
 
-        # 文档社区派生（level=1）
+        # 文档社区派生（选项 A，level=1）
         doc_communities = await self.deriver.derive(all_chunks, graph, access=access)
+
+        # 文档社区选项 B（独立嵌入聚类，level=2，不依赖实体图）
+        if self.doc_clusterer is not None:
+            doc_communities += await self.doc_clusterer.derive(all_chunks, access=access)
 
         # 档案卡生成（可选，不阻塞主链路）
         profile_count = await self._derive_profile_cards(merged, graph, access=access)
@@ -259,6 +266,11 @@ def build_default_indexing_engine(
         profile_card_store if profile_card_store is not None else InMemoryProfileCardStore()
     )
     profile_deriver = DeterministicProfileCardDeriver(llm=None)  # 确定性聚合，narrative 默认不生成
+    doc_clusterer = None
+    if getattr(settings, "doc_community_clustering", False):
+        doc_clusterer = DocCommunityClusterer(
+            embedding_provider, community_store, threshold=settings.doc_cluster_threshold
+        )
     return ECLIndexingEngine(
         loader=default_registry(),
         chunker=TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap),
@@ -266,6 +278,7 @@ def build_default_indexing_engine(
         cognify=cognify,
         load_service=load_service,
         deriver=deriver,
+        doc_clusterer=doc_clusterer,
         profile_deriver=profile_deriver,
         profile_card_store=profile_card_store,
         enable_profile_cards=True,
