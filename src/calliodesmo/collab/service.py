@@ -14,6 +14,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+# reviewed_at/merged_at 取 UTC-naive：ORM 列为 TIMESTAMP WITHOUT TIME ZONE，Postgres 严格拒
+# aware datetime（sqlite 宽容）。TODO(P0 补全, 2026-W31)：ORM datetime 列改 timezone=True，
+# 届时改回 datetime.now(UTC)。
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -236,7 +239,10 @@ class ContributionService:
             action="approve",
             user_id=user_id,
             source=source,
-            extra_updates={"reviewed_by": user_id, "reviewed_at": datetime.now(UTC)},
+            extra_updates={
+                "reviewed_by": user_id,
+                "reviewed_at": datetime.now(UTC).replace(tzinfo=None),
+            },
             self_review_blocked=True,
         )
 
@@ -258,7 +264,10 @@ class ContributionService:
             user_id=user_id,
             source=source,
             detail={"reason": reason} if reason else None,
-            extra_updates={"reviewed_by": user_id, "reviewed_at": datetime.now(UTC)},
+            extra_updates={
+                "reviewed_by": user_id,
+                "reviewed_at": datetime.now(UTC).replace(tzinfo=None),
+            },
             self_review_blocked=True,
         )
 
@@ -298,7 +307,7 @@ class ContributionService:
             action="merge",
             user_id=user_id,
             source=source,
-            extra_updates={"merged_at": datetime.now(UTC)},
+            extra_updates={"merged_at": datetime.now(UTC).replace(tzinfo=None)},
             self_review_blocked=True,
         )
 
