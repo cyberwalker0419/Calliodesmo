@@ -11,9 +11,11 @@ from calliodesmo.auth.models import (
     User,
     UserRole,
 )
+from calliodesmo.collab.models import Contribution
 
 __all__ = [
     "AuditLog",
+    "Contribution",
     "Project",
     "ProjectMember",
     "Role",

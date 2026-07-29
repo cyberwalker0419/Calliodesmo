@@ -30,6 +30,18 @@ class LibraryScope(enum.StrEnum):
     PROJECT = "project"
     TEAM = "team"
 
+    @property
+    def rank(self) -> int:
+        """库范围层级（personal=0 < project=1 < team=2），校验推送方向（target 须高于 source）。"""
+        return _SCOPE_RANK[self]
+
+
+_SCOPE_RANK: dict[LibraryScope, int] = {
+    LibraryScope.PERSONAL: 0,
+    LibraryScope.PROJECT: 1,
+    LibraryScope.TEAM: 2,
+}
+
 
 class Permission(enum.StrEnum):
     INGEST = "ingest"
