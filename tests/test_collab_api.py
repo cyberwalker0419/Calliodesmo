@@ -220,3 +220,48 @@ async def test_merge_flow(session):
     assert ent is not None, list(stores.graph_store._entities)
     assert ent.library_scope == LibraryScope.PROJECT, ent.library_scope
     reset_app_stores()
+
+
+async def test_template_types_endpoints(session, monkeypatch, tmp_path):
+    """GET /collab/template-types + POST .../approve（approve 守卫 + 写回 YAML）。"""
+    from calliodesmo.config import get_settings
+    from calliodesmo.ecl.extraction_template import ExtractionTemplateRegistry
+
+    yaml_path = tmp_path / "templates.yaml"
+    yaml_path.write_text(
+        "templates:\n  - team: team-a\n    preferred_entity_types: []\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("CALLIODESMO_EXTRACTION_TEMPLATE_FILE", str(yaml_path))
+    get_settings.cache_clear()
+    reviewer, t_r = await _seed_actor(session, "trev", {Permission.APPROVE})
+    reset_app_stores()
+    stores = get_app_stores()
+    await stores.graph_store.upsert_graph(
+        [
+            EntityRecord(
+                name="X",
+                type="company",
+                description="",
+                template_conforming=False,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=reviewer.id,
+            ),
+        ],
+        [],
+    )
+    async with _make_client(session) as c:
+        resp = await c.get("/collab/template-types", headers=_auth(t_r))
+        assert resp.status_code == 200
+        assert any(it["type"] == "company" for it in resp.json())
+        resp = await c.post(
+            "/collab/template-types/approve",
+            json={"team": "team-a", "type": "company"},
+            headers=_auth(t_r),
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "approved"
+    get_settings.cache_clear()
+    reg = ExtractionTemplateRegistry.from_yaml(yaml_path)
+    assert "company" in reg.get("team-a").preferred_entity_types
+    reset_app_stores()
+    get_settings.cache_clear()

@@ -23,6 +23,8 @@ teams_app = typer.Typer(help="团队管理命令。")
 app.add_typer(teams_app, name="teams")
 contributions_app = typer.Typer(help="贡献请求(MR)管理命令。")
 app.add_typer(contributions_app, name="contributions")
+templates_app = typer.Typer(help="抽取模板审核命令。")
+app.add_typer(templates_app, name="templates")
 
 #: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -661,3 +663,46 @@ def contributions_merge(contribution_id: str = typer.Argument(..., help="贡献 
         typer.echo(f"错误：{result}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"贡献 {contribution_id} 已合并。")
+
+
+# ---- P4 抽取模板审核命令 ----
+
+
+@templates_app.command("list-types")
+def templates_list_types() -> None:
+    """列出发现类型候选（跨进程内存 stores 为空，需 serve 进程内有数据）。"""
+    from calliodesmo.api.deps import get_app_stores
+    from calliodesmo.auth.context import AccessContext
+    from calliodesmo.auth.models import ClearanceLevel, Permission
+    from calliodesmo.collab.template_review import collect_discovered_types
+
+    access = AccessContext(
+        user_id=SYSTEM_USER_ID,
+        username="system",
+        clearance=ClearanceLevel.SECRET,
+        permissions=frozenset({Permission.APPROVE}),
+    )
+    items = asyncio.run(collect_discovered_types(get_app_stores(), access=access))
+    if not items:
+        typer.echo("（无发现类型候选）")
+        return
+    for it in items:
+        typer.echo(f"{it['type']}\t{it['count']}\t{it['status']}")
+
+
+@templates_app.command("approve-type")
+def templates_approve_type(
+    team: str = typer.Option(..., "--team", help="团队 id。"),
+    entity_type: str = typer.Option(..., "--type", help="批准的实体类型。"),
+) -> None:
+    """批准发现类型沉淀进团队模板 YAML（幂等）。"""
+    from calliodesmo.ecl.extraction_template import ExtractionTemplateRegistry
+
+    settings = get_settings()
+    registry = ExtractionTemplateRegistry.from_yaml(settings.extraction_template_file)
+    try:
+        registry.sediment(team, [entity_type], path=settings.extraction_template_file)
+    except RuntimeError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"类型 {entity_type} 已沉淀进团队 {team} 模板。")

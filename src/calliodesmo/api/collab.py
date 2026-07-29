@@ -10,7 +10,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.api.deps import get_app_stores, get_current_context, require_permission
-from calliodesmo.api.schemas import ContributionCreate, ContributionOut, DiffOut, RejectRequest
+from calliodesmo.api.schemas import (
+    ContributionCreate,
+    ContributionOut,
+    DiffOut,
+    RejectRequest,
+    TemplateTypeApproveOut,
+    TemplateTypeApproveRequest,
+    TemplateTypeOut,
+)
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import LibraryScope, Permission
 from calliodesmo.auth.service import get_access_context
@@ -21,7 +29,10 @@ from calliodesmo.collab.service import (
     ContributionNotFoundError,
     ContributionService,
 )
+from calliodesmo.collab.template_review import TemplateReviewService, collect_discovered_types
+from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
+from calliodesmo.ecl.extraction_template import ExtractionTemplateRegistry
 
 router = APIRouter(prefix="/collab", tags=["collab"])
 
@@ -102,6 +113,39 @@ async def list_contributions(
         )
     items = await _svc.list(session, access=ctx)
     return [_to_out(c) for c in items]
+
+
+@router.get("/template-types", response_model=list[TemplateTypeOut])
+async def list_template_types(
+    ctx: AccessContext = Depends(get_current_context),
+    stores=Depends(get_app_stores),
+) -> list[TemplateTypeOut]:
+    require_permission(ctx, Permission.APPROVE)
+    items = await collect_discovered_types(stores, access=ctx)
+    return [TemplateTypeOut(**it) for it in items]
+
+
+@router.post("/template-types/approve", response_model=TemplateTypeApproveOut)
+async def approve_template_type(
+    req: TemplateTypeApproveRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    stores=Depends(get_app_stores),
+    settings: Settings = Depends(get_settings),
+) -> TemplateTypeApproveOut:
+    require_permission(ctx, Permission.APPROVE)
+    registry = ExtractionTemplateRegistry.from_yaml(settings.extraction_template_file)
+    svc = TemplateReviewService(registry=registry)
+    try:
+        result = await svc.approve(
+            stores,
+            team=req.team,
+            approved_type=req.type,
+            access=ctx,
+            path=settings.extraction_template_file,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return TemplateTypeApproveOut(**result)
 
 
 @router.get("/{contribution_id}", response_model=ContributionOut)

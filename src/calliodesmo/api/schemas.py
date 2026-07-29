@@ -278,3 +278,23 @@ class DiffOut(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str = ""
+
+
+# ---- /collab 抽取模板 review-gated ----
+
+
+class TemplateTypeOut(BaseModel):
+    type: str
+    count: int
+    status: str
+
+
+class TemplateTypeApproveRequest(BaseModel):
+    team: str
+    type: str = Field(min_length=1)
+
+
+class TemplateTypeApproveOut(BaseModel):
+    team: str
+    type: str
+    status: str
