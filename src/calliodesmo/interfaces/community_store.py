@@ -59,3 +59,21 @@ class CommunityStore(ABC):
     async def remove_member_doc(
         self, community_id: str, doc_id: str, *, access: AccessContext
     ) -> bool: ...
+
+    # ---- P4 社区版本/合并/拆分（选项 B）----
+
+    @abstractmethod
+    async def merge(self, target_id: str, source_ids: list[str], *, access: AccessContext) -> bool:
+        """合并 source 社区到 target（member 并集、summary 拼接、access 取较严），删 source。"""
+        ...
+
+    @abstractmethod
+    async def split(
+        self,
+        community_id: str,
+        doc_groups: list[list[str]],
+        *,
+        access: AccessContext,
+    ) -> list[str]:
+        """按 doc_groups 拆分社区成多社区，返回新社区 id 列表。"""
+        ...

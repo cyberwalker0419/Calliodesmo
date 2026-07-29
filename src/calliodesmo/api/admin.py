@@ -14,8 +14,11 @@ from calliodesmo.api.deps import (
     require_permission,
 )
 from calliodesmo.api.schemas import (
+    CommunityMergeRequest,
     CommunityOut,
     CommunityPatchRequest,
+    CommunitySplitRequest,
+    CommunityVersionOut,
     ProjectCreate,
     ProjectMemberAdd,
     ProjectMemberOut,
@@ -48,6 +51,10 @@ from calliodesmo.auth.service import (
     remove_project_member,
     remove_team_member,
     update_user,
+)
+from calliodesmo.collab.community_version import (
+    CommunityVersionService,
+    snapshot_record,
 )
 from calliodesmo.db.session import get_session
 
@@ -452,6 +459,14 @@ async def patch_document_community(
             op = op or "set_access"
     if op is None:
         op = "noop"
+    if op != "noop":
+        # 手动编辑自动生成版本快照（B3 修订）
+        await CommunityVersionService().create_version(
+            session,
+            community_id=community_id,
+            snapshot=snapshot_record(rec),
+            created_by=ctx.user_id,
+        )
     await record_audit(
         session,
         user_id=ctx.user_id,
@@ -478,3 +493,126 @@ def _community_out(c) -> CommunityOut:
         access_level=c.access_level.name,
         library_scope=c.library_scope.value,
     )
+
+
+@router.get("/community-versions/{community_id}", response_model=list[CommunityVersionOut])
+async def list_community_versions(
+    community_id: str,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> list[CommunityVersionOut]:
+    """列出社区版本快照（manage_community 守卫）。"""
+    require_permission(ctx, _COMMUNITY_GUARD)
+    svc = CommunityVersionService()
+    versions = await svc.list_versions(session, community_id)
+    return [
+        CommunityVersionOut(
+            id=v.id,
+            community_id=v.community_id,
+            version=v.version,
+            created_at=v.created_at,
+            created_by=v.created_by,
+        )
+        for v in versions
+    ]
+
+
+@router.post("/document-communities/{community_id}/rollback", response_model=CommunityVersionOut)
+async def rollback_community(
+    community_id: str,
+    version: int,
+    ctx: AccessContext = Depends(get_current_context),
+    store=Depends(get_community_store),
+    session: AsyncSession = Depends(get_session),
+) -> CommunityVersionOut:
+    """回滚社区到指定版本（append 式，manage_community 守卫）。"""
+    require_permission(ctx, _COMMUNITY_GUARD)
+    svc = CommunityVersionService()
+    try:
+        v = await svc.rollback(session, community_id, version, store=store, created_by=ctx.user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="manage_community",
+        detail={"op": "rollback", "target": community_id, "version": version},
+        source="api",
+    )
+    await session.commit()
+    return CommunityVersionOut(
+        id=v.id,
+        community_id=v.community_id,
+        version=v.version,
+        created_at=v.created_at,
+        created_by=v.created_by,
+    )
+
+
+@router.post("/document-communities/merge", response_model=CommunityOut)
+async def merge_communities(
+    req: CommunityMergeRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    store=Depends(get_community_store),
+    session: AsyncSession = Depends(get_session),
+) -> CommunityOut:
+    """合并多社区（manage_community 守卫 + 版本快照）。"""
+    require_permission(ctx, _COMMUNITY_GUARD)
+    ok = await store.merge(req.target_id, req.source_ids, access=ctx)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="目标社区不存在或不可见")
+    records = {r.community_id: r for r in await store.list_communities(access=ctx)}
+    target = records.get(req.target_id)
+    if target is not None:
+        await CommunityVersionService().create_version(
+            session,
+            community_id=req.target_id,
+            snapshot=snapshot_record(target),
+            created_by=ctx.user_id,
+        )
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="manage_community",
+        detail={"op": "merge", "target": req.target_id, "sources": req.source_ids},
+        source="api",
+    )
+    await session.commit()
+    if target is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="合并后目标重查失败")
+    return _community_out(target)
+
+
+@router.post("/document-communities/{community_id}/split", response_model=list[CommunityOut])
+async def split_community(
+    community_id: str,
+    req: CommunitySplitRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    store=Depends(get_community_store),
+    session: AsyncSession = Depends(get_session),
+) -> list[CommunityOut]:
+    """拆分社区（manage_community 守卫 + 版本快照）。"""
+    require_permission(ctx, _COMMUNITY_GUARD)
+    new_ids = await store.split(community_id, req.doc_groups, access=ctx)
+    if not new_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="社区不存在或不可见")
+    records = {r.community_id: r for r in await store.list_communities(access=ctx)}
+    svc = CommunityVersionService()
+    for nid in new_ids:
+        rec = records.get(nid)
+        if rec is not None:
+            await svc.create_version(
+                session,
+                community_id=nid,
+                snapshot=snapshot_record(rec),
+                created_by=ctx.user_id,
+            )
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="manage_community",
+        detail={"op": "split", "target": community_id, "new_ids": new_ids},
+        source="api",
+    )
+    await session.commit()
+    return [_community_out(records[nid]) for nid in new_ids if nid in records]

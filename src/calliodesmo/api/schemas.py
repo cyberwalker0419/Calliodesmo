@@ -237,6 +237,23 @@ class CommunityRemoveDoc(BaseModel):
     doc_id: str
 
 
+class CommunityVersionOut(BaseModel):
+    id: uuid.UUID
+    community_id: str
+    version: int
+    created_at: datetime
+    created_by: uuid.UUID | None = None
+
+
+class CommunityMergeRequest(BaseModel):
+    target_id: str
+    source_ids: list[str]
+
+
+class CommunitySplitRequest(BaseModel):
+    doc_groups: list[list[str]]
+
+
 # ---- /collab 协作推送 ----
 
 
