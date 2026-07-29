@@ -1,12 +1,16 @@
-# AGENTS.md - Calliodesmo 项目提示词
+# CLAUDE.md - Calliodesmo
 
-> 三层知识图谱驱动的智能情报分析平台。GraphRAG 索引基座 + LlamaIndex/LangGraph 检索与 Agent 编排，LLM 与嵌入可切换。
+> Claude Code 在此仓库工作的持久指令，每个 session 全量加载。
+> 本仓库是 **Calliodesmo**（三层知识图谱情报分析平台）。本文件为本项目的权威指令；若全局 `~/.claude/CLAUDE.md` 指向其他项目，与此无关，**以本文件为准**。
+> 本文件与 [AGENTS.md](AGENTS.md) 并列--**两者均自包含完整的项目提示词**（面向不同 agent，通用部分略有重复属预期）。差异：本文件固化 Claude Code 工具映射（`preview_*`，非 Playwright MCP）与 Claude 特有约束；前端验证闭环用 `preview_*` 视角，AGENTS.md 用通用 `browser_*` 视角。
+
+深度参考：[README.md](README.md) · [AGENTS.md](AGENTS.md) · [docs/plans/](docs/plans/)
 
 ## 项目定位
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P3-web-ui**（8 Task 已完成），正迭代实体图谱（[EntityGraph.tsx](frontend/src/features/library/EntityGraph.tsx)）布局。
 
 ## 当前阶段
 
@@ -52,6 +56,7 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 | 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· react-force-graph-2d · lucide-react |
 
 ## 项目结构
+
 ```
 src/calliodesmo/
 ├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me、/query）
@@ -67,7 +72,7 @@ src/calliodesmo/
 ├── config.py     pydantic-settings（CALLIODESMO_ 前缀）
 ├── models.py     ORM 模型集中导入（保证 Base.metadata 注册完整）
 └── cli.py        Typer：db init / db seed / serve / ingest / ask
-frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；详见下「前端开发与验证闭环」
+frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；详见下「前端开发验证闭环」
 docs/
 ├── deploy/               部署文档（native.md：非 Docker 原生部署）
 ├── plans/                Obsidian vault：roadmap / monthly/<YYYY-MM> / weekly/<YYYY-Www> / phases/P<n>-<slug>
@@ -92,7 +97,11 @@ scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+
 - **本地 LLM 豁免**：`LLM_API_BASE` 指向 localhost 或模型以 `ollama/` / `lm-studio/` 开头时自动豁免 API key 校验。
 - **精度原则**：精度由数据判定，不靠猜--评估 harness 贯穿；精度主要在检索重排与实体消解挣回，切分属中游杠杆。
 
-## 开发命令
+## 工作语言
+
+中文交流（docstring / 注释 / 提交描述用中文，标识符用英文）。破坏性 / 外向动作（删文件、强推、改公共数据结构）前先确认。
+
+## 后端开发命令
 
 ```bash
 uv sync                          # 安装依赖（含 dev 组）
@@ -108,6 +117,8 @@ uv run calliodesmo ingest <path> # 端到端建图
 
 SQLite 零依赖开发模式：设 `CALLIODESMO_DATABASE_URL=sqlite+aiosqlite:///./data/calliodesmo-dev.db`（无向量检索与图库，P0 全功能可跑）。
 
+> 前端联调启 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据；前端 dev proxy 已把 `/api` -> 8000）。
+
 ## 测试策略
 
 - **隔离**：每用例独立内存 SQLite（`sqlite+aiosqlite:///:memory:`，见 `tests/conftest.py`）；`sys.modules` 桩隔离 litellm/uvicorn 等外部依赖--离线可跑。
@@ -116,55 +127,75 @@ SQLite 零依赖开发模式：设 `CALLIODESMO_DATABASE_URL=sqlite+aiosqlite://
 - **异步**：`pytest-asyncio` auto 模式（`asyncio_mode = "auto"`）。
 - 新增功能先写失败测试 -> 实现 -> 跑绿 -> 提交（TDD），阶段计划文件用 checkbox 跟踪。
 
-## 前端开发与验证闭环
+---
+
+## 前端开发验证闭环（核心，本文件重点）
+
+> **底线**：任何前端改动都要过三件套（`lint` / `test` / `build`）。
+> **之上**：有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）**必须走此交互验证闭环**；纯逻辑 / 类型改动（无视觉表现）三件套即可，不用 `preview_*`。判不准时默认走三件套。
 
 前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端（8000），同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+
+### 工具说明
+
+本仓库用 **Claude Code 内置 `preview_*` 工具**完成交互验证（**非 Playwright MCP**；用户已明确不要 Playwright）。与 Playwright MCP `browser_*` 的等价映射：
+
+| Playwright `browser_*` | `preview_*` 等价 | 用途 |
+|:--|:--|:--|
+| `browser_navigate` | `preview_start`（启动 dev server 自动打开页面）+ `preview_eval`(`location.href=...` / `reload()`) | 打开 / 跳转页面 |
+| `browser_snapshot` | `preview_snapshot` | 无障碍树（取按钮 / 输入框 / 路由项的 Selector） |
+| `browser_click` | `preview_click` | 点击 |
+| `browser_type` | `preview_fill` | 输入文本 |
+| `browser_hover` | `preview_eval`(`el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}))`) | 悬停（无原生 preview 工具，用 eval 触发已有交互） |
+| `browser_take_screenshot` | `preview_screenshot` | 截图 |
+| `browser_console_messages` | `preview_console_logs` | 浏览器控制台（查 error / warn） |
+| `browser_resize` | `preview_resize` | 视口（desktop / mobile / tablet + dark 模式） |
+| -（额外） | `preview_inspect` | 查元素 CSS 值（颜色 / 间距 / 字号，比截图准） |
+| -（额外） | `preview_network` / `preview_logs` | 网络请求（4xx/5xx）/ dev server 输出 |
+
+**截图识图分析**：`preview_screenshot` 后用 **GLM-EYE**（`mcp__GLM-EYE__analyze_image`）识图，分析布局 / 重叠 / 溢出 / 状态是否符合预期；UI 对照用 `mcp__GLM-EYE__ui_diff_check`。
 
 ### 前端命令（在 `frontend/` 执行）
 
 ```bash
 cd frontend
-npm run dev      # Vite dev server（5173，/api 代理到 8000）
-npm run build    # tsc -b && vite build -> dist/
-npm run lint     # tsc -b --noEmit（noUnusedLocals/noUnusedParameters 严）
-npm run test     # vitest run（@testing-library/react）
-npm run e2e      # Playwright e2e（@playwright/test，桌面 + 移动视口）
+npm run dev          # Vite dev server（5173，/api 代理到 8000）-- dev server 用 preview_start 启动，不用 Bash
+npm run build        # tsc -b && vite build -> dist/
+npm run lint         # tsc -b --noEmit（类型检查，noUnusedLocals/noUnusedParameters 严）
+npm run test         # vitest run（单测，@testing-library/react）
+npm run e2e          # Playwright e2e（@playwright/test，桌面 + 移动视口）
 ```
 
-### 验证闭环（有视觉表现的改动必走）
+### 闭环步骤
 
-**底线三件套**：任何前端改动都过 `lint` / `test` / `build`。**之上**，有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）走浏览器交互验证闭环；纯逻辑 / 类型改动（无视觉表现）三件套即可。判不准默认走三件套。
-
-1. **开发与启动**：改代码 -> 启 Vite dev（5173）；联调另起 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据，dev proxy 已把 `/api` -> 8000）。
-2. **取页面结构**：accessibility snapshot 拿无障碍树，识别按钮 / 输入框 / 路由项及 Selector（**首选 snapshot，非 screenshot**--snapshot 给可操作的 ref/selector，screenshot 不能驱动操作）。
-3. **模拟人类操作**：按业务路径 click / type / hover 像真实用户（登录页输错密码点登录、悬停下拉、切换问答模式、双击图谱节点展开 / 折叠、滑块调跳数与节点上限）。
-4. **视觉与状态感知**：screenshot 截图 -> 视觉识图模型分析布局 / 重叠 / 溢出 / 状态是否符合预期；同步查 console（error）/ network（4xx/5xx）/ snapshot（结构）。
+1. **开发与启动**：改前端代码 -> `preview_start`（`name=frontend-dev`，5173，见 `.claude/launch.json`）。已启动则复用，不重启。后端联调另开 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据；dev proxy 已把 `/api` -> 8000）。
+2. **取页面结构**：`preview_snapshot` 拿无障碍树，识别按钮 / 输入框 / 路由项及其 selector（**首选 snapshot，非 screenshot**）。
+3. **模拟人类操作**：按业务路径用 `preview_click` / `preview_fill` / `preview_eval`(hover) 像真实用户操作（如：登录页输错密码点登录、悬停下拉、切换图谱布局、双击展开 / 折叠节点、滑块调跳数）。
+4. **视觉与状态感知**：`preview_screenshot` 截图 -> `mcp__GLM-EYE__analyze_image` 识图分析；同时 `preview_console_logs`（查 error）/ `preview_network`（查 4xx/5xx）/ `preview_snapshot`（查结构）。
 5. **反思与修复**：交互失败 / UI 状态不对 / 不符合要求 -> 读源码诊断 -> 改代码 -> 重复 2–4，**直到所有人类交互路径完美通过**。
 
-### 工具
+操作后必看：`preview_console_logs`(error) / `preview_network`(failed) / `preview_snapshot`(结构)。非 CSS 改动跳过 `preview_inspect`；非响应式改动跳过 `preview_resize`。
 
-浏览器自动化 MCP：`browser_snapshot`（无障碍树）/ `browser_click` / `browser_type` / `browser_hover` / `browser_take_screenshot` / `browser_resize` / `browser_console_messages`。视觉识图：GLM-EYE（`analyze_image` / `ui_diff_check`）。
-
-> **Claude Code** 用内置 `preview_*` 工具等价完成（**不用 Playwright MCP**），映射见 [CLAUDE.md](CLAUDE.md)：`preview_start`（启 dev server）/ `preview_snapshot` / `preview_click` / `preview_fill` / `preview_eval`(hover) / `preview_screenshot` / `preview_inspect` / `preview_console_logs` / `preview_resize`。
-
-### 验收要点（关键流程截图，桌面 + 移动视口）
+### 闭环验收要点（关键流程截图，桌面 + 移动视口）
 
 - **登录**：`/login` 错误凭证提示 + 正确登录跳 `/app/qa`
-- **问答**：`/app/qa` 三模式（Native/Local/Global）切换 + `top_k` 调节 + 来源标注展开
+- **问答**：`/app/qa` 三模式（Native/Local/Global）切换 + top_k 调节 + 来源标注展开
 - **库浏览**：`/app/library` ProfileCard / 社区导航 / **图谱**（4 布局切换、展开折叠、拖动、调范围）
-- **管理**：`/app/admin/{users,teams,communities}` CRUD + 越权探测（无 `manage_users` 直击前端路由 + 后端端点均 403）
+- **管理**：`/app/admin/{users,teams,communities}` CRUD + 越权探测（无 `manage_users` 直击 403）
 - **设置**：`/app/settings` 改密
-- **权限矩阵**：analyst / reviewer / admin 三角色各跑可见与可操作集合（对齐后端 `DEFAULT_ROLE_PERMISSIONS`）
+- **权限矩阵**：analyst / reviewer / admin 三角色各跑一遍可见与可操作集合（与后端 `DEFAULT_ROLE_PERMISSIONS` 对齐）
 
 ### 图谱（EntityGraph）专项验收
 
-4 布局模式（force / cluster / hierarchy / radial）切换 + `forceCollide` 防标签重叠 + 降 #5（拖动时不相邻节点连带位移，目标漂移 <20）+ 多分量拉近。计划见 [docs/plans/entity-graph-layouts.md](docs/plans/entity-graph-layouts.md)。验收：三件套 + 4 模式截图对比 + 拖动 #5 漂移量 + 标签重叠像素检查。
+4 布局模式（force / cluster / hierarchy / radial）切换 + `forceCollide` 防标签重叠 + 降 #5（拖动时不相邻节点连带位移，目标漂移 <20）+ 多分量拉近。计划见 [docs/plans/entity-graph-layouts.md](docs/plans/entity-graph-layouts.md)。
 
 ### 依赖与边界
 
 - 前端依赖隔离（`frontend/package.json`，与后端 Python 依赖隔离）；CI 前端 job `npm ci && npm run build && vitest`；Node 版本锁 `.nvmrc`。
 - 前端不进检索精度回归（P2 harness），但权限一致性有回归测试（三角色矩阵）。
 - 内存 stores 单进程：UI 走 API，演示数据统一走 `serve --seed-demo`（serve 进程内自灌，seed 产物落盘缓存 `data/demo/seed-cache.json`）。
+
+---
 
 ## Ruff 配置
 
@@ -185,6 +216,13 @@ npm run e2e      # Playwright e2e（@playwright/test，桌面 + 移动视口）
 - **`data/` 不追踪**（含本地 DB 与导入语料），文档放 `data/docs/`。
 - **`.env` 不追踪**，仅提交 `.env.example`。
 - 生产部署必须改 `CALLIODESMO_JWT_SECRET_KEY` 为 ≥32 字节随机串。
+
+## Claude 特有约束（不重复 AGENTS.md，仅补 Claude 工具差异）
+
+- **本文件为当前项目（Calliodesmo）的权威指令**，与全局 `~/.claude/CLAUDE.md` 冲突时以本文件为准。
+- **dev server 用 `preview_start`（`frontend-dev`）启动，不用 Bash**；Bash 仅用于后端 `uv` 命令与一次性脚本。
+- `preview_*` 仅验证有视觉表现的改动；纯逻辑走三件套。
+- 新增 `frontend/dependencies` 前说明理由（`react-force-graph-2d` 已锁定）。
 
 ## 计划文档体系（docs/plans/）
 
