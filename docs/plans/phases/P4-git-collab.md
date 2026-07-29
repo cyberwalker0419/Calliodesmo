@@ -243,6 +243,15 @@ class Contribution(Base):
 
 **验收：** 贡献面板 + 社区版本 UI；权限矩阵三角色一致（含 push/approve）；关键流程截图（桌面+移动）。
 
+> [!note] 实现状态（2026-07-29，PR #5）
+> - ✅ Step 1（贡献列表 + 建推送表单 -> `POST /collab`，`ContributionsPanel`）
+> - ⚠️ Step 2 部分：状态机操作（submit/approve/reject/merge）+ 自审禁用已内联在列表表格；**留后续**：`ContributionDetail` 独立详情页 + `manifest` 差异清单展示（后端 `GET /collab/{id}/diff` 已实现，前端未消费）
+> - ❌ Step 3 **留后续**：`CommunityVersions` 社区版本视图（后端 `/admin/community-versions` + rollback + merge/split 已实现，前端未做）
+> - ✅ Step 4（权限驱动渲染：`useAccess.canPush/canApprove` + 导航显隐）
+> - ✅ Step 5（后端权限矩阵 `test_collab_api.py` + `preview_*` 闭环验证）
+>
+> 留后续两项均为纯前端 UI 叠加，后端 API 已就绪，可随时补（每个组件约 1-2h）。
+
 ---
 
 ## 前端设计与 UX 前瞻

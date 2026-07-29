@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P3-web-ui**（8 Task 已完成），正迭代实体图谱（[EntityGraph.tsx](frontend/src/features/library/EntityGraph.tsx)）布局。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P4-git-collab**（Git-like 协作推送，核心已完成，Task 9 ContributionDetail/CommunityVersions UI 持续迭代）。
 
 ## 当前阶段
 
@@ -18,7 +18,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P1** ECL 管线 MVP（抽取/建图/社区/落库/ingest CLI）✅ 完成
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
-- **P4** Git-like 协作推送 ⏳ 下一步
+- **P4** Git-like 协作推送 ✅ 核心完成（Task 1-9 核心；Task 9 ContributionDetail/CommunityVersions UI 留持续迭代）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
