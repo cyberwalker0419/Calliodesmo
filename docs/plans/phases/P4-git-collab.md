@@ -13,12 +13,15 @@ created: 2026-07-29
 > [!important] 前置条件（开工前确认）
 > - **基线**：P4 分支从 **P3 合并后的 main** 切出（`codex/p4-git-collab`）。P3 的管理/浏览后端、`require_permission` 守卫、`AppStores` 依赖工厂、前端 SPA 已在 main；本阶段在其上叠加协作域，不动既有检索/问答链路。
 > - **双轨存储认知（关键）**：**MR 元数据（状态/审核/指派/版本）走 ORM**（SQLAlchemy，与 `auth`/`audit` 同库，事务可持久、可查询）；**被推送的图谱数据（chunk/entity/relation/community）走内存 stores**（`AppStores` 单例，单进程共享）。合并 = 从源库读记录 -> 改写 access 字段到目标 scope -> upsert 回同一 stores。**单进程下 Sync 隐式**：`visible_to` 已跨 scope 聚合，用户查询天然可见自己有权访问的项目/团队库数据，无需显式拉取；分布式 Sync/增量同步留 P9。
-> - **MVP 裁剪线**（预先声明，防超时）：Task 7 独立聚类用"阈值连通分量"最简实现（标准库/networkx，不引 scikit-learn 重依赖）；Task 8 社区分支/回滚 v1 做**版本快照 + 回滚上一版**，不做完整 git DAG 三方合并；Task 9 前端以贡献面板为主，社区版本视图可降级为只读版本列表。
+> - **并发控制认知（关键，【修订】）**：状态机流转（submit/approve/reject/merge）走 **DB 事务 + 行锁/乐观锁**（`Contribution.version` 字段），防多 reviewer 并发重复审核或 merge double-click 绕过终态检查。多 reviewer 并发审核是 v1 现实场景，**非 v2**。
+> - **崩溃一致性认知（【修订】）**：合并跨两轨写（内存 stores + ORM）非原子，中途崩溃可能状态不一致；内存 stores 不持久，重启后数据丢失。v1 接受此限制（演示/单机），可选两阶段（ORM 先 MERGING -> 合并 stores -> MERGED）便于崩溃检测；持久化 stores 留 P9。
+> - **MVP 裁剪线**（预先声明，防超时）：Task 7 独立文档聚类用"阈值连通分量"最简实现（标准库，与现有 `ConnectedComponentsDetector` 零依赖风格一致；**不引 scikit-learn**，networkx Louvain 可选 extra）；Task 8 社区分支/回滚 v1 做**版本快照 + append 式回滚**（回滚=用旧版本快照创建新版本，不删历史，非栈式只回滚上一版），不做完整 git DAG 三方合并；Task 9 前端以贡献面板为主，社区版本视图可降级为只读版本列表。
 > - **MVP 必做清单**（达标线）：Task 1 + Task 2 + Task 3 + Task 4 + Task 5 + Task 9 Step 5 权限回归。命中即 P4 协作推送核心达标；Task 6（review-gated 沉淀）、Task 7+8（社区选项 B）、Task 9 前端完整版属持续迭代，按周补齐。**社区选项 B 整体为 v1 必交付**（路线图明确"v1 完成"），但允许分步落地、先 API 后 UI。
+> - **本计划已对照现有代码与业界方案修订【修订】**：契合度缺口与设计加强以【修订】标注散落各 Task 与「依赖与风险」段；社区检测走 Louvain（非 Leiden），见 Task 7 与 §风险。
 
 **Goal:** 实现 Git-like 协作推送：个人库 -> 项目库 -> 团队库的**贡献/审核/合并状态机**与**图谱合并**（实体按 `(name,type)` 去重、关系并集、来源打标），审核指派到组；**抽取模板 review-gated 沉淀**（团队模板随语料生长、经审核并入）；**文档社区选项 B**（独立嵌入聚类引擎 + 社区版本/分支/合并/回滚）。API+CLI 优先，前端在 P3 SPA 上叠加贡献与社区管理视图。
 
-**Architecture:** 协作域独立为 `collab/` 包。**贡献请求(MR)** 为 ORM 模型（`Contribution` + 状态机 `draft->submitted->approved/rejected->merged/closed`），经 `ContributionService` 驱动流转，全程记审计（`push`/`submit`/`approve`/`reject`/`merge`）。**推送**收集源 scope 记录成**内容清单(manifest)**（按 `doc_ids` 聚合 chunk/entity/relation/community）；**合并**对清单做图谱合并后 upsert 进目标 scope（改写 `library_scope`/`owner_id`/`project_id`/`team_id`，`access_level` 取较严 max），实体按 `(name,type)` 去重（并 `source_chunk_ids`/描述、打 `provenance` 来源标），关系按 `(source,target,type)` 并集去重。权限：`push` 创建/提交、`approve` 审核批准/合并；自审阻断（源用户不能审/合自己）；审核可指派到目标 scope 内持 `approve` 成员。stores 补"按 owner/scope 枚举"能力供推送收集。复用 P3 `require_permission` + `visible_to` + 审计 + 前端 SPA 基座。
+**Architecture:** 协作域独立为 `collab/` 包。**贡献请求(MR)** 为 ORM 模型（`Contribution` + 状态机 `draft->submitted->approved/rejected->merged/closed`），经 `ContributionService` 驱动流转，全程记审计（`push`/`submit`/`approve`/`reject`/`merge`）。**推送**收集源 scope 记录成**内容清单(manifest)**（按 `doc_ids` 聚合 chunk/entity/relation/community）；**合并**对清单做图谱合并后 upsert 进目标 scope（改写 `library_scope`/`owner_id`/`project_id`/`team_id`，`access_level` 取较严 max），实体按 `(name,type)` 去重（并 `source_chunk_ids`/描述、打 `provenance` 来源标），关系按 `(source,target,type)` 并集去重。权限：`push` 创建/提交、`approve` 审核批准/合并；自审阻断（源用户不能审/合自己）；审核可指派到目标 scope 内持 `approve` 成员。stores 补"按 owner/scope 枚举"能力供推送收集。复用 P3 `require_permission` + `visible_to` + 审计（`audit/service.record_audit(session, *, user_id, action, resource_type, resource_id, detail, source)`，AuditLog action 已含 push/approve/merge）+ 前端 SPA 基座。**【修订】并发**：`Contribution` 加 `version` 乐观锁字段，状态机流转事务内行锁/version 校验。
 
 **Tech Stack（P0-P3 基础上追加）:**
 - 后端：FastAPI `/collab/*` + `/admin/community-versions/*` 端点 · Typer CLI `contributions` 子命令 · SQLAlchemy ORM（`Contribution`/`CommunityVersion`）· 内存 stores 扩展（按 owner 枚举 + 图谱合并纯函数）
@@ -70,10 +73,11 @@ class Contribution(Base):
     created_at / updated_at
 ```
 
-- [ ] **Step 1:** `collab/models.py`：`ContributionStatus` + `Contribution` ORM（字段见上，`target_scope` 须 `rank > source_scope`，rank: personal=0/project=1/team=2）；`models.py` 注册导入；测试建表后表存在 -> 实现跑绿
+- [ ] **Step 1:** `collab/models.py`：`ContributionStatus` + `Contribution` ORM（字段见上，`target_scope` 须 `rank > source_scope`，rank: personal=0/project=1/team=2）；**rank 实现【修订】**：`LibraryScope` 现为 StrEnum 无 rank，给其加 `@property rank`（不改枚举值，不影响序列化）或 collab 层内置 `_SCOPE_RANK` 映射；`models.py` 注册导入；测试建表后表存在 -> 实现跑绿
 - [ ] **Step 2:** `ContributionService.create(session, *, source_user, source_scope, target_scope, target_project_id/team_id, title, doc_ids, description)`：校验 target 高于 source、目标 id 与 target_scope 匹配；建 DRAFT 贡献；记审计 `action="push"`（source="api"/"cli"）测试 -> 实现跑绿
-- [ ] **Step 3:** 状态机流转：`submit`（draft->submitted）、`approve`（submitted->approved，Task 3 接 `approve` 守卫 + 自审阻断）、`reject`（submitted->rejected）、`close`（draft/submitted->closed）；非法跳转抛 `ValueError`（如 draft 直接 approve）测试 -> 实现跑绿
+- [ ] **Step 3:** 状态机流转：`submit`（draft->submitted）、`approve`（submitted->approved，Task 3 接 `approve` 守卫 + 自审阻断）、`reject`（submitted->rejected）、`close`（draft/submitted->closed）；非法跳转抛 `ValueError`（如 draft 直接 approve）测试 -> 实现跑绿。**【修订】状态机取舍**：v1 至少做 `rejected -> submitted` reopen（保留同一 MR 上下文，作者修改重提，非新建 MR）；`changes_requested`（submitted ↔ changes_requested）可选，v1 不做则在 §风险 注明"rejected 后 reopen 复用 MR，不引入 changes_requested 中间态"
 - [ ] **Step 4:** `list_contributions(*, access, status=None, target_scope=None)` / `get_contribution(id, *, access)`：按 AccessContext 过滤可见贡献（源用户本人 或 目标 scope 内有权）；越权返回 None/空列表测试 -> 实现跑绿
+- [ ] **Step 5（【修订】并发）:** `Contribution` 加 `version: int`（SQLAlchemy `version_id_col` 乐观锁）；`submit`/`approve`/`reject`/`merge`/`close` 流转在 DB 事务内 `SELECT ... FOR UPDATE` 锁行后校验状态机再写，或依赖 version 校验（影响 0 行则冲突重试/报 409）；防并发重复 approve 与 merge double-click 绕过终态测试 -> 实现跑绿
 
 **验收：** 贡献状态机流转正确（合法通过/非法抛错）；越权贡献不可见；审计有 `push` 记录。
 
@@ -90,7 +94,7 @@ class Contribution(Base):
 - Create: `src/calliodesmo/collab/push.py`（`PushService`：collect + build_manifest + diff）
 - Test: `tests/test_push_manifest.py`
 
-- [ ] **Step 1:** stores 枚举接口 + 内存实现：`list_chunks`/`list_entities`/`list_relations`（`list_communities` 已有）；全部按 `visible_to` 过滤（personal 仅 owner 可见、project 仅项目成员、team 仅团队成员）测试 -> 实现跑绿
+- [ ] **Step 1:** stores 枚举接口 + 内存实现：`list_chunks`/`list_entities`/`list_relations`（`list_communities` 已有）；全部按 `visible_to` 过滤（personal 仅 owner 可见、project 仅项目成员、team 仅团队成员）测试 -> 实现跑绿。**【修订】接口与 in_memory 实现同 PR 落地**（P3 教训：避免"接口立了实现没跟上"的半切）
 - [ ] **Step 2:** `PushService.collect(contribution, *, stores)`：按 `doc_ids` 从源库枚举 chunk（按 `doc_id` 过滤）、entity/relation（按 `source_chunk_ids` 命中这些 chunk）、community（member 命中 entity 或 doc）；越权源库不收集测试 -> 实现跑绿
 - [ ] **Step 3:** `build_manifest`：聚合清单（各类型 id 列表 + 计数 + 与目标库的重叠判定：目标已存同名同类型实体数）；写回 `Contribution.manifest`；记审计 `push` 测试 -> 实现跑绿
 - [ ] **Step 4:** `diff(contribution)`：返回清单摘要（新增实体 N、关系 M、chunk K、社区 C、冲突/已存实体数 D）供审核展示测试 -> 实现跑绿
@@ -110,9 +114,9 @@ class Contribution(Base):
 - [ ] **Step 1:** `submit`：DRAFT->SUBMITTED；`assignee_id` 显式则用之，否则自动指派目标 scope 内首个有 `approve` 权限成员（project->项目成员、team->团队成员）；无可用 reviewer 时置 `assignee_id=None` 并在 manifest 标注"待指派"测试 -> 实现跑绿
 - [ ] **Step 2:** `approve`：需 `APPROVE` 权限 + 非自审（`reviewer_id != source_user_id`）；submitted->approved；记 `reviewed_by`/`reviewed_at` + 审计 `approve`；无权 -> 403、自审 -> ValueError 测试 -> 实现跑绿
 - [ ] **Step 3:** `reject`：submitted->rejected；记审计 `reject` + 原因（`detail={"reason": ...}`）测试 -> 实现跑绿
-- [ ] **Step 4:** 指派到组：目标为 team 时候选=该 team 成员中持 `approve` 者；目标为 project 时候选=该项目成员持 `approve` 者；自动指派确定性取首个（按 user_id 排序）测试 -> 实现跑绿
+- [ ] **Step 4:** 指派到组：目标为 team 时候选=该 team 成员中持 `approve` 者；目标为 project 时候选=该项目成员持 `approve` 者；自动指派确定性取首个（按 user_id 排序）测试 -> 实现跑绿。**【修订】team 查询路径**：`TeamMember` 仅有 `role_in_team` 字符串字段、无 RBAC 角色外键（与 `ProjectMember.role_id` 不同），team 候选 = `TeamMember.team_id == target_team` 且该用户 `UserRole` 全局含 `APPROVE` 权限（**不按 `role_in_team` 字符串匹配**，脆弱）；project 候选走 `ProjectMember.role_id` 关联的 `DEFAULT_ROLE_PERMISSIONS`
 
-**验收：** 审核状态流转 + 权限守卫（approve/reject 需 APPROVE）+ 自审阻断 + 指派到组（显式/自动）。
+**验收：** 审核状态流转 + 权限守卫（approve/reject 需 APPROVE）+ 自审阻断 + 指派到组（显式/自动）。**自审策略【修订】**：draft/submit/close 允许作者自操作；approve/reject/merge 阻断自审（`reviewer_id != source_user_id`）。
 
 ---
 
@@ -125,7 +129,7 @@ class Contribution(Base):
 - Create: `src/calliodesmo/collab/merge.py`（`MergeService.merge(contribution, *, access, stores)`：collect -> 改写 scope -> 图谱合并 -> upsert 目标 -> 状态收尾）
 - Test: `tests/test_graph_merge.py`、`tests/test_merge_service.py`
 
-- [ ] **Step 1:** `merge_graph` 实体合并：按 `(name,type)` 去重--目标已存则并 `source_chunk_ids`（去重）、描述拼接（去重换行）、`access_level` 取较严 max、打 provenance；新实体直接加 provenance 写入；`template_conforming` 取或（任一为真则真）测试 -> 实现跑绿
+- [ ] **Step 1:** `merge_graph` 实体合并：按 `(name,type)` 去重--目标已存则并 `source_chunk_ids`（去重）、描述拼接（去重换行）、`access_level` 取较严 max、打 provenance；新实体直接加 provenance 写入；`template_conforming` 取或（任一为真则真）测试 -> 实现跑绿。**【修订】同名不同义风险标注**：v1 按 `(name,type)` 精确匹配直接合并（不做 embedding 比对，同名不同义冲突解决留 v2）；合并时在 `metadata["provenance"]` 记 `merge_decision: "exact_name_type"`，为 v2 升级 embedding 三段式阈值（auto-merge≥0.95 / 人工复核 0.85-0.95 / 新节点<0.85 + type blocking）留接口位，无需改数据模型
 - [ ] **Step 2:** 关系并集：按 `(source,target,type)` 去重，并 `source_chunk_ids`、打 provenance；chunk 按 `chunk_id` upsert 改写 scope；community 按 `community_id` 去重（member_entity_names 并集、打 provenance）测试 -> 实现跑绿
 - [ ] **Step 3:** `MergeService.merge`：仅 approved 可合并；改写记录 `library_scope`/`owner_id`/`project_id`/`team_id` 到目标 scope（personal->project/team），`access_level` 保留源值（不降密）；调 `merge_graph` + store upsert；status->MERGED + `merged_at` + 审计 `merge` 测试 -> 实现跑绿
 - [ ] **Step 4:** 合并幂等：已 MERGED 不可再合并（抛 ValueError）；合并后源库记录保留（个人库副本不删，溯源可用）；合并后人查询目标 scope 可见合并后数据测试 -> 实现跑绿
@@ -166,7 +170,7 @@ class Contribution(Base):
 - Test: `tests/test_template_review.py`
 
 - [ ] **Step 1:** 收集发现类型：扫 GraphStore 中 `template_conforming=False` 实体的 `type`，按团队聚合去重成候选清单 + 计数；空类型（None）过滤测试 -> 实现跑绿
-- [ ] **Step 2:** `ExtractionTemplateRegistry.sediment(team, approved_types)`：写回 YAML（`preferred_entity_types` 追加已批准类型，去重保序）；写回失败（只读/路径无权）友好报错不崩溃测试 -> 实现跑绿
+- [ ] **Step 2:** `ExtractionTemplateRegistry.sediment(team, approved_types)`：写回 YAML（`preferred_entity_types` 追加已批准类型，去重保序）；写回失败（只读/路径无权）友好报错不崩溃测试 -> 实现跑绿。**【修订】路径复用**：写回路径直接用现有配置 `settings.extraction_template_file`（默认 `config/extraction_templates.yaml`，config.py 已有），无需新增配置项
 - [ ] **Step 3:** review-gated 状态：候选类型有 `pending`/`approved`/`rejected`；`approve` 权限者批准 -> 调 `sediment` 写回 + 标 approved；重复批准幂等测试 -> 实现跑绿
 - [ ] **Step 4:** API `GET /collab/template-types`（候选清单）/ `POST .../approve`（`approve` 守卫，写回）；CLI `templates review`（列出候选 + 批准）测试 -> 实现跑绿
 
@@ -176,7 +180,7 @@ class Contribution(Base):
 
 ### Task 7: 文档社区选项 B - 独立嵌入聚类引擎
 
-**目标：** 不依赖实体图的**独立文档嵌入聚类**：对文档（按 doc_id 聚合 chunk 取代表）嵌入 -> 阈值连通分量聚类（相似度阈值，networkx 已在用，**不引 scikit-learn**）-> 产出**文档社区**写入 CommunityStore（标 `metadata["source"]="doc_clustering"`，与实体派生社区并存）。v1 最简：连通分量聚类，不做层次/调参。
+**目标：** 不依赖实体图的**独立文档嵌入聚类**：对文档（按 doc_id 聚合 chunk 取代表）嵌入 -> 阈值连通分量聚类（相似度阈值，**标准库实现**，与现有 `ConnectedComponentsDetector` 零依赖风格一致；**不引 scikit-learn**）-> 产出**文档社区**写入 CommunityStore（标 `metadata["source"]="doc_clustering"`，与实体派生社区并存）。v1 最简：连通分量聚类，不做层次/调参。
 
 **Files:**
 - Create: `src/calliodesmo/ecl/doc_community_clusterer.py`（`DocCommunityClusterer`）
@@ -184,11 +188,17 @@ class Contribution(Base):
 - Modify: `src/calliodesmo/config.py`（`doc_cluster_threshold: float = 0.7`、`doc_community_clustering: bool = True`）
 - Test: `tests/test_doc_community_clusterer.py`
 
-- [ ] **Step 1:** 文档嵌入：按 doc_id 聚合 chunk 取代表（首 chunk 或均值向量），经 `EmbeddingProvider` 嵌入；空库/无 chunk 兜底返回空测试 -> 实现跑绿
-- [ ] **Step 2:** 阈值连通分量聚类：相似度矩阵 + 阈值建图（相似度 >= 阈值连边）-> 连通分量即社区；单文档成单成员社区；阈值可配测试 -> 实现跑绿
-- [ ] **Step 3:** 产出 `CommunityRecord`（`community_id` 加 `doc-` 前缀防冲突、title=首文档名/自动生成、summary=成员文档名摘要、member_entity_names=doc_ids、`metadata["source"]="doc_clustering"`）写入 CommunityStore；与实体派生社区并存不覆盖（不同 id 前缀）测试 -> 实现跑绿
+> [!warning] 路径与前提修正（【修订】，开工前必读）
+> - **文件路径**：社区检测实际在 `ecl/cognify.py`（`CommunityDetector`/`ConnectedComponentsDetector`），文档社区派生在 `ecl/community_deriver.py`（选项 A `DocumentCommunityDeriver`）。计划旧写的 `ecl/community.py` **不存在**。
+> - **community_id 前缀冲突（最严重）**：选项 A `DocumentCommunityDeriver` 已用 `doc-{doc_id}`（level=1，见 `community_deriver.py:70`）。Task 7 文档聚类社区**必须用不同前缀**（如 `docc-` / `docb-`），否则同 id upsert 覆盖选项 A 社区。
+> - **networkx 前提**：实体社区检测默认用连通分量（零依赖），`NetworkxCommunityDetector` 走 `graph-analytics` extra 用 Louvain。**networkx 非默认依赖**，Task 7 阈值连通分量用标准库实现，不依赖 networkx。
+> - **level 取值**：实体社区 level=0、选项 A 文档社区 level=1；Task 7 文档聚类社区建议 level=2（或同 level 不同前缀），与选项 A id 空间隔离。
 
-**验收：** 独立聚类产出文档社区；不依赖实体图；与既有实体派生社区并存（id 前缀隔离）。
+- [ ] **Step 1:** 文档嵌入：按 doc_id 聚合 chunk 取代表（首 chunk 或均值向量），经 `EmbeddingProvider` 嵌入；空库/无 chunk 兜底返回空测试 -> 实现跑绿
+- [ ] **Step 2:** 阈值连通分量聚类：相似度矩阵 + 阈值建图（相似度 >= 阈值连边）-> 连通分量即社区；单文档成单成员社区；阈值可配测试 -> 实现跑绿。**【修订】已知限制**：连通分量有 chaining effect（A-B、B-C 过阈值 -> A/B/C 同簇但 A-C 可能不相似）且无噪声点处理；簇内最低相似度写入 `metadata` 作质量信号；v2 可升级层次聚类（agglomerative，标准库可实现，抑制 chaining）或 HDBSCAN（走 extra）
+- [ ] **Step 3:** 产出 `CommunityRecord`（`community_id` 用 `docc-` 前缀【修订，避免与选项 A `doc-` 撞 id】、title=首文档名/自动生成、summary=成员文档名摘要、member_entity_names=doc_ids、`metadata["source"]="doc_clustering"`、level=2）写入 CommunityStore；与实体派生社区及选项 A 文档社区并存不覆盖（断言三类 id 不相交）测试 -> 实现跑绿
+
+**验收：** 独立聚类产出文档社区；不依赖实体图；与既有实体派生社区及选项 A 文档社区并存（id 前缀隔离，三类 id 不相交）。
 
 ---
 
@@ -205,11 +215,11 @@ class Contribution(Base):
 - Test: `tests/test_community_version.py`、`tests/test_community_merge_split.py`
 
 - [ ] **Step 1:** `CommunityVersion` ORM（`community_id`/`version`/`snapshot JSON`/`created_by`/`created_at`）+ `models.py` 注册；建表可见测试 -> 实现跑绿
-- [ ] **Step 2:** 手动编辑（rename/set_access/add-doc/remove-doc，P3 已有）自动生成版本快照；`list_versions` 按版本序；`rollback(version)` 恢复到指定版本（v1 支持回滚上一版，快照栈式）测试 -> 实现跑绿
+- [ ] **Step 2:** 手动编辑（rename/set_access/add-doc/remove-doc，P3 已有）自动生成版本快照；`list_versions` 按版本序；`rollback(version)` 恢复到指定版本【修订：append 式】--用 `version` 的快照内容**创建一个新版本**（version 序号自增），不删除任何历史快照（git revert 思路，回滚也是新提交）；支持回滚到任意版本且保留完整审计链（非"栈式只回滚上一版"）测试 -> 实现跑绿
 - [ ] **Step 3:** `merge(target, sources)`：合并多社区成其一（member 并集、summary 取首或拼接、access 取较严、生成新版本）；`split(community, doc_groups)`：按 doc 组拆分成多社区测试 -> 实现跑绿
 - [ ] **Step 4:** API `/admin/community-versions`（GET 版本列表）/ `/admin/document-communities/{id}/rollback` / merge/split 端点（`manage_community` 守卫）测试 -> 实现跑绿
 
-**验收：** 社区版本快照 + 回滚上一版 + merge/split；`manage_community` 守卫；手动编辑生成版本。
+**验收：** 社区版本快照 + append 式回滚任意版本 + merge/split；`manage_community` 守卫；手动编辑生成版本。**schema 复用【修订】**：merge/split/add-doc/remove-doc 端点复用 `schemas.py` 已预埋的 `CommunityAddDoc`/`RemoveDoc`/`Rename`/`Retag`/`SetAccess`（line 213-235 已定义未接端点）。
 
 ---
 
@@ -229,7 +239,7 @@ class Contribution(Base):
 - [ ] **Step 2:** 贡献详情 + 差异清单展示（manifest 摘要：新增实体/关系/chunk/社区计数 + 冲突数）+ 状态机操作（submit/approve/reject/merge）；`approve` 守卫显隐审核/合并按钮；自审禁用 approve/merge测试 -> 实现跑绿
 - [ ] **Step 3:** 社区版本视图（版本列表 + 回滚上一版 + merge/split 触发）；`manage_community` 守卫显隐测试 -> 实现跑绿
 - [ ] **Step 4:** 权限驱动渲染：无 `push` 隐藏贡献入口、无 `approve` 隐藏审核/合并操作；前后端一致（后端守卫全覆盖，前端隐藏仅 UX）测试 -> 实现跑绿
-- [ ] **Step 5:** **权限矩阵回归**：analyst/reviewer/admin 三角色跑 建推送/提交/审核/合并 + 社区版本全流程，断言可见与可操作集合对齐 `DEFAULT_ROLE_PERMISSIONS`（含 `push`/`approve`）；Playwright 关键流程截图（桌面 + 移动视口）测试 -> 实现跑绿
+- [ ] **Step 5:** **权限矩阵回归**：analyst/reviewer/admin 三角色跑 建推送/提交/审核/合并 + 社区版本全流程，断言可见与可操作集合对齐 `DEFAULT_ROLE_PERMISSIONS`（含 `push`/`approve`）；**前端验证走 `preview_*` 交互闭环**（CLAUDE.md，非 Playwright）关键流程截图（桌面 + 移动视口），`npm run e2e` Playwright 套件补充测试 -> 实现跑绿
 
 **验收：** 贡献面板 + 社区版本 UI；权限矩阵三角色一致（含 push/approve）；关键流程截图（桌面+移动）。
 
@@ -248,13 +258,14 @@ class Contribution(Base):
 
 ## 依赖与风险（P4 全量）
 
-- **双轨存储**：MR 元数据走 ORM（SQLAlchemy，事务持久），图谱数据走内存 stores（单进程共享）。合并跨两轨：从 stores 读源记录 -> 改写 -> upsert 回 stores，同时 Contribution ORM 状态收尾。**单进程下 Sync 隐式**（`visible_to` 跨 scope 聚合，查询天然可见项目/团队库）；分布式 Sync/增量同步留 P9。测试用内存 SQLite + 内存 stores 隔离（沿用 `tests/conftest.py`）。
+- **双轨存储**：MR 元数据走 ORM（SQLAlchemy，事务持久），图谱数据走内存 stores（单进程共享）。合并跨两轨：从 stores 读源记录 -> 改写 -> upsert 回 stores，同时 Contribution ORM 状态收尾。**单进程下 Sync 隐式**（`visible_to` 跨 scope 聚合，查询天然可见项目/团队库）；分布式 Sync/增量同步留 P9。测试用内存 SQLite + 内存 stores 隔离（沿用 `tests/conftest.py`）。**【修订】崩溃一致性**：合并跨两轨写非原子，中途崩溃可能状态不一致（stores 已合并但 Contribution 未 MERGED）；内存 stores 不持久，重启后数据丢失。v1 接受此限制（演示/单机），可选两阶段（ORM 先 MERGING -> 合并 stores -> MERGED）便于崩溃检测；持久化 stores 留 P9。
 - **stores 枚举能力缺口**：现有 `VectorStore`/`GraphStore` 无"按 owner/scope 枚举"方法，推送收集（Task 2）需补 `list_chunks`/`list_entities`/`list_relations` 接口与内存实现（`list_communities` 已有）。接口扩展须同步 `in_memory_*` 实现 + 测试，避免"接口立了实现没跟上"的半切（P3 教训）。
 - **权限**：`push`（analyst/reviewer/admin 有）创建/提交，`approve`（reviewer/admin）审核/合并；**自审阻断**（源用户不能 approve/merge 自己的推送）。审核指派到目标 scope 内持 `approve` 成员（project->项目成员、team->团队成员）。后端为唯一真相，前端隐藏仅 UX。
+- **【修订】并发控制**：状态机流转（submit/approve/reject/merge）走 DB 事务 + 行锁/乐观锁（`Contribution.version` 字段），防多 reviewer 并发重复审核、merge double-click 绕过终态检查、多 DRAFT 并发 submit 自动指派竞态。多 reviewer 并发审核是 v1 现实场景，非 v2。
 - **图谱合并冲突**：v1 按 `(name,type)` 去重 + 来源打标，**不做同名不同义冲突解决/完整版本/回滚**（v2 精化，见路线图"后续精化"）。`access_level` 合并取较严（max），防降密。源记录合并后保留不删（溯源副本）。
 - **来源打标(provenance)**：合并记录 `metadata["provenance"]` 记 `contribution_id`+`source_user_id`+`merged_at`，供溯源（谁贡献了什么）。与 P1 的 `source_chunk_ids` 互补（后者是文本块溯源，前者是贡献溯源）。
 - **抽取模板写回**：review-gated 沉淀写回 YAML（Task 6），生产环境模板文件需可写；只读/无权时友好报错不崩溃。写回保序去重、幂等。
-- **聚类重依赖**：Task 7 用 networkx 阈值连通分量，**不引 scikit-learn**（重依赖，离线/Windows wheel 风险，沿用 litellm 钉版教训）；嵌入复用 `EmbeddingProvider`（BGE-M3 可选 extra，无则 Hash 降级，测试用 Hash）。阈值可配（`doc_cluster_threshold`）。
+- **聚类重依赖【修订】**：Task 7 用**标准库阈值连通分量**（与 `ConnectedComponentsDetector` 零依赖风格一致），**不引 scikit-learn**（重依赖，离线/Windows wheel 风险，沿用 litellm 钉版教训）；networkx 非默认依赖（实体社区检测 `NetworkxCommunityDetector` 走 `graph-analytics` extra 用 Louvain，与 Task 7 文档聚类无关）。嵌入复用 `EmbeddingProvider`（BGE-M3 可选 extra，无则 Hash 降级，测试用 Hash）。阈值可配（`doc_cluster_threshold`）。
 - **社区版本存储**：`CommunityVersion` 快照走 ORM（JSON snapshot）；内存 store 维护版本栈。回滚 v1 支持上一版，完整 git DAG 三方合并留 v2。
 - **前端**：复用 P3 SPA 基座（React 19 + TanStack Query + 受保护路由）；贡献面板 + 社区版本视图增量叠加，三件套（lint/test/build）+ 视觉验证闭环。前端不进检索精度回归，但权限一致性（push/approve 矩阵）有回归测试。
 - **范围外（v2/P9）**：完整图谱合并冲突解决/版本/按调查任务开分支（v2）；分布式 Sync/增量同步（P9）；审计查询 UI（P9 硬化）；refresh token 会话续期；OIDC/SSO（v2）。

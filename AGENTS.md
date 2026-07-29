@@ -27,7 +27,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 
 **ECL 管线**（P1）
 - Extract：实体/关系/声明/协变量四类抽取，团队抽取模板软引导（模板外实体保留 + 打标，不 reject）
-- Cognify：实体消解（一等公民）+ 图谱构建 + Leiden 社区检测 + 社区摘要
+- Cognify：实体消解（一等公民）+ 图谱构建 + 连通分量社区检测（默认零依赖；networkx Louvain 可选 graph-analytics extra，Leiden 留 v2）+ 社区摘要
 - Load：三层数据落库（写个人库）
 
 **六处可插拔抽象接口**（`src/calliodesmo/interfaces/`）
@@ -115,6 +115,26 @@ SQLite 零依赖开发模式：设 `CALLIODESMO_DATABASE_URL=sqlite+aiosqlite://
 - **幂等**：种子与引导脚本均显式验证可重复执行。
 - **异步**：`pytest-asyncio` auto 模式（`asyncio_mode = "auto"`）。
 - 新增功能先写失败测试 -> 实现 -> 跑绿 -> 提交（TDD），阶段计划文件用 checkbox 跟踪。
+
+## 联网检索能力（tavily-mcp）
+
+本项目接入 **tavily-mcp**，提供联网检索与网页内容获取的五项核心能力（`tavily_search` / `tavily_extract` / `tavily_crawl` / `tavily_map` / `tavily_research`）：
+
+| 工具 | 能力 | 用途 |
+|:--|:--|:--|
+| `tavily_search` | Search | 关键词检索最新信息 / 事实 / 数据（支持时间区间、域名过滤、深度调节） |
+| `tavily_extract` | Extract | 从指定 URL 提取干净内容（markdown / 纯文本，advanced 可取表格与嵌入内容） |
+| `tavily_crawl` | Crawl | 从根 URL 按深度 / 广度爬取整站内容 |
+| `tavily_map` | Map | 映射站点 URL 结构（不抓正文），用于摸清可抓页面范围 |
+| `tavily_research` | Research | 综合多源做深度专题研究，返回结构化结论 |
+
+**主动使用时机**--遇到以下情况积极联网获取先进优秀方案，不要仅凭记忆硬写：
+
+- **复杂问题**：涉及不熟悉的库版本、API、协议、平台行为差异时，先 `tavily_search` / `tavily_research` 查证最新最佳实践再动手。
+- **重构时**：替换依赖、调整架构、升级版本前，搜社区主流方案与已知坑（如 litellm `>=1.85,<1.91` 的 Windows wheel 问题）。
+- **创建新功能**：新增模块 / 端点 / 组件前，检索业界成熟实现与设计模式，吸收先进做法。
+
+**边界**：查到的外部方案须与本项目约定对齐（Python 3.11+ / async / 接口抽象 / TDD / 三维权限模型 / 离线可测），不盲抄；**经综合考量（收益 / 维护成本 / 安全性 / 离线可测性）后允许引入重依赖**，但重依赖仍走 `optional-dependencies`（extra）+ 运行时懒加载 + 缺依赖友好报错，并在引入前说明理由；版本相关结论落实前再用 `tavily_extract` 取官方文档原文核对。
 
 ## 前端开发与验证闭环
 
