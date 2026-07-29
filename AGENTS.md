@@ -14,7 +14,8 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P1** ECL 管线 MVP（抽取/建图/社区/落库/ingest CLI）✅ 完成
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
-- **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地；P9 持久化待启动）
+- **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地）
+- **P4.5** 持久化与生产化 ⏳ 下一步（stores 真后端持久化 + 增量索引 + P4 合并落库贯通 + 摄入 UI + 三段式复核；详见 `docs/plans/phases/P4.5-persistence-production.md`）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 

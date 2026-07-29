@@ -2,15 +2,15 @@
 
 > 三层知识图谱驱动的智能情报分析平台 - GraphRAG 索引基座 + 混合检索与 Agent 编排，LLM / 嵌入 / 重排均可切换。
 
-[![phase: P3 done](https://img.shields.io/badge/phase-P3%20done-22c55e)](docs/plans/roadmap.md)
-[![tests: 289 passing](https://img.shields.io/badge/tests-289%20passing-3b82f6)](docs/verification/P3-verification.md)
+[![phase: P4 done](https://img.shields.io/badge/phase-P4%20done-22c55e)](docs/plans/roadmap.md)
+[![tests: 350 passing](https://img.shields.io/badge/tests-350%20passing-3b82f6)](docs/verification/P4-verification.md)
 [![python: 3.12](https://img.shields.io/badge/python-3.12-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，并以**三维正交权限模型**（角色 + 访问等级 + 库范围）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
 > [!note] 当前阶段
-> **P3 Web UI 已完成**：登录与会话、个人/组织库浏览、问答面板、用户与团队/项目管理、文档社区手动管理、角色可见性。后端补全 `/admin/*` + `/library/*` + 文档社区手动管理端点，前端为 React 19 SPA（经 Vite dev proxy / 生产 StaticFiles 同源）。检索与重排支持**远端 HTTP 模型**（LLM / 嵌入 / 重排三处均可指向自建服务）。P4 Git-like 协作推送进行中。详见 [路线图](docs/plans/roadmap.md)。
+> **P4 Git-like 协作推送已完成**：个人库 → 项目库 → 团队库的贡献/审核/合并状态机、图谱合并（实体去重/关系并集/来源打标）、抽取模板 review-gated 沉淀、社区版本/合并/回滚、前端 ContributionsPanel。后端 350 passed。**P4.5 持久化与生产化下一步**：stores 真后端持久化（pgvector/Neo4j/Postgres）+ 增量索引 + P4 合并落库贯通 + 摄入 UI + 三段式复核。详见 [路线图](docs/plans/roadmap.md) 与 [P4.5 计划](docs/plans/phases/P4.5-persistence-production.md)。
 
 ## 5 分钟测试部署（离线、零基础设施）
 
@@ -102,7 +102,7 @@ scripts/          bootstrap.ps1 / bootstrap.sh（无 Docker 一键引导）
 docs/
 ├── deploy/       原生部署指南（native.md）
 ├── plans/        年/月/周/阶段计划（Obsidian vault）
-└── verification/ 验证报告（P0-P3）
+└── verification/ 验证报告（P0-P4）
 ```
 
 ## 快速开始
@@ -236,7 +236,7 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 - **幂等**：种子与引导脚本均显式验证可重复执行。
 - **权限矩阵**：`/query` `/admin/*` `/library/*` 受限端点做参数化矩阵（3 角色 × 端点），断言与 `DEFAULT_ROLE_PERMISSIONS` 对齐。
 
-详见 **[P3 验证报告](docs/verification/P3-verification.md)**。
+详见 **[P4 验证报告](docs/verification/P4-verification.md)**。
 
 ## 路线图
 
@@ -246,7 +246,8 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 | **P1** | ECL 管线 MVP（抽取/建图/社区/落库/ingest CLI） | ✅ 完成 |
 | **P2** | 基础检索与 RAG（三模式 + RRF 混合 + 重排 + 评估 + /query） | ✅ 完成 |
 | **P3** | Web UI（React SPA + 管理/浏览后端补全 + 权限矩阵回归） | ✅ 完成 |
-| P4 | Git-like 协作推送 | ⏳ 进行中 |
+| **P4** | Git-like 协作推送（贡献/审核/合并 + 图谱合并 + 模板沉淀 + 社区版本） | ✅ 完成 |
+| **P4.5** | 持久化与生产化（stores 真后端 + 增量索引 + 合并落库贯通 + 摄入 UI + 三段式） | ⏳ 下一步 |
 | P5-P9 | 高级检索 / 分析 / Agent / 证据验证 / 规模化 | ⏳ |
 
 完整规划与月/周/阶段计划见 **[实施路线图](docs/plans/roadmap.md)**（Obsidian vault 根为本仓库）。
@@ -271,8 +272,8 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 - 📋 [实施路线图](docs/plans/roadmap.md) - P0-P9 年计划
 - 🚀 [原生部署指南](docs/deploy/native.md) - 测试/开发 + 生产原生部署（按步骤）
 - 🐳 [Docker 部署指南](docs/deploy/docker.md) - 一键全栈（Postgres+pgvector / Neo4j / app）
-- ✅ [P3 验证报告](docs/verification/P3-verification.md) - Web UI 验证（289 passed）
-- 📝 [阶段任务计划](docs/plans/phases/) - P0-P3 bite-sized TDD 步骤
+- ✅ [P4 验证报告](docs/verification/P4-verification.md) - Git-like 协作推送验证（350 passed）
+- 📝 [阶段任务计划](docs/plans/phases/) - P0-P4 bite-sized TDD 步骤 + [P4.5 持久化与生产化](docs/plans/phases/P4.5-persistence-production.md)
 
 ## License
 
