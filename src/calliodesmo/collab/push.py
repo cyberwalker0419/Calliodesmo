@@ -109,7 +109,12 @@ class PushService:
 
     @staticmethod
     def diff(contribution: Contribution) -> dict:
-        """返回清单摘要供审核展示（新增实体/关系/chunk/社区计数 + 冲突数）。"""
+        """返回清单摘要 + 明细供审核展示。
+
+         计数（new_entities/new_relations/chunks/communities/conflicts）+ 明细清单
+        （entity_names/relation_summaries/chunk_ids/community_ids），均取自 manifest。
+         冲突仅计数，同名不同义明细留 v2。
+        """
         manifest = contribution.manifest or {}
         counts = manifest.get("counts", {})
         return {
@@ -118,4 +123,8 @@ class PushService:
             "chunks": counts.get("chunks", 0),
             "communities": counts.get("communities", 0),
             "conflicts": manifest.get("overlap", 0),
+            "entity_names": list(manifest.get("entities", [])),
+            "relation_summaries": [list(r) for r in manifest.get("relations", [])],
+            "chunk_ids": list(manifest.get("chunks", [])),
+            "community_ids": list(manifest.get("communities", [])),
         }

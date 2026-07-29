@@ -84,6 +84,14 @@ export interface CommunityOut {
   library_scope: string;
 }
 
+export interface CommunityVersionOut {
+  id: string;
+  community_id: string;
+  version: number;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface EntityBrief {
   name: string;
   type: string | null;
@@ -162,6 +170,11 @@ export interface DiffOut {
   chunks: number;
   communities: number;
   conflicts: number;
+  // 明细清单（取自 manifest；冲突仅计数，同名不同义明细留 v2）
+  entity_names: string[];
+  relation_summaries: string[][]; // [source, target, type]
+  chunk_ids: string[];
+  community_ids: string[];
 }
 
 export type SearchMode = "native_rag" | "local" | "global";

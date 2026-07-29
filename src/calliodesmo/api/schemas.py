@@ -286,11 +286,22 @@ class ContributionOut(BaseModel):
 
 
 class DiffOut(BaseModel):
+    """差异清单摘要 + 明细（供审核人审阅）。
+
+    计数字段为聚合摘要；``*_names``/``*_summaries``/``*_ids`` 为明细清单，
+    直接取自 ``contribution.manifest``（push 时已落库，零额外查询）。
+    冲突仅给计数（``conflicts``）--同名不同义实体明细留 v2（见 push.compute_overlap）。
+    """
+
     new_entities: int
     new_relations: int
     chunks: int
     communities: int
     conflicts: int
+    entity_names: list[str]
+    relation_summaries: list[list[str]]  # [source, target, type]
+    chunk_ids: list[str]
+    community_ids: list[str]
 
 
 class RejectRequest(BaseModel):

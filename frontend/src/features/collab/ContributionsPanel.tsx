@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
+import { ContributionDetail } from "./ContributionDetail";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
@@ -46,6 +47,8 @@ export function ContributionsPanel() {
   });
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const create = useMutation({
     mutationFn: (body: unknown) => api.post<ContributionOut>("/collab", body),
@@ -183,6 +186,16 @@ export function ContributionsPanel() {
                     {c.assignee_id ? c.assignee_id.slice(0, 8) : "待指派"}
                   </td>
                   <td className="p-2 space-x-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setDetailId(c.id);
+                        setDetailOpen(true);
+                      }}
+                    >
+                      详情
+                    </Button>
                     {access.canPush() && c.status === "draft" && (
                       <Button
                         size="sm"
@@ -232,6 +245,12 @@ export function ContributionsPanel() {
           </table>
         </div>
       )}
+      <ContributionDetail
+        contributionId={detailId}
+        title={data?.find((c) => c.id === detailId)?.title ?? ""}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }

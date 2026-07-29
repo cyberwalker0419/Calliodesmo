@@ -194,15 +194,17 @@ async def test_build_manifest_and_diff(session):
         (await session.execute(select(AuditLog).where(AuditLog.action == "push"))).scalars().all()
     )
     assert any(log.resource_id == str(c.id) for log in logs)
-    # diff 摘要
+    # diff 摘要 + 明细（A1：DiffOut 扩展，明细取自 manifest）
     diff = PushService.diff(c)
-    assert diff == {
-        "new_entities": 1,
-        "new_relations": 1,
-        "chunks": 2,
-        "communities": 1,
-        "conflicts": 1,
-    }
+    assert diff["new_entities"] == 1
+    assert diff["new_relations"] == 1
+    assert diff["chunks"] == 2
+    assert diff["communities"] == 1
+    assert diff["conflicts"] == 1
+    assert diff["entity_names"] == ["OpenAI"]
+    assert diff["relation_summaries"] == [["OpenAI", "GPT-4", "developed"]]
+    assert sorted(diff["chunk_ids"]) == ["d#0", "d#1"]
+    assert diff["community_ids"] == ["doc-d"]
 
 
 def test_compute_overlap_name_type():

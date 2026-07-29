@@ -235,22 +235,22 @@ class Contribution(Base):
 - Modify: `frontend/src/App.tsx`（导航按权限显隐）
 - Test: `frontend/src/features/collab/*.test.tsx`、`tests/test_permission_isolation.py`（扩 push/approve 矩阵）
 
-- [ ] **Step 1:** 贡献列表 + 建推送表单（选 source/target scope + project/team + doc_ids + 标题）-> `POST /collab`；`push` 守卫显隐建推送入口测试 -> 实现跑绿
-- [ ] **Step 2:** 贡献详情 + 差异清单展示（manifest 摘要：新增实体/关系/chunk/社区计数 + 冲突数）+ 状态机操作（submit/approve/reject/merge）；`approve` 守卫显隐审核/合并按钮；自审禁用 approve/merge测试 -> 实现跑绿
-- [ ] **Step 3:** 社区版本视图（版本列表 + 回滚上一版 + merge/split 触发）；`manage_community` 守卫显隐测试 -> 实现跑绿
-- [ ] **Step 4:** 权限驱动渲染：无 `push` 隐藏贡献入口、无 `approve` 隐藏审核/合并操作；前后端一致（后端守卫全覆盖，前端隐藏仅 UX）测试 -> 实现跑绿
-- [ ] **Step 5:** **权限矩阵回归**：analyst/reviewer/admin 三角色跑 建推送/提交/审核/合并 + 社区版本全流程，断言可见与可操作集合对齐 `DEFAULT_ROLE_PERMISSIONS`（含 `push`/`approve`）；**前端验证走 `preview_*` 交互闭环**（CLAUDE.md，非 Playwright）关键流程截图（桌面 + 移动视口），`npm run e2e` Playwright 套件补充测试 -> 实现跑绿
+- [x] **Step 1:** 贡献列表 + 建推送表单（选 source/target scope + project/team + doc_ids + 标题）-> `POST /collab`；`push` 守卫显隐建推送入口测试 -> 实现跑绿
+- [x] **Step 2:** 贡献详情 + 差异清单展示（manifest 摘要：新增实体/关系/chunk/社区计数 + 冲突数）+ 状态机操作（submit/approve/reject/merge）；`approve` 守卫显隐审核/合并按钮；自审禁用 approve/merge测试 -> 实现跑绿
+- [x] **Step 3:** 社区版本视图（版本列表 + 回滚上一版 + merge/split 触发）；`manage_community` 守卫显隐测试 -> 实现跑绿
+- [x] **Step 4:** 权限驱动渲染：无 `push` 隐藏贡献入口、无 `approve` 隐藏审核/合并操作；前后端一致（后端守卫全覆盖，前端隐藏仅 UX）测试 -> 实现跑绿
+- [x] **Step 5:** **权限矩阵回归**：analyst/reviewer/admin 三角色跑 建推送/提交/审核/合并 + 社区版本全流程，断言可见与可操作集合对齐 `DEFAULT_ROLE_PERMISSIONS`（含 `push`/`approve`）；**前端验证走 `preview_*` 交互闭环**（CLAUDE.md，非 Playwright）关键流程截图（桌面 + 移动视口），`npm run e2e` Playwright 套件补充测试 -> 实现跑绿
 
 **验收：** 贡献面板 + 社区版本 UI；权限矩阵三角色一致（含 push/approve）；关键流程截图（桌面+移动）。
 
-> [!note] 实现状态（2026-07-29，PR #5）
+> [!note] 实现状态（2026-07-29，PR #5；A1/A2 闭合 2026-07-29）
 > - ✅ Step 1（贡献列表 + 建推送表单 -> `POST /collab`，`ContributionsPanel`）
-> - ⚠️ Step 2 部分：状态机操作（submit/approve/reject/merge）+ 自审禁用已内联在列表表格；**留后续**：`ContributionDetail` 独立详情页 + `manifest` 差异清单展示（后端 `GET /collab/{id}/diff` 已实现，前端未消费）
-> - ❌ Step 3 **留后续**：`CommunityVersions` 社区版本视图（后端 `/admin/community-versions` + rollback + merge/split 已实现，前端未做）
-> - ✅ Step 4（权限驱动渲染：`useAccess.canPush/canApprove` + 导航显隐）
+> - ✅ Step 2（`ContributionDetail` 详情 Dialog 消费 `GET /collab/{id}/diff`：5 计数卡片 + 实体/关系/chunk/社区明细 Tabs + 冲突警告；状态机操作仍内联列表行）
+> - ✅ Step 3（`CommunityVersionsDialog` 社区版本视图：版本列表 + append 式回滚 + merge/split，从 `DocumentCommunityManage`「版本」按钮触发）
+> - ✅ Step 4（权限驱动渲染：`useAccess.canPush/canApprove/hasManageCommunity` + 导航显隐）
 > - ✅ Step 5（后端权限矩阵 `test_collab_api.py` + `preview_*` 闭环验证）
 >
-> 留后续两项均为纯前端 UI 叠加，后端 API 已就绪，可随时补（每个组件约 1-2h）。
+> A1/A2 闭合 P4 Task 9 前端残留；`DiffOut` 扩展明细字段（entity_names/relation_summaries/chunk_ids/community_ids，冲突明细留 v2）。演示场景 `collect` 在 admin 无 personal scope 时 diff 可能全 0（需源库有对应 doc_id 数据），真实生产用户 personal 库有 ingest 数据后正常。P9 持久化评估：建议进 P9（stores 持久化 + 合并原子性），独立阶段计划。
 
 ---
 

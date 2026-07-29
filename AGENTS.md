@@ -14,7 +14,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P1** ECL 管线 MVP（抽取/建图/社区/落库/ingest CLI）✅ 完成
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
-- **P4** Git-like 协作推送 ✅ 核心完成（Task 1-9 核心；Task 9 ContributionDetail/CommunityVersions UI 留持续迭代）
+- **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地；P9 持久化待启动）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -91,6 +91,7 @@ scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+
 - **依赖分层**：默认实现保持确定性、零重依赖、离线可测。重型依赖（BGE-M3 / reranker / PDF / Office 等）列 `optional-dependencies`（extra），运行时懒加载 + 缺依赖友好报错。
 - **本地 LLM 豁免**：`LLM_API_BASE` 指向 localhost 或模型以 `ollama/` / `lm-studio/` 开头时自动豁免 API key 校验。
 - **精度原则**：精度由数据判定，不靠猜--评估 harness 贯穿；精度主要在检索重排与实体消解挣回，切分属中游杠杆。
+- **未竟事项留痕**：凡留有后续或未完善的内容（代码 `TODO`/`FIXME`、阶段计划未勾选 checkbox、验证报告缺口、UI 持续迭代项等），须在对应文档或就地注释显式注明**未竟点 + 预计完成时间**（落到具体周次 `YYYY-Www` 或日期），不留隐式尾巴；代码内 `TODO` 一律附预计完成时间。完成即勾除 / 删除标记，闭环。
 
 ## 开发命令
 

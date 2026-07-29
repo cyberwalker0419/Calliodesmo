@@ -8,7 +8,7 @@
 
 P4 在 P0-P3 三层知识图谱与检索/问答/浏览能力之上，新增 **Git-like 协作推送**：个人库 -> 项目库 -> 团队库的**贡献/审核/合并状态机**与**图谱合并**（实体按 `name` 去重、关系并集、来源打标），审核指派到组，自审阻断，全程审计。API+CLI 优先，复用 P3 `require_permission` / `visible_to` / `record_audit` / `AppStores` 依赖工厂。
 
-本阶段 MVP 必做（Task 1-5 + Task 9 Step 5 权限矩阵回归）已全部达标；持续迭代项 Task 6（抽取模板 review-gated 沉淀）/ Task 7（独立嵌入聚类引擎）/ Task 8（社区版本/合并/回滚）/ Task 9 前端 ContributionsPanel 亦已落地；Task 9 ContributionDetail/CommunityVersions UI 留后续补齐。
+本阶段 MVP 必做（Task 1-5 + Task 9 Step 5 权限矩阵回归）已全部达标；持续迭代项 Task 6（抽取模板 review-gated 沉淀）/ Task 7（独立嵌入聚类引擎）/ Task 8（社区版本/合并/回滚）/ Task 9 前端 ContributionsPanel 亦已落地；Task 9 ContributionDetail/CommunityVersions UI 已闭合（A1/A2，2026-07-29）。
 
 **后端测试结果：350 passed / 1 skipped / 1 failed**
 **Ruff：All checks passed!（check + format）**
@@ -144,12 +144,14 @@ P4 计划对照现有代码与业界方案修订，落实审查报告三类改�
 | 验收项 | 状态 | 证据 |
 |--------|------|------|
 | `ContributionsPanel`（列表 + 建推送表单 + submit/approve/reject/merge 操作） | ✅ | `frontend/src/features/collab/ContributionsPanel.tsx` |
-| 权限驱动渲染（无 push 隐藏建推送、无 approve 隐藏审核/合并） | ✅ | `useAccess.canPush/canApprove` |
+| `ContributionDetail`（详情 Dialog 消费 `GET /collab/{id}/diff`：5 计数卡片 + 实体/关系/chunk/社区明细 Tabs + 冲突警告） | ✅ | `frontend/src/features/collab/ContributionDetail.tsx` |
+| `CommunityVersionsDialog`（版本列表 + append 式回滚 + merge/split，从 `DocumentCommunityManage`「版本」按钮触发） | ✅ | `frontend/src/features/admin/CommunityVersionsDialog.tsx` |
+| 权限驱动渲染（无 push 隐藏建推送、无 approve 隐藏审核/合并、无 manage_community 禁用版本操作） | ✅ | `useAccess.canPush/canApprove/hasManageCommunity` |
 | 自审禁用 approve/merge（前端 UX，后端守卫） | ✅ | `isSelf(c)` disabled |
 | 路由 `/app/collab` + 导航入口（push 显隐） | ✅ | `routes.tsx` + `App.tsx` |
-| 三件套（lint/test/build）+ preview_* 闭环 | ✅ | 建推送流程验证通过 |
+| 三件套（lint/test/build）+ preview_* 闭环 | ✅ | A1 mock diff 渲染 + A2 真实 rollback 生成 v2 验证通过 |
 
-> ContributionDetail（差异清单详情）+ CommunityVersions UI 属持续迭代，留后续补齐。
+> A1 ContributionDetail + A2 CommunityVersions 已闭合（2026-07-29）；`DiffOut` 扩展明细字段（entity_names/relation_summaries/chunk_ids/community_ids，冲突明细留 v2）。演示场景 `collect` 在 admin 无 personal scope 时 diff 可能全 0（源库需有对应 doc_id 数据），真实生产用户 personal 库有 ingest 数据后正常。
 
 ## 测试隔离与原理
 
@@ -163,7 +165,7 @@ P4 计划对照现有代码与业界方案修订，落实审查报告三类改�
 ```bash
 # 后端
 uv sync
-uv run pytest -q                    # 332 passed / 1 skipped / 1 failed(pre-existing)
+uv run pytest -q                    # 350 passed / 1 skipped / 1 failed(pre-existing)
 uv run ruff check . && uv run ruff format --check .   # All checks passed!
 
 # 协作推送端到端（API）
@@ -178,8 +180,8 @@ uv run calliodesmo contributions list / show <id> / submit <id> / approve <id> /
 ## 已知边界与后续
 
 - **Task 6（抽取模板 review-gated 沉淀）/ Task 7-8（文档社区选项 B）**：按 P4 计划属持续迭代，分步落地（先 API 后 UI），留后续补齐。
-- **崩溃一致性（C5）**：合并跨两轨写（内存 stores + ORM）非原子，v1 接受（演示/单机）；可选两阶段（ORM MERGING -> 合并 stores -> MERGED）便于崩溃检测；持久化 stores 留 P9。
+- **崩溃一致性（C5）**：合并跨两轨写（内存 stores + ORM）非原子，v1 接受（演示/单机）；可选两阶段（ORM MERGING -> 合并 stores -> MERGED）便于崩溃检测；持久化 stores 留 P9（A1/A2 闭合后评估：建议进 P9，独立阶段计划，分步 stores 持久化 -> 合并原子性 -> 分布式 Sync）。
 - **图谱合并同名不同义（B4）**：v1 按 `(name,type)` 精确匹配，不做 embedding 比对；`merge_decision` 标注为 v2 升级（auto-merge≥0.95 / 人工复核 0.85-0.95 / 新节点<0.85 + type blocking）留接口位。
 - **并发 Sync/增量同步**：单进程下 `visible_to` 跨 scope 聚合隐式 Sync；分布式 Sync 留 P9。
-- **前端**：Task 9 贡献面板 + 社区版本 UI 增量叠加，走 `preview_*` 交互闭环（CLAUDE.md），随迭代补齐。
+- **前端**：Task 9 贡献面板 + ContributionDetail + CommunityVersions 已闭合；`preview_*` 交互闭环验证通过（A1 mock diff 渲染 + A2 真实 rollback 生成 v2），桌面视口。
 - **`test_ingest_llm_missing_key`**：pre-existing 环境问题（本地 .env 残留 API key + litellm SSL），非 P4 引入，CI 应通过。
