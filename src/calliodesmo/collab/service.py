@@ -19,7 +19,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
-from calliodesmo.auth.models import LibraryScope, Permission
+from calliodesmo.auth.models import (
+    LibraryScope,
+    Permission,
+    ProjectMember,
+    RolePermission,
+    TeamMember,
+    UserRole,
+)
 from calliodesmo.collab.models import Contribution, ContributionStatus
 
 
@@ -98,12 +105,15 @@ class ContributionService:
         detail: dict | None = None,
         source: str | None = None,
         extra_updates: dict | None = None,
+        self_review_blocked: bool = False,
     ) -> Contribution:
         # 行锁（Postgres）+ 乐观锁 version_id_col（UPDATE WHERE version=?）
         stmt = select(Contribution).where(Contribution.id == contribution_id).with_for_update()
         contribution = (await session.execute(stmt)).scalar_one_or_none()
         if contribution is None:
             raise ContributionNotFoundError(f"贡献 {contribution_id} 不存在")
+        if self_review_blocked and contribution.source_user_id == user_id:
+            raise ContributionError("不能审核/合并自己的推送（自审阻断）")
         if contribution.status not in from_statuses:
             raise ContributionError(
                 f"非法状态跳转：{contribution.status.value} -> {to_status.value}"
@@ -133,7 +143,19 @@ class ContributionService:
         *,
         user_id: uuid.UUID,
         source: str | None = None,
+        assignee_id: uuid.UUID | None = None,
     ) -> Contribution:
+        # 自动指派：显式 assignee_id 优先；否则目标 scope 首个持 APPROVE 成员；无则 None（待指派）
+        if assignee_id is None:
+            contribution = await session.get(Contribution, contribution_id)
+            approvers = (
+                await self._find_approvers(session, contribution)
+                if contribution is not None
+                else []
+            )
+            assignee_id = approvers[0] if approvers else None
+        extra = {"assignee_id": assignee_id} if assignee_id else None
+        detail = {"assignee_id": str(assignee_id)} if assignee_id else {"assignee": "待指派"}
         return await self._transition(
             session,
             contribution_id,
@@ -142,7 +164,61 @@ class ContributionService:
             action="submit",
             user_id=user_id,
             source=source,
+            extra_updates=extra,
+            detail=detail,
         )
+
+    async def _find_approvers(
+        self, session: AsyncSession, contribution: Contribution
+    ) -> list[uuid.UUID]:
+        """目标 scope 内持 APPROVE 权限的成员。
+
+        A5：team 走 UserRole 全局含 APPROVE（TeamMember 无 RBAC 外键），
+        project 走 ProjectMember.role_id 关联的 Role。
+        """
+        if contribution.target_scope == LibraryScope.PROJECT:
+            stmt = (
+                select(ProjectMember.user_id)
+                .join(RolePermission, ProjectMember.role_id == RolePermission.role_id)
+                .where(
+                    ProjectMember.project_id == contribution.target_project_id,
+                    RolePermission.permission == Permission.APPROVE,
+                )
+                .order_by(ProjectMember.user_id)
+            )
+            return list((await session.execute(stmt)).scalars().all())
+        if contribution.target_scope == LibraryScope.TEAM:
+            # A5：TeamMember 仅有 role_in_team 字符串、无 RBAC 角色外键，
+            # 故 team 候选 = 该团队成员中 UserRole 全局含 APPROVE 者（不按 role_in_team 匹配）
+            team_member_ids = list(
+                (
+                    await session.execute(
+                        select(TeamMember.user_id).where(
+                            TeamMember.team_id == contribution.target_team_id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            approvers: list[uuid.UUID] = []
+            for uid in team_member_ids:
+                hit = (
+                    await session.execute(
+                        select(UserRole.user_id)
+                        .join(RolePermission, UserRole.role_id == RolePermission.role_id)
+                        .where(
+                            UserRole.user_id == uid,
+                            RolePermission.permission == Permission.APPROVE,
+                        )
+                        .limit(1)
+                    )
+                ).first()
+                if hit:
+                    approvers.append(uid)
+            approvers.sort()
+            return approvers
+        return []
 
     async def approve(
         self,
@@ -161,6 +237,7 @@ class ContributionService:
             user_id=user_id,
             source=source,
             extra_updates={"reviewed_by": user_id, "reviewed_at": datetime.now(UTC)},
+            self_review_blocked=True,
         )
 
     async def reject(
@@ -182,6 +259,7 @@ class ContributionService:
             source=source,
             detail={"reason": reason} if reason else None,
             extra_updates={"reviewed_by": user_id, "reviewed_at": datetime.now(UTC)},
+            self_review_blocked=True,
         )
 
     async def reopen(
@@ -221,6 +299,7 @@ class ContributionService:
             user_id=user_id,
             source=source,
             extra_updates={"merged_at": datetime.now(UTC)},
+            self_review_blocked=True,
         )
 
     async def close(
