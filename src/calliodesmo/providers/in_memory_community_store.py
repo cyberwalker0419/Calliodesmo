@@ -1,8 +1,13 @@
-"""InMemoryCommunityStore：社区摘要内存库（按 visible_to 过滤，按 level/title 排序）。"""
+"""InMemoryCommunityStore：社区摘要内存库（按 visible_to 过滤，按 level/title 排序）。
+
+P3 手动操作（rename/set_access_level/add/remove_member_doc）置 ``metadata["manual"]``
+标记，自动派生跳过 manual 社区不覆盖手改。
+"""
 
 from __future__ import annotations
 
 from calliodesmo.auth.context import AccessContext
+from calliodesmo.auth.models import ClearanceLevel
 from calliodesmo.interfaces.community_store import CommunityRecord, CommunityStore
 from calliodesmo.stores.visibility import visible_to
 
@@ -19,6 +24,54 @@ class InMemoryCommunityStore(CommunityStore):
         visible = [r for r in self._records.values() if visible_to(r, access)]
         visible.sort(key=lambda r: (r.level, r.title))
         return visible
+
+    def _mark_manual(self, rec: CommunityRecord) -> CommunityRecord:
+        md = dict(rec.metadata)
+        md["manual"] = True
+        rec.metadata = md
+        return rec
+
+    async def _edit(self, community_id: str, access: AccessContext) -> CommunityRecord | None:
+        rec = self._records.get(community_id)
+        if rec is None or not visible_to(rec, access):
+            return None
+        return self._mark_manual(rec)
+
+    async def rename(self, community_id: str, title: str, *, access: AccessContext) -> bool:
+        rec = await self._edit(community_id, access)
+        if rec is None:
+            return False
+        rec.title = title
+        return True
+
+    async def set_access_level(
+        self, community_id: str, level: ClearanceLevel, *, access: AccessContext
+    ) -> bool:
+        rec = await self._edit(community_id, access)
+        if rec is None:
+            return False
+        rec.access_level = level
+        return True
+
+    async def add_member_doc(
+        self, community_id: str, doc_id: str, *, access: AccessContext, note: str = ""
+    ) -> bool:
+        rec = await self._edit(community_id, access)
+        if rec is None:
+            return False
+        if doc_id not in rec.member_entity_names:
+            rec.member_entity_names.append(doc_id)
+        return True
+
+    async def remove_member_doc(
+        self, community_id: str, doc_id: str, *, access: AccessContext
+    ) -> bool:
+        rec = await self._edit(community_id, access)
+        if rec is None:
+            return False
+        if doc_id in rec.member_entity_names:
+            rec.member_entity_names.remove(doc_id)
+        return True
 
     def __len__(self) -> int:
         return len(self._records)

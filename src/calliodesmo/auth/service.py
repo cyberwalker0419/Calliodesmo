@@ -42,14 +42,113 @@ async def create_user(
     return user
 
 
-async def authenticate(session: AsyncSession, *, username: str, password: str) -> User | None:
+async def get_user_by_username(session: AsyncSession, username: str) -> User | None:
     result = await session.execute(select(User).where(User.username == username))
-    user = result.scalar_one_or_none()
+    return result.scalar_one_or_none()
+
+
+async def authenticate(session: AsyncSession, *, username: str, password: str) -> User | None:
+    user = await get_user_by_username(session, username)
     if user is None or not user.is_active:
         return None
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+async def change_password(
+    session: AsyncSession, *, user_id: uuid.UUID, old_password: str, new_password: str
+) -> bool:
+    """自助改密：旧密码校验通过才重哈希（Argon2）。用户不存在/已停用/旧密码错 -> False。"""
+    user = await session.get(User, user_id)
+    if user is None or not user.is_active:
+        return False
+    if not verify_password(old_password, user.hashed_password):
+        return False
+    user.hashed_password = hash_password(new_password)
+    await session.flush()
+    return True
+
+
+async def list_users(session: AsyncSession) -> list[User]:
+    """全量用户（含角色/团队/项目成员关系，供管理端序列化）。"""
+    result = await session.execute(
+        select(User)
+        .options(
+            selectinload(User.roles).selectinload(UserRole.role),
+            selectinload(User.team_memberships),
+            selectinload(User.project_memberships).selectinload(ProjectMember.role),
+        )
+        .order_by(User.username)
+    )
+    return list(result.scalars())
+
+
+async def update_user(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    clearance: ClearanceLevel | None = None,
+    is_active: bool | None = None,
+    email: str | None = None,
+) -> User | None:
+    """更新 clearance / is_active / email（None 字段不动）。"""
+    user = await session.get(User, user_id)
+    if user is None:
+        return None
+    if clearance is not None:
+        user.clearance = clearance
+    if is_active is not None:
+        user.is_active = is_active
+    if email is not None:
+        user.email = email
+    await session.flush()
+    return user
+
+
+async def deactivate_user(session: AsyncSession, *, user_id: uuid.UUID) -> User | None:
+    """软删除：is_active=False，保留审计可追溯（不物理删除）。"""
+    return await update_user(session, user_id=user_id, is_active=False)
+
+
+async def list_teams(session: AsyncSession) -> list[Team]:
+    result = await session.execute(
+        select(Team)
+        .options(selectinload(Team.members).selectinload(TeamMember.user))
+        .order_by(Team.name)
+    )
+    return list(result.scalars())
+
+
+async def list_projects(session: AsyncSession) -> list[Project]:
+    result = await session.execute(
+        select(Project)
+        .options(selectinload(Project.members).selectinload(ProjectMember.role))
+        .order_by(Project.name)
+    )
+    return list(result.scalars())
+
+
+async def remove_team_member(
+    session: AsyncSession, *, team_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    member = await session.get(TeamMember, (user_id, team_id))
+    if member is None:
+        return False
+    await session.delete(member)
+    await session.flush()
+    return True
+
+
+async def remove_project_member(
+    session: AsyncSession, *, project_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    member = await session.get(ProjectMember, (user_id, project_id))
+    if member is None:
+        return False
+    await session.delete(member)
+    await session.flush()
+    return True
 
 
 async def seed_default_roles(session: AsyncSession) -> list[Role]:

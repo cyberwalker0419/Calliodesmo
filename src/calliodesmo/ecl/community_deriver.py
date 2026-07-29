@@ -5,6 +5,7 @@
 - LLM 生成文档级 title+summary
 - 写入 CommunityStore（level=1），access 字段从该文档 chunk 继承
 - 增量安全：仅为本批文档派生，不动已有文档社区（community_id 按 doc 唯一）
+- 手动编辑保护：跳过 metadata["manual"]=True 的社区（不覆盖手改，P3）
 """
 
 from __future__ import annotations
@@ -76,7 +77,14 @@ class DocumentCommunityDeriver:
                 )
             )
 
+        # 手动编辑保护：跳过 metadata["manual"]=True 的社区（不覆盖手改）
         if self.community_store is not None:
+            communities = [
+                c
+                for c in communities
+                if c.community_id not in self.community_store._records
+                or not self.community_store._records[c.community_id].metadata.get("manual")
+            ]
             records = [
                 CommunityRecord(
                     community_id=c.community_id,

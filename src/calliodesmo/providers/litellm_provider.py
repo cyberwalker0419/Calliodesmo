@@ -8,6 +8,16 @@
 from calliodesmo.interfaces.llm import LLMMessage, LLMProvider, LLMResponse
 
 
+def _short_model(model: str | None) -> str:
+    """模型标识短化：llama.cpp 等本地服务回显的常是文件路径（含盘符/反斜杠/.gguf），取 basename
+    避免泄露服务器路径；LiteLLM 的 provider/model 形式（如 openai/gpt-4o-mini）原样保留。"""
+    if not model:
+        return ""
+    if "\\" in model or ":" in model or model.lower().endswith((".gguf", ".bin", ".safetensors")):
+        return model.replace("\\", "/").rsplit("/", 1)[-1]
+    return model
+
+
 class LiteLLMProvider(LLMProvider):
     def __init__(
         self,
@@ -57,7 +67,7 @@ class LiteLLMProvider(LLMProvider):
             }
         return LLMResponse(
             content=choice.message.content or "",
-            model=response.model,
+            model=_short_model(response.model),
             usage=usage,
             raw=response,
         )

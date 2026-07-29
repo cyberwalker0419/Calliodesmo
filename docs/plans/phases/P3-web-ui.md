@@ -107,14 +107,14 @@ async def list_communities(
 async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  # 实体 + neighbors
 ```
 
-- [ ] **Step 1:** `require_permission` helper：有权放行、无权 403 测试 -> 实现跑绿
-- [ ] **Step 2:** `list_users` / `update_user`（clearance/active）/ `deactivate_user`（软删除 `is_active=False`，保留审计可追溯）service + `/admin/users` 端点；缺 `manage_users` -> 403；管理动作记 `action="manage_user"` 测试 -> 实现跑绿
-- [ ] **Step 3:** `/admin/teams` `/admin/projects`（list/create）+ 成员增删端点（`POST /admin/teams/{id}/members` / `DELETE .../members/{user_id}`）；`manage_users` 守卫 + 审计测试 -> 实现跑绿
-- [ ] **Step 4:** `/library/profile-cards`（按 `visible_to` 过滤）/ `/library/communities`（按 level 过滤）/ `/library/entities/{name}`（含 neighbors）；`query` 守卫；越权记录不返回测试 -> 实现跑绿
-- [ ] **Step 5:** stores 依赖工厂（`get_profile_card_store` 等内存单例，与 `get_search_engine` 共享同一实例）测试 -> 实现跑绿
-- [ ] **Step 6:** CLI `users list/create/deactivate`、`teams create/add-member`（`CliRunner` 断言退出码与输出）测试 -> 实现跑绿
-- [ ] **Step 7:** 软删除与引用完整性：deactivate 后用户不可登录、其历史审计记录保留；`get_access_context` 对 `is_active=False` 返回 None（沿用 P0 逻辑）测试 -> 实现跑绿
-- [ ] **Step 8:** 演示数据：`serve --seed-demo` 启动时对 `data/demo/` 样例文档在 serve 进程内跑 ECL 管线注入内存 stores（解决内存模式 CLI ingest 与 API 跨进程不可见）；**seed 产物落盘缓存**（如 `data/demo/seed-cache.json`，序列化 ProfileCard/Community/Subgraph 结果），二次 `serve` 命中缓存直接加载、跳过 LLM 管线（首次全量跑慢，重跑别再等一轮 LLM）；**`data/demo/` 文档 clearance 故意拉开梯度**（public/internal/confidential 各备样例，供 Task 8 权限矩阵回归与演示可见性隔离）；seed 后 `/library/profile-cards` 非空测试 -> 实现跑绿
+- [x] **Step 1:** `require_permission` helper：有权放行、无权 403 测试 -> 实现跑绿
+- [x] **Step 2:** `list_users` / `update_user`（clearance/active）/ `deactivate_user`（软删除 `is_active=False`，保留审计可追溯）service + `/admin/users` 端点；缺 `manage_users` -> 403；管理动作记 `action="manage_user"` 测试 -> 实现跑绿
+- [x] **Step 3:** `/admin/teams` `/admin/projects`（list/create）+ 成员增删端点（`POST /admin/teams/{id}/members` / `DELETE .../members/{user_id}`）；`manage_users` 守卫 + 审计测试 -> 实现跑绿
+- [x] **Step 4:** `/library/profile-cards`（按 `visible_to` 过滤）/ `/library/communities`（按 level 过滤）/ `/library/entities/{name}`（含 neighbors）；`query` 守卫；越权记录不返回测试 -> 实现跑绿
+- [x] **Step 5:** stores 依赖工厂（`get_profile_card_store` 等内存单例，与 `get_search_engine` 共享同一实例）测试 -> 实现跑绿
+- [x] **Step 6:** CLI `users list/create/deactivate`、`teams create/add-member`（`CliRunner` 断言退出码与输出）测试 -> 实现跑绿
+- [x] **Step 7:** 软删除与引用完整性：deactivate 后用户不可登录、其历史审计记录保留；`get_access_context` 对 `is_active=False` 返回 None（沿用 P0 逻辑）测试 -> 实现跑绿
+- [x] **Step 8:** 演示数据：`serve --seed-demo` 启动时对 `data/demo/` 样例文档在 serve 进程内跑 ECL 管线注入内存 stores（解决内存模式 CLI ingest 与 API 跨进程不可见）；**seed 产物落盘缓存**（如 `data/demo/seed-cache.json`，序列化 ProfileCard/Community/Subgraph 结果），二次 `serve` 命中缓存直接加载、跳过 LLM 管线（首次全量跑慢，重跑别再等一轮 LLM）；**`data/demo/` 文档 clearance 故意拉开梯度**（public/internal/confidential 各备样例，供 Task 8 权限矩阵回归与演示可见性隔离）；seed 后 `/library/profile-cards` 非空测试 -> 实现跑绿
 
 **验收：**
 - 用户/团队/项目 CRUD + 成员管理齐全，`manage_users` / `manage_community` 守卫，管理动作记审计
@@ -142,11 +142,11 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - Modify: `.github/workflows/ci.yml`（前端 job：`npm ci` / `npm run build` / `vitest`）
 - Test: `frontend/src/api/client.test.ts`（Vitest）
 
-- [ ] **Step 1:** `frontend/` 初始化（Vite React-TS 模板 + Tailwind + shadcn/ui CLI 接入 + `lucide-react`）；`npm run build` 产出 `dist/` 测试（构建通过）；**图引擎选型 spike（前置）**：脚手架阶段就验证 `react-force-graph`（依赖 three.js）的 React 19 兼容性——最小 demo 渲染几个节点+边能跑通即可，不兼容即定 vis-network 方案。别拖到 Task 5（10 步核心）才试，那时换底层引擎返工损失最大；选型结果回填 Task 5 的图引擎与 `SubgraphResponse` 契约
-- [ ] **Step 2:** `api/client.ts`：`fetch` wrapper 注入 Bearer、401 自动跳登录、统一错误对象；TanStack Query `QueryClient` 配置测试 -> 实现跑绿
-- [ ] **Step 3:** Vite dev proxy（`/api` -> 8000，rewrite 去前缀，逻辑同源，cookie 方案全程一致）+ 后端 API 双挂 `/api` 前缀 + 生产 `StaticFiles` 挂 `frontend/dist`（SPA fallback 到 `index.html`）；`/healthz` 经 proxy 联通测试 -> 实现跑绿
-- [ ] **Step 4:** React Router 骨架（`/login` `/app/*` 占位）+ `RequireAuth` 守卫占位（Task 3 实现）测试 -> 实现跑绿
-- [ ] **Step 5:** Playwright 接入（`@playwright/test` + 桌面/移动视口配置 + 登录页冒烟截图用例）；CI 前端 job（`npm ci` / `npm run build` / `vitest`）跑通测试 -> 实现跑绿
+- [x] **Step 1:** `frontend/` 初始化（Vite React-TS 模板 + Tailwind + shadcn/ui CLI 接入 + `lucide-react`）；`npm run build` 产出 `dist/` 测试（构建通过）；**图引擎选型 spike（前置）**：脚手架阶段就验证 `react-force-graph`（依赖 three.js）的 React 19 兼容性——最小 demo 渲染几个节点+边能跑通即可，不兼容即定 vis-network 方案。别拖到 Task 5（10 步核心）才试，那时换底层引擎返工损失最大；选型结果回填 Task 5 的图引擎与 `SubgraphResponse` 契约
+- [x] **Step 2:** `api/client.ts`：`fetch` wrapper 注入 Bearer、401 自动跳登录、统一错误对象；TanStack Query `QueryClient` 配置测试 -> 实现跑绿
+- [x] **Step 3:** Vite dev proxy（`/api` -> 8000，rewrite 去前缀，逻辑同源，cookie 方案全程一致）+ 后端 API 双挂 `/api` 前缀 + 生产 `StaticFiles` 挂 `frontend/dist`（SPA fallback 到 `index.html`）；`/healthz` 经 proxy 联通测试 -> 实现跑绿
+- [x] **Step 4:** React Router 骨架（`/login` `/app/*` 占位）+ `RequireAuth` 守卫占位（Task 3 实现）测试 -> 实现跑绿
+- [x] **Step 5:** Playwright 接入（`@playwright/test` + 桌面/移动视口配置 + 登录页冒烟截图用例）；CI 前端 job（`npm ci` / `npm run build` / `vitest`）跑通测试 -> 实现跑绿
 
 **验收：**
 - `frontend/` 独立工程可 `npm run dev`（5173）与 `npm run build`
@@ -170,12 +170,12 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - Modify: `src/calliodesmo/config.py`（`allow_self_register`，默认 `False`）
 - Test: `frontend/src/features/auth/*.test.tsx`、`tests/test_auth_cookie_api.py`、`tests/test_change_password.py`
 
-- [ ] **Step 1:** 登录页表单 -> `POST /auth/token` -> 存 token；凭证错误显示“用户名或密码错误”；登录后跳 `/app` 测试 -> 实现跑绿
-- [ ] **Step 2:** `AuthContext`：启动拉 `/auth/me` 注入全局 `AccessContext`（clearance/permissions/scopes/team_ids/project_ids）；401/失效清会话跳登录测试 -> 实现跑绿
-- [ ] **Step 3:** `RequireAuth` 守卫：无 token 跳 `/login` 并记回跳地址；登出清会话测试 -> 实现跑绿
-- [ ] **Step 4:** `/auth/token` httpOnly + SameSite=Lax cookie 下发 + `/auth/logout` 清 cookie（开发期经 proxy 同源，无跨源 cookie 复杂度）；Bearer 仅 CLI/脚本用测试 -> 实现跑绿
-- [ ] **Step 5:** 自注册：`allow_self_register=False` 时 `/register` 端点 404/403；开启时管理员外可注册（含 clearance 上限 INTERNAL，防越权自提）测试 -> 实现跑绿
-- [ ] **Step 6:** 自助改密码：`POST /auth/change-password`（旧密码校验 + Argon2 重哈希 + 记 `action="change_password"` 审计）；设置页改密表单；改密后旧会话失效重登测试 -> 实现跑绿
+- [x] **Step 1:** 登录页表单 -> `POST /auth/token` -> 存 token；凭证错误显示“用户名或密码错误”；登录后跳 `/app` 测试 -> 实现跑绿
+- [x] **Step 2:** `AuthContext`：启动拉 `/auth/me` 注入全局 `AccessContext`（clearance/permissions/scopes/team_ids/project_ids）；401/失效清会话跳登录测试 -> 实现跑绿
+- [x] **Step 3:** `RequireAuth` 守卫：无 token 跳 `/login` 并记回跳地址；登出清会话测试 -> 实现跑绿
+- [x] **Step 4:** `/auth/token` httpOnly + SameSite=Lax cookie 下发 + `/auth/logout` 清 cookie（开发期经 proxy 同源，无跨源 cookie 复杂度）；Bearer 仅 CLI/脚本用测试 -> 实现跑绿
+- [x] **Step 5:** 自注册：`allow_self_register=False` 时 `/register` 端点 404/403；开启时管理员外可注册（含 clearance 上限 INTERNAL，防越权自提）测试 -> 实现跑绿
+- [x] **Step 6:** 自助改密码：`POST /auth/change-password`（旧密码校验 + Argon2 重哈希 + 记 `action="change_password"` 审计）；设置页改密表单；改密后旧会话失效重登测试 -> 实现跑绿
 
 **验收：**
 - 登录/登出/会话失效完整；`AccessContext` 全局可用
@@ -195,10 +195,10 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - Create: `frontend/src/features/qa/useQuery.ts`（TanStack Query mutation 封装 `/query`）
 - Test: `frontend/src/features/qa/*.test.tsx`
 
-- [ ] **Step 1:** 模式切换（Native/Local/Global，segmented control 图标）+ `top_k` stepper；提交走 `/query`；loading 骨架测试 -> 实现跑绿
-- [ ] **Step 2:** `AnswerCard`：答案文本 + 来源标注列表（`source_chunk_ids` + `context_chunks`）；点击标注展开对应 chunk 原文（证据溯源）测试 -> 实现跑绿
-- [ ] **Step 3:** 状态：error（错误提示）/ empty（候选为空 -> “无可引用证据”提示，对应 P2 不编造约束）/ success 测试 -> 实现跑绿
-- [ ] **Step 4:** 端到端（离线）：mock `/query` 返回带来源的答案 -> 面板渲染 + 标注点击展开测试 -> 实现跑绿
+- [x] **Step 1:** 模式切换（Native/Local/Global，segmented control 图标）+ `top_k` stepper；提交走 `/query`；loading 骨架测试 -> 实现跑绿
+- [x] **Step 2:** `AnswerCard`：答案文本 + 来源标注列表（`source_chunk_ids` + `context_chunks`）；点击标注展开对应 chunk 原文（证据溯源）测试 -> 实现跑绿
+- [x] **Step 3:** 状态：error（错误提示）/ empty（候选为空 -> “无可引用证据”提示，对应 P2 不编造约束）/ success 测试 -> 实现跑绿
+- [x] **Step 4:** 端到端（离线）：mock `/query` 返回带来源的答案 -> 面板渲染 + 标注点击展开测试 -> 实现跑绿
 
 **验收：**
 - 三模式 + top_k + 来源标注高亮（证据可溯源展开）
@@ -228,16 +228,16 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - Modify: `src/calliodesmo/api/schemas.py`（`SubgraphResponse`：nodes/edges/expanded_seeds/truncated 标记）
 - Test: `frontend/src/features/library/*.test.tsx`、`tests/test_subgraph_api.py`
 
-- [ ] **Step 1:** `ProfileCardList`（`/library/profile-cards`）+ `ProfileCardDetail`：结构化字段表格 + narrative 概览区（标注不进检索）；evidence_chunk_ids 可溯源点击测试 -> 实现跑绿
-- [ ] **Step 2:** `CommunityNav`：level 0/1 tab -> 社区列表 -> 成员实体；点击实体进详情测试 -> 实现跑绿
-- [ ] **Step 3:** `GraphStore.subgraph` 接口 + `InMemoryGraphStore` 实现：BFS 从 seeds 按 hops 扩展、limit 截断、去重、返回 `SubgraphView`；全程 `visible_to` 过滤（越权邻居不入子图）；`truncated` 标记是否达上限测试 -> 实现跑绿
-- [ ] **Step 4:** `GET /library/subgraph?seeds=&hops=&limit=`：多种子逗号分隔、hops 默认 1、limit 默认 50（防拉爆）；`query` 守卫；返回 `SubgraphResponse`（nodes/edges/expanded_seeds/truncated）测试 -> 实现跑绿
-- [ ] **Step 5:** `EntityGraph` 基础渲染：从 `EntityDetail` 传入种子实体 -> 拉 `/library/subgraph`（hops=1, limit=50）-> 图引擎渲染节点+边（Canvas，类型着色沿用 `graph_html.py` 的 `_TYPE_COLORS`）；**单击节点**在右侧/底部详情面板展示该实体结构化信息（type/description/ProfileCard/证据 chunk）测试 -> 实现跑绿
-- [ ] **Step 6:** **展开（双击）**：双击节点 -> 以该节点为新种子、hops=1 增量拉子图 -> 合并入画布（去重）；被展开节点加“已展开”标记（避免重复展开）测试 -> 实现跑绿
-- [ ] **Step 7:** **折叠（双击）**：双击已展开节点 -> 移除其引入的邻居（保留该节点本身 + 其他路径仍可达的节点）；折叠不破坏其他子图连通性；双击未展开节点走展开、双击已展开节点走折叠（状态切换）测试 -> 实现跑绿
-- [ ] **Step 8:** **调范围**：跳数滑块（1-3，默认 1）+ 画布节点上限步进器（50/100/200/500，默认 50）；调整后按当前种子重新拉取；达上限时 UI 提示“已截断，提高上限或折叠部分节点查看更多”测试 -> 实现跑绿
-- [ ] **Step 9:** `EntityDetail`：结构化字段面板（左侧）+ `EntityGraph` 画布（右侧）；从 `CommunityNav`/`ProfileCard` 点击实体进入；种子可多选（从列表勾选多个实体作为初始 seeds）测试 -> 实现跑绿
-- [ ] **Step 10:** `ScopeSwitcher`：按 `AccessContext` 有权 scope 切换（personal/project/team）；无权 scope 不可选；切换后列表与子图均随 scope 过滤（子图拉取带 scope 上下文）测试 -> 实现跑绿
+- [x] **Step 1:** `ProfileCardList`（`/library/profile-cards`）+ `ProfileCardDetail`：结构化字段表格 + narrative 概览区（标注不进检索）；evidence_chunk_ids 可溯源点击测试 -> 实现跑绿
+- [x] **Step 2:** `CommunityNav`：level 0/1 tab -> 社区列表 -> 成员实体；点击实体进详情测试 -> 实现跑绿
+- [x] **Step 3:** `GraphStore.subgraph` 接口 + `InMemoryGraphStore` 实现：BFS 从 seeds 按 hops 扩展、limit 截断、去重、返回 `SubgraphView`；全程 `visible_to` 过滤（越权邻居不入子图）；`truncated` 标记是否达上限测试 -> 实现跑绿
+- [x] **Step 4:** `GET /library/subgraph?seeds=&hops=&limit=`：多种子逗号分隔、hops 默认 1、limit 默认 50（防拉爆）；`query` 守卫；返回 `SubgraphResponse`（nodes/edges/expanded_seeds/truncated）测试 -> 实现跑绿
+- [x] **Step 5:** `EntityGraph` 基础渲染：从 `EntityDetail` 传入种子实体 -> 拉 `/library/subgraph`（hops=1, limit=50）-> 图引擎渲染节点+边（Canvas，类型着色沿用 `graph_html.py` 的 `_TYPE_COLORS`）；**单击节点**在右侧/底部详情面板展示该实体结构化信息（type/description/ProfileCard/证据 chunk）测试 -> 实现跑绿
+- [x] **Step 6:** **展开（双击）**：双击节点 -> 以该节点为新种子、hops=1 增量拉子图 -> 合并入画布（去重）；被展开节点加“已展开”标记（避免重复展开）测试 -> 实现跑绿
+- [x] **Step 7:** **折叠（双击）**：双击已展开节点 -> 移除其引入的邻居（保留该节点本身 + 其他路径仍可达的节点）；折叠不破坏其他子图连通性；双击未展开节点走展开、双击已展开节点走折叠（状态切换）测试 -> 实现跑绿
+- [x] **Step 8:** **调范围**：跳数滑块（1-3，默认 1）+ 画布节点上限步进器（50/100/200/500，默认 50）；调整后按当前种子重新拉取；达上限时 UI 提示“已截断，提高上限或折叠部分节点查看更多”测试 -> 实现跑绿
+- [x] **Step 9:** `EntityDetail`：结构化字段面板（左侧）+ `EntityGraph` 画布（右侧）；从 `CommunityNav`/`ProfileCard` 点击实体进入；种子可多选（从列表勾选多个实体作为初始 seeds）测试 -> 实现跑绿
+- [x] **Step 10:** `ScopeSwitcher`：按 `AccessContext` 有权 scope 切换（personal/project/team）；无权 scope 不可选；切换后列表与子图均随 scope 过滤（子图拉取带 scope 上下文）测试 -> 实现跑绿
 
 **验收：**
 - ProfileCard 浏览含结构化字段 + narrative 人读区（区分标注）
@@ -257,10 +257,10 @@ async def get_entity(name: str, ctx=..., store=Depends(get_graph_store)): ...  #
 - Create: `frontend/src/features/admin/AdminNav.tsx`（仅 `manage_users` 可见）
 - Test: `frontend/src/features/admin/*.test.tsx`
 
-- [ ] **Step 1:** `AdminNav`：仅 `manage_users` 用户可见入口；无权用户看不到 `/admin` 链接（前端隐藏，后端仍守卫）测试 -> 实现跑绿
-- [ ] **Step 2:** `UserManage`：列表 + 新建（`/admin/users`）+ 编辑（clearance 下拉/active toggle/角色分配）；操作后 `invalidateQueries` 刷新；错误提示测试 -> 实现跑绿
-- [ ] **Step 3:** `TeamManage` / `ProjectManage`：新建 + 成员增删 + 项目内角色；审计记录由后端记（Task 1）测试 -> 实现跑绿
-- [ ] **Step 4:** 越权探测：无 `manage_users` 用户直击 `/admin/users` 前端路由 + 直击后端 `/admin/users` 均 403/拦截测试 -> 实现跑绿
+- [x] **Step 1:** `AdminNav`：仅 `manage_users` 用户可见入口；无权用户看不到 `/admin` 链接（前端隐藏，后端仍守卫）测试 -> 实现跑绿
+- [x] **Step 2:** `UserManage`：列表 + 新建（`/admin/users`）+ 编辑（clearance 下拉/active toggle/角色分配）；操作后 `invalidateQueries` 刷新；错误提示测试 -> 实现跑绿
+- [x] **Step 3:** `TeamManage` / `ProjectManage`：新建 + 成员增删 + 项目内角色；审计记录由后端记（Task 1）测试 -> 实现跑绿
+- [x] **Step 4:** 越权探测：无 `manage_users` 用户直击 `/admin/users` 前端路由 + 直击后端 `/admin/users` 均 403/拦截测试 -> 实现跑绿
 
 **验收：**
 - 用户/团队/项目 CRUD UI 可用，`manage_users` 守卫
@@ -302,10 +302,10 @@ class CommunityStore(ABC):
     ) -> None: ...
 ```
 
-- [ ] **Step 1:** `CommunityStore` 手动操作接口 + `InMemoryCommunityStore` 实现：rename/retag/set_access/add_member_doc/remove_member_doc；手动操作置 `metadata["manual"]=True`；`visible_to` 守卫测试 -> 实现跑绿
-- [ ] **Step 2:** 自动派生不覆盖手改：`DocumentCommunityDeriver` 跳过 `metadata["manual"]=True` 的社区；手动命名不被重派生覆盖测试 -> 实现跑绿
-- [ ] **Step 3:** `/admin/document-communities` 端点（GET 列表 + PATCH 各操作）；`manage_community` 守卫；操作记 `action="manage_community"` 审计测试 -> 实现跑绿
-- [ ] **Step 4:** `DocumentCommunityManage` UI：社区命名/打标签/access_level、增删文档；`manage_community` 用户可见测试 -> 实现跑绿
+- [x] **Step 1:** `CommunityStore` 手动操作接口 + `InMemoryCommunityStore` 实现：rename/retag/set_access/add_member_doc/remove_member_doc；手动操作置 `metadata["manual"]=True`；`visible_to` 守卫测试 -> 实现跑绿
+- [x] **Step 2:** 自动派生不覆盖手改：`DocumentCommunityDeriver` 跳过 `metadata["manual"]=True` 的社区；手动命名不被重派生覆盖测试 -> 实现跑绿
+- [x] **Step 3:** `/admin/document-communities` 端点（GET 列表 + PATCH 各操作）；`manage_community` 守卫；操作记 `action="manage_community"` 审计测试 -> 实现跑绿
+- [x] **Step 4:** `DocumentCommunityManage` UI：社区命名/打标签/access_level、增删文档；`manage_community` 用户可见测试 -> 实现跑绿
 
 **验收：**
 - 文档社区手动命名/打标/access/增删文档齐全，`manage_community` 守卫
@@ -322,11 +322,11 @@ class CommunityStore(ABC):
 - Modify: `frontend/src/App.tsx`（导航按权限显隐：无 `query` 隐藏问答、无 `manage_users` 隐藏管理）
 - Test: `frontend/src/auth/useAccess.test.ts`、`tests/test_permission_isolation.py`（后端参数化矩阵：每个受限端点 × analyst/reviewer/admin/匿名 × 期望状态码）
 
-- [ ] **Step 1:** `useAccess` hook：`can(Permission)` / `clearanceAtLeast(level)` / `hasScope(scope)`；权限驱动渲染（无权组件返回 null/disabled）测试 -> 实现跑绿
-- [ ] **Step 2:** clearance 隔离：低 clearance 用户浏览/问答看不到高 access_level 数据（后端 `visible_to` 已过滤，前端不渲染不存在的）；UI 无越权数据泄露测试 -> 实现跑绿
-- [ ] **Step 3:** scope 隔离：库视图只列有权 scope；personal 库仅本人可见（Task 5 ScopeSwitcher 一致）测试 -> 实现跑绿
-- [ ] **Step 4:** 前后端一致性：每个受限端点（`/query` `/admin/*` `/library/*`）后端权限守卫全覆盖；前端隐藏仅 UX；越权直击后端端点 -> 403（无前端 UI 也拦得住）测试 -> 实现跑绿
-- [ ] **Step 5:** 权限矩阵回归：用 analyst/reviewer/admin 三角色分别走问答/浏览/管理/社区管理全流程，断言各角色可见与可操作集合符合 `DEFAULT_ROLE_PERMISSIONS` 测试 -> 实现跑绿
+- [x] **Step 1:** `useAccess` hook：`can(Permission)` / `clearanceAtLeast(level)` / `hasScope(scope)`；权限驱动渲染（无权组件返回 null/disabled）测试 -> 实现跑绿
+- [x] **Step 2:** clearance 隔离：低 clearance 用户浏览/问答看不到高 access_level 数据（后端 `visible_to` 已过滤，前端不渲染不存在的）；UI 无越权数据泄露测试 -> 实现跑绿
+- [x] **Step 3:** scope 隔离：库视图只列有权 scope；personal 库仅本人可见（Task 5 ScopeSwitcher 一致）测试 -> 实现跑绿
+- [x] **Step 4:** 前后端一致性：每个受限端点（`/query` `/admin/*` `/library/*`）后端权限守卫全覆盖；前端隐藏仅 UX；越权直击后端端点 -> 403（无前端 UI 也拦得住）测试 -> 实现跑绿
+- [x] **Step 5:** 权限矩阵回归：用 analyst/reviewer/admin 三角色分别走问答/浏览/管理/社区管理全流程，断言各角色可见与可操作集合符合 `DEFAULT_ROLE_PERMISSIONS` 测试 -> 实现跑绿
 
 **验收：**
 - `useAccess` 权限驱动渲染；clearance/scope 隔离在 UI 体现

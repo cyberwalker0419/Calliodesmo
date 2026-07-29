@@ -138,7 +138,14 @@ class ECLIndexingEngine(IndexingEngine):
         return len(cards)
 
 
-def build_default_indexing_engine(settings) -> ECLIndexingEngine:
+def build_default_indexing_engine(
+    settings,
+    *,
+    vector_store=None,
+    graph_store=None,
+    community_store=None,
+    profile_card_store=None,
+) -> ECLIndexingEngine:
     """按 settings 构造默认 ECLIndexingEngine（内存 stores + Hash 嵌入 + LiteLLM）。
 
     - LLM 缺 API key（且非本地模型）-> 抛 RuntimeError 指引 CALLIODESMO_LLM_API_KEY
@@ -220,9 +227,10 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
     else:
         embedding_provider = HashEmbeddingProvider(dimension=settings.embedding_dimension or 64)
     cognify = CognifyPipeline(summarizer=None)  # CLI 默认不跑 LLM 社区摘要（省调用）
-    vector_store = InMemoryVectorStore()
-    graph_store = InMemoryGraphStore()
-    community_store = InMemoryCommunityStore()
+    # 注意：用 is None 而非 or——stores 实现 __len__，空库为假
+    vector_store = vector_store if vector_store is not None else InMemoryVectorStore()
+    graph_store = graph_store if graph_store is not None else InMemoryGraphStore()
+    community_store = community_store if community_store is not None else InMemoryCommunityStore()
     # L0 chunk 摘要按需补生：chunk_summary_enabled 时经 LLM
     # 生成摘要入 metadata["summary"]
     chunk_summarizer = None
@@ -238,7 +246,9 @@ def build_default_indexing_engine(settings) -> ECLIndexingEngine:
         chunk_summarizer=chunk_summarizer,
     )
     deriver = DocumentCommunityDeriver(llm, community_store)
-    profile_card_store = InMemoryProfileCardStore()
+    profile_card_store = (
+        profile_card_store if profile_card_store is not None else InMemoryProfileCardStore()
+    )
     profile_deriver = DeterministicProfileCardDeriver(llm=None)  # 确定性聚合，narrative 默认不生成
     return ECLIndexingEngine(
         loader=default_registry(),

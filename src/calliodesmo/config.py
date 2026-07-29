@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str | None = None
 
+    # P3 Web UI
+    allow_self_register: bool = False  # 自注册默认关；开启时 clearance 上限 INTERNAL
+    cors_origins: list[str] = []  # 兜底（默认空 = 关）；dev 走 Vite proxy 同源
+    demo_dir: str = "data/demo"  # serve --seed-demo 演示文档目录
+    demo_cache_file: str = "data/demo/seed-cache.json"  # seed 产物落盘缓存
+
     # P1 ECL 管线
     extraction_template_file: str = "config/extraction_templates.yaml"
     chunk_size: int = 1200
@@ -43,6 +49,9 @@ class Settings(BaseSettings):
 
     # P2 检索与 RAG
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_provider: str = "none"  # none | local | remote（remote 走 HTTP rerank 服务）
+    reranker_api_base: str | None = None  # remote 时指向 rerank 服务（如 http://rerank-host:8083）
+    reranker_api_key: str | None = None
     rerank_top_n: int = 20
     hybrid_enabled: bool = True
     sparse_enabled: bool = True

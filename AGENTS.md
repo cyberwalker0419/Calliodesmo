@@ -12,7 +12,9 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 
 - **P0** 地基脚手架 ✅ 完成
 - **P1** ECL 管线 MVP（抽取/建图/社区/落库/ingest CLI）✅ 完成
-- **P2** 基础检索与 RAG ⏳ 下一步--NativeRAG / LocalSearch / GlobalSearch + 混合检索（RRF）+ 交叉编码器重排 + 答案合成 + 评估 harness
+- **P2** 基础检索与 RAG ✅ 完成
+- **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
+- **P4** Git-like 协作推送 ⏳ 下一步
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -47,6 +49,7 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 | LLM / 嵌入 | LiteLLM（多后端可切换）· BGE-M3（本地，可选 extra） |
 | 检索 / Agent | LlamaIndex + LangGraph（P2+）· GraphRAG（P1，库形式集成） |
 | 质量 | pytest + pytest-asyncio · Ruff · GitHub Actions |
+| 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· react-force-graph-2d · lucide-react |
 
 ## 项目结构
 ```
@@ -64,6 +67,7 @@ src/calliodesmo/
 ├── config.py     pydantic-settings（CALLIODESMO_ 前缀）
 ├── models.py     ORM 模型集中导入（保证 Base.metadata 注册完整）
 └── cli.py        Typer：db init / db seed / serve / ingest / ask
+frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；详见下「前端开发与验证闭环」
 docs/
 ├── deploy/               部署文档（native.md：非 Docker 原生部署）
 ├── plans/                Obsidian vault：roadmap / monthly/<YYYY-MM> / weekly/<YYYY-Www> / phases/P<n>-<slug>
@@ -111,6 +115,56 @@ SQLite 零依赖开发模式：设 `CALLIODESMO_DATABASE_URL=sqlite+aiosqlite://
 - **幂等**：种子与引导脚本均显式验证可重复执行。
 - **异步**：`pytest-asyncio` auto 模式（`asyncio_mode = "auto"`）。
 - 新增功能先写失败测试 -> 实现 -> 跑绿 -> 提交（TDD），阶段计划文件用 checkbox 跟踪。
+
+## 前端开发与验证闭环
+
+前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端（8000），同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+
+### 前端命令（在 `frontend/` 执行）
+
+```bash
+cd frontend
+npm run dev      # Vite dev server（5173，/api 代理到 8000）
+npm run build    # tsc -b && vite build -> dist/
+npm run lint     # tsc -b --noEmit（noUnusedLocals/noUnusedParameters 严）
+npm run test     # vitest run（@testing-library/react）
+npm run e2e      # Playwright e2e（@playwright/test，桌面 + 移动视口）
+```
+
+### 验证闭环（有视觉表现的改动必走）
+
+**底线三件套**：任何前端改动都过 `lint` / `test` / `build`。**之上**，有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）走浏览器交互验证闭环；纯逻辑 / 类型改动（无视觉表现）三件套即可。判不准默认走三件套。
+
+1. **开发与启动**：改代码 -> 启 Vite dev（5173）；联调另起 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据，dev proxy 已把 `/api` -> 8000）。
+2. **取页面结构**：accessibility snapshot 拿无障碍树，识别按钮 / 输入框 / 路由项及 Selector（**首选 snapshot，非 screenshot**--snapshot 给可操作的 ref/selector，screenshot 不能驱动操作）。
+3. **模拟人类操作**：按业务路径 click / type / hover 像真实用户（登录页输错密码点登录、悬停下拉、切换问答模式、双击图谱节点展开 / 折叠、滑块调跳数与节点上限）。
+4. **视觉与状态感知**：screenshot 截图 -> 视觉识图模型分析布局 / 重叠 / 溢出 / 状态是否符合预期；同步查 console（error）/ network（4xx/5xx）/ snapshot（结构）。
+5. **反思与修复**：交互失败 / UI 状态不对 / 不符合要求 -> 读源码诊断 -> 改代码 -> 重复 2–4，**直到所有人类交互路径完美通过**。
+
+### 工具
+
+浏览器自动化 MCP：`browser_snapshot`（无障碍树）/ `browser_click` / `browser_type` / `browser_hover` / `browser_take_screenshot` / `browser_resize` / `browser_console_messages`。视觉识图：GLM-EYE（`analyze_image` / `ui_diff_check`）。
+
+> **Claude Code** 用内置 `preview_*` 工具等价完成（**不用 Playwright MCP**），映射见 [CLAUDE.md](CLAUDE.md)：`preview_start`（启 dev server）/ `preview_snapshot` / `preview_click` / `preview_fill` / `preview_eval`(hover) / `preview_screenshot` / `preview_inspect` / `preview_console_logs` / `preview_resize`。
+
+### 验收要点（关键流程截图，桌面 + 移动视口）
+
+- **登录**：`/login` 错误凭证提示 + 正确登录跳 `/app/qa`
+- **问答**：`/app/qa` 三模式（Native/Local/Global）切换 + `top_k` 调节 + 来源标注展开
+- **库浏览**：`/app/library` ProfileCard / 社区导航 / **图谱**（4 布局切换、展开折叠、拖动、调范围）
+- **管理**：`/app/admin/{users,teams,communities}` CRUD + 越权探测（无 `manage_users` 直击前端路由 + 后端端点均 403）
+- **设置**：`/app/settings` 改密
+- **权限矩阵**：analyst / reviewer / admin 三角色各跑可见与可操作集合（对齐后端 `DEFAULT_ROLE_PERMISSIONS`）
+
+### 图谱（EntityGraph）专项验收
+
+4 布局模式（force / cluster / hierarchy / radial）切换 + `forceCollide` 防标签重叠 + 降 #5（拖动时不相邻节点连带位移，目标漂移 <20）+ 多分量拉近。计划见 [docs/plans/entity-graph-layouts.md](docs/plans/entity-graph-layouts.md)。验收：三件套 + 4 模式截图对比 + 拖动 #5 漂移量 + 标签重叠像素检查。
+
+### 依赖与边界
+
+- 前端依赖隔离（`frontend/package.json`，与后端 Python 依赖隔离）；CI 前端 job `npm ci && npm run build && vitest`；Node 版本锁 `.nvmrc`。
+- 前端不进检索精度回归（P2 harness），但权限一致性有回归测试（三角色矩阵）。
+- 内存 stores 单进程：UI 走 API，演示数据统一走 `serve --seed-demo`（serve 进程内自灌，seed 产物落盘缓存 `data/demo/seed-cache.json`）。
 
 ## Ruff 配置
 

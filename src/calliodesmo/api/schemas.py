@@ -33,3 +33,204 @@ class QueryResponse(BaseModel):
     source_chunk_ids: list[str]
     context_chunks: list[dict[str, Any]]
     model: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=6)
+
+
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=2, max_length=64)
+    password: str = Field(min_length=6)
+    clearance: str = "INTERNAL"
+
+
+# ---- /admin 管理端 ----
+
+
+class UserRoleOut(BaseModel):
+    role: str
+    scope: str
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    username: str
+    email: str | None
+    clearance: str
+    is_active: bool
+    roles: list[UserRoleOut]
+    team_ids: list[uuid.UUID]
+    project_ids: list[uuid.UUID]
+
+
+class UserCreate(BaseModel):
+    username: str = Field(min_length=2, max_length=64)
+    password: str = Field(min_length=6)
+    clearance: str = "INTERNAL"
+    email: str | None = None
+
+
+class UserUpdate(BaseModel):
+    clearance: str | None = None
+    is_active: bool | None = None
+    email: str | None = None
+
+
+class RoleAssign(BaseModel):
+    role: str
+    scope: str = "personal"
+
+
+class TeamMemberOut(BaseModel):
+    user_id: uuid.UUID
+    username: str
+    role_in_team: str
+
+
+class TeamOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    members: list[TeamMemberOut]
+
+
+class TeamCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    description: str = ""
+
+
+class TeamMemberAdd(BaseModel):
+    user_id: uuid.UUID
+    role_in_team: str = "member"
+
+
+class ProjectMemberOut(BaseModel):
+    user_id: uuid.UUID
+    role: str | None
+    role_in_project: str
+
+
+class ProjectOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    team_id: uuid.UUID
+    members: list[ProjectMemberOut]
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    team_id: uuid.UUID
+    description: str = ""
+
+
+class ProjectMemberAdd(BaseModel):
+    user_id: uuid.UUID
+    role: str = "analyst"
+    role_in_project: str = "member"
+
+
+# ---- /library 只读浏览 ----
+
+
+class ProfileCardOut(BaseModel):
+    entity_name: str
+    entity_type: str | None
+    aliases: list[str]
+    role: str | None
+    organization: str | None
+    associates: list[str]
+    timespan: str | None
+    description: str
+    narrative: str | None  # 概览叙述（不参与检索，仅供人读）
+    evidence_chunk_ids: list[str]
+    access_level: str
+    library_scope: str
+
+
+class CommunityOut(BaseModel):
+    community_id: str
+    level: int
+    title: str
+    summary: str
+    member_entity_names: list[str]
+    metadata: dict[str, Any]
+    access_level: str
+    library_scope: str
+
+
+class EntityBrief(BaseModel):
+    name: str
+    type: str | None
+    description: str
+
+
+class RelationOut(BaseModel):
+    source: str
+    target: str
+    type: str | None
+    description: str
+
+
+class EntityOut(BaseModel):
+    name: str
+    type: str | None
+    description: str
+    source_chunk_ids: list[str]
+    template_conforming: bool
+    access_level: str
+    library_scope: str
+    neighbors: list[EntityBrief]
+    relations: list[RelationOut]
+
+
+class SubgraphNode(BaseModel):
+    name: str
+    type: str | None
+    description: str
+    access_level: str
+
+
+class SubgraphEdge(BaseModel):
+    source: str
+    target: str
+    type: str | None
+    description: str
+
+
+class SubgraphResponse(BaseModel):
+    nodes: list[SubgraphNode]
+    edges: list[SubgraphEdge]
+    expanded_seeds: list[str]
+    truncated: bool  # 达节点上限被截断
+
+
+# ---- /admin/document-communities 手动管理（Task 7）----
+
+
+class CommunityRename(BaseModel):
+    title: str = Field(min_length=1)
+
+
+class CommunityRetag(BaseModel):
+    tags: list[str]
+
+
+class CommunitySetAccess(BaseModel):
+    access_level: str
+
+
+class CommunityAddDoc(BaseModel):
+    doc_id: str
+    note: str = ""
+
+
+class CommunityPatchRequest(BaseModel):
+    title: str | None = None
+    access_level: str | None = None
+
+
+class CommunityRemoveDoc(BaseModel):
+    doc_id: str

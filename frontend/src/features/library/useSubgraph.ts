@@ -1,0 +1,22 @@
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/api/client";
+import type { SubgraphResponse } from "@/api/types";
+
+export function useSubgraph(
+  seeds: string[],
+  hops: number,
+  limit: number,
+  scope: string | null = null
+) {
+  return useQuery({
+    queryKey: ["subgraph", seeds, hops, limit, scope],
+    queryFn: () =>
+      api.get<SubgraphResponse>("/library/subgraph", {
+        seeds: seeds.join(","),
+        hops,
+        limit,
+        scope: scope ?? undefined,
+      }),
+    enabled: seeds.length > 0,
+  });
+}

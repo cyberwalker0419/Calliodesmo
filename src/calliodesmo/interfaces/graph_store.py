@@ -45,6 +45,16 @@ class RelationRecord:
     team_id: uuid.UUID | None = None
 
 
+@dataclass
+class SubgraphView:
+    """增量子图视图：BFS 扩展结果（nodes/edges/命中的种子/是否截断）。"""
+
+    nodes: list[EntityRecord] = field(default_factory=list)
+    edges: list[RelationRecord] = field(default_factory=list)
+    expanded_seeds: list[str] = field(default_factory=list)  # 实际入图的种子（可见且存在）
+    truncated: bool = False  # 达节点上限被截断
+
+
 class GraphStore(ABC):
     @abstractmethod
     async def upsert_graph(
@@ -58,3 +68,13 @@ class GraphStore(ABC):
     async def neighbors(
         self, name: str, *, access: AccessContext
     ) -> tuple[list[EntityRecord], list[RelationRecord]]: ...
+
+    @abstractmethod
+    async def subgraph(
+        self, seeds: list[str], *, hops: int, limit: int, access: AccessContext
+    ) -> SubgraphView:
+        """从种子实体出发广度优先扩展 hops 跳，累计节点达 limit 截断。
+
+        全程 visible_to 过滤（越权节点/边不入子图）；返回去重后的节点与边。
+        """
+        ...
