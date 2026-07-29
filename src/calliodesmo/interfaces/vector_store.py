@@ -46,3 +46,8 @@ class VectorStore(ABC):
 
     @abstractmethod
     async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[ChunkRecord]: ...
+
+    @abstractmethod
+    async def list_chunks(self, *, access: AccessContext) -> list[ChunkRecord]:
+        """枚举当前可见的全部 chunk（按 visible_to 过滤），供推送收集。"""
+        ...
