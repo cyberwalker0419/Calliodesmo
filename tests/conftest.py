@@ -50,10 +50,11 @@ async def _pg_engine():
       ``vector`` 类型经 public 解析（public 已安装扩展，且不含内容表故无遮蔽）。
     """
     settings = get_settings()
-    # 1) 建测试 schema + create_all（search_path 仅 test，避开 public 遮蔽）
+    # 1) 重建测试 schema（DROP CASCADE 清旧列维/旧表，保证与当前 ORM 一致）+ create_all
     setup_engine = create_async_engine(settings.database_url, pool_pre_ping=True)
     async with setup_engine.begin() as conn:
-        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_TEST_SCHEMA}"))
+        await conn.execute(text(f"DROP SCHEMA IF EXISTS {_TEST_SCHEMA} CASCADE"))
+        await conn.execute(text(f"CREATE SCHEMA {_TEST_SCHEMA}"))
         await conn.execute(text(f"SET search_path TO {_TEST_SCHEMA}"))
         await conn.run_sync(Base.metadata.create_all)
     await setup_engine.dispose()
