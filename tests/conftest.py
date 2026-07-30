@@ -30,12 +30,21 @@ _TEST_SCHEMA = "calliodesmo_test"
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """用 session/client 夹具的测试自动打 db 标记（CI -m 'not db' 跳过）。"""
+    """用 session/client/cli_db 夹具的测试自动打 db 标记（CI -m 'not db' 跳过）。
+
+    cli_db/cli_inspect 也连真实 PG（CI runner 不可达 LAN PG），故一并标记。
+    """
     db_marker = pytest.mark.db
+    db_fixtures = (
+        "session",
+        "client",
+        "neo4j_session",
+        "_pg_engine",
+        "cli_db",
+        "cli_inspect",
+    )
     for item in items:
-        if any(
-            f in item.fixturenames for f in ("session", "client", "neo4j_session", "_pg_engine")
-        ):
+        if any(f in item.fixturenames for f in db_fixtures):
             item.add_marker(db_marker)
 
 
