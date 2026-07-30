@@ -43,22 +43,26 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 async def _pg_engine():
     """会话级 PG engine：建专用测试 schema + 一次性 create_all。
 
-    search_path 仅绑定测试 schema（不含 public），使 create_all 把全部表建进 calliodesmo_test，
-    避免 public 已有同名表经 has_table 反射被跳过而污染真实数据。
+    两阶段 search_path：
+    - **create_all** 用 ``search_path=test``（仅测试 schema）——避免 public 同名表经 has_table
+      反射被跳过（遮蔽），确保全部表（含 Task 2 内容层 pgvector 表）建进 test。
+    - **DML engine** 用 ``search_path=test,public``——表在 test 优先解析，pgvector 的
+      ``vector`` 类型经 public 解析（public 已安装扩展，且不含内容表故无遮蔽）。
     """
     settings = get_settings()
+    # 1) 建测试 schema + create_all（search_path 仅 test，避开 public 遮蔽）
+    setup_engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    async with setup_engine.begin() as conn:
+        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_TEST_SCHEMA}"))
+        await conn.execute(text(f"SET search_path TO {_TEST_SCHEMA}"))
+        await conn.run_sync(Base.metadata.create_all)
+    await setup_engine.dispose()
+    # 2) DML engine：search_path=test,public（Vector 经 public 解析，表在 test 优先）
     engine = create_async_engine(
         settings.database_url,
         pool_pre_ping=True,
-        # search_path 仅测试 schema：避免 public 同名表遮蔽（create_all 经 has_table
-        # 反射会因 public 已有同名表而跳过，导致 DML 全落 public 污染真实数据）。
-        # TODO(P4.5 Task 2, 2026-W32)：内容层 ORM 引入 pgvector Vector 列后，需在
-        # 专用 ext schema 安装扩展并把 search_path 改为 "<test>,calliodesmo_ext" 解析类型。
-        connect_args={"server_settings": {"search_path": _TEST_SCHEMA}},
+        connect_args={"server_settings": {"search_path": f"{_TEST_SCHEMA},public"}},
     )
-    async with engine.begin() as conn:
-        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_TEST_SCHEMA}"))
-        await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
 
@@ -127,6 +131,19 @@ async def _exec_ddl(schema: str, *, drop: bool) -> None:
         await eng.dispose()
 
 
+async def _create_all_in_schema(schema: str) -> None:
+    """在指定 schema 预建全部表（search_path 仅该 schema，避开 public 遮蔽；含 pgvector 表）。"""
+    settings = get_settings()
+    eng = create_async_engine(settings.database_url, pool_pre_ping=True)
+    try:
+        async with eng.begin() as conn:
+            await conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
+            await conn.execute(text(f'SET search_path TO "{schema}"'))
+            await conn.run_sync(Base.metadata.create_all)
+    finally:
+        await eng.dispose()
+
+
 @pytest.fixture
 def cli_db(monkeypatch) -> str:
     """CLI 测试专用：唯一 PG schema 隔离。
@@ -140,11 +157,16 @@ def cli_db(monkeypatch) -> str:
     schema = f"cli_test_{uuid.uuid4().hex[:10]}"
     # 先清 get_settings 缓存：避免先前 sqlite 用例残留的陈旧缓存（setenv sqlite 后 teardown 未清）
     get_settings.cache_clear()
-    asyncio.run(_exec_ddl(schema, drop=False))
+    # 预建 schema + create_all（search_path 仅 schema，避开 public 遮蔽；含 Task 2 pgvector 表）
+    asyncio.run(_create_all_in_schema(schema))
     real_create_async_engine = cli_mod.create_async_engine
 
     def patched_create_async_engine(url, **kwargs):  # type: ignore[no-untyped-def]
-        kwargs.setdefault("connect_args", {})["server_settings"] = {"search_path": schema}
+        # search_path=schema,public：表在 schema 优先，pgvector vector 类型经 public 解析。
+        # 已预建表 -> CLI 的 db init create_all 幂等跳过，不会遮蔽到 public。
+        kwargs.setdefault("connect_args", {})["server_settings"] = {
+            "search_path": f"{schema},public"
+        }
         return real_create_async_engine(url, **kwargs)
 
     monkeypatch.setattr(cli_mod, "create_async_engine", patched_create_async_engine)
@@ -174,7 +196,7 @@ async def cli_query(schema: str, sql: str, params=None) -> list:
     eng = create_async_engine(
         settings.database_url,
         pool_pre_ping=True,
-        connect_args={"server_settings": {"search_path": schema}},
+        connect_args={"server_settings": {"search_path": f"{schema},public"}},
     )
     try:
         async with eng.connect() as conn:
