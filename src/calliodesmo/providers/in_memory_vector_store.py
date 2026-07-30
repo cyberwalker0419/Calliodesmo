@@ -32,6 +32,11 @@ class InMemoryVectorStore(VectorStore):
     ) -> None:
         self._doc_hashes[doc_id] = content_hash
 
+    async def delete_by_doc(self, doc_id: str) -> None:
+        # 删该文档全部 chunk + 指纹记录
+        self._records = {k: v for k, v in self._records.items() if v.doc_id != doc_id}
+        self._doc_hashes.pop(doc_id, None)
+
     async def search(
         self, query_vector: list[float], *, top_k: int, access: AccessContext
     ) -> list[VectorHit]:

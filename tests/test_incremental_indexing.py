@@ -123,3 +123,88 @@ async def test_incremental_disabled_reextracts_all(tmp_path):
     first = ext.call_count
     await engine.ingest(f, access=_ctx())
     assert ext.call_count == first * 2  # 再次全量抽取
+
+
+# ---- P4.5 Task 3 Step 2(store)：delete_by_doc 三 store ----
+
+
+async def test_delete_by_doc_across_stores():
+    """InMemory 三 store delete_by_doc：chunk 删 / 图孤儿删+共享裁剪 / 社区成员移除。"""
+    from calliodesmo.auth.models import ClearanceLevel, LibraryScope
+    from calliodesmo.interfaces.community_store import CommunityRecord
+    from calliodesmo.interfaces.graph_store import EntityRecord, RelationRecord
+    from calliodesmo.interfaces.vector_store import ChunkRecord
+    from calliodesmo.providers.in_memory_community_store import InMemoryCommunityStore
+    from calliodesmo.providers.in_memory_graph_store import InMemoryGraphStore
+    from calliodesmo.providers.in_memory_vector_store import InMemoryVectorStore
+
+    owner = uuid.uuid4()
+    vec = InMemoryVectorStore()
+    graph = InMemoryGraphStore()
+    comm = InMemoryCommunityStore()
+
+    await vec.upsert_chunks(
+        [
+            ChunkRecord(
+                chunk_id="d#0", doc_id="d", content="c0", vector=[1.0],
+                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+            ),
+            ChunkRecord(
+                chunk_id="d#1", doc_id="d", content="c1", vector=[1.0],
+                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+            ),
+        ]
+    )
+    await graph.upsert_graph(
+        [
+            EntityRecord(
+                name="OnlyD", type="org", description="", source_chunk_ids=["d#0"],
+                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+            ),
+            EntityRecord(
+                name="Shared", type="org", description="",
+                source_chunk_ids=["d#1", "other#0"],
+                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+            ),
+        ],
+        [
+            RelationRecord(
+                source="OnlyD", target="Shared", type="rel", description="",
+                source_chunk_ids=["d#0"], library_scope=LibraryScope.PERSONAL, owner_id=owner,
+            ),
+        ],
+    )
+    await comm.upsert_communities(
+        [
+            CommunityRecord(
+                community_id="c1", level=1, title="T", summary="",
+                member_entity_names=["d", "other"],
+                metadata={}, access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+            )
+        ]
+    )
+
+    # 删文档 d
+    await vec.delete_by_doc("d")
+    await graph.delete_by_doc(["d#0", "d#1"])
+    await comm.delete_by_doc("d")
+
+    from calliodesmo.auth.context import AccessContext
+
+    acc = AccessContext(
+        user_id=owner, username="u", clearance=ClearanceLevel.SECRET,
+        permissions=frozenset(), project_ids=frozenset(), team_ids=frozenset(),
+    )
+    chunks = await vec.list_chunks(access=acc)
+    assert all(c.doc_id != "d" for c in chunks)  # d 的 chunk 全删
+
+    ents = {e.name: e for e in await graph.list_entities(access=acc)}
+    assert "OnlyD" not in ents  # 孤儿实体删
+    assert ents["Shared"].source_chunk_ids == ["other#0"]  # 共享实体裁剪来源
+    rels = await graph.list_relations(access=acc)
+    assert all(r.source != "OnlyD" for r in rels)  # OnlyD 的边随孤儿删
+
+    comms = await comm.list_communities(access=acc)
+    assert "d" not in comms[0].member_entity_names  # 文档移出社区
+    assert "other" in comms[0].member_entity_names  # 其他成员保留

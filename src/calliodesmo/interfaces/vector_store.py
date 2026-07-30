@@ -63,3 +63,7 @@ class VectorStore(ABC):
     ) -> None:
         """记录文档内容指纹（增量索引：下次 ingest 据此判定是否短路）。"""
         return None
+
+    async def delete_by_doc(self, doc_id: str) -> None:
+        """P4.5 Task 3：删除某文档的全部 chunk（默认 no-op，子类按持久化覆写）。"""
+        return None
