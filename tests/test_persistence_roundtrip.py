@@ -10,6 +10,9 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+pytest.importorskip("pgvector")  # CI 未装 persistence extra 时跳过收集
+pytest.importorskip("neo4j")
+
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import ClearanceLevel, LibraryScope, User
 from calliodesmo.config import get_settings
