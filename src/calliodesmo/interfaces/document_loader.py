@@ -11,6 +11,7 @@ class LoadedDocument:
     doc_id: str  # 稳定标识（相对路径）
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
+    content_hash: str = ""  # sha256(content)，P4.5 Task 3 增量索引指纹（未变则短路）
 
 
 class DocumentLoader(ABC):

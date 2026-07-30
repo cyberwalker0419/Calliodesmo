@@ -61,34 +61,62 @@ async def test_persistence_roundtrip(factory, neo4j_session):
     await store1_vec.upsert_chunks(
         [
             ChunkRecord(
-                chunk_id="d#0", doc_id="d", content="OpenAI 开发 GPT-4",
-                vector=[1.0] + [0.0] * (_DIM - 1), metadata={"doc_id": "d"},
-                access_level=ClearanceLevel.INTERNAL, library_scope=LibraryScope.PERSONAL,
+                chunk_id="d#0",
+                doc_id="d",
+                content="OpenAI 开发 GPT-4",
+                vector=[1.0] + [0.0] * (_DIM - 1),
+                metadata={"doc_id": "d"},
+                access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL,
                 owner_id=owner,
             )
         ]
     )
     await store1_graph.upsert_graph(
-        [EntityRecord(
-            name="OpenAI", type="organization", description="AI 公司",
-            source_chunk_ids=["d#0"], library_scope=LibraryScope.PERSONAL, owner_id=owner,
-        ),
-         EntityRecord(
-            name="GPT-4", type="model", description="大模型",
-            source_chunk_ids=["d#0"], library_scope=LibraryScope.PERSONAL, owner_id=owner,
-        )],
-        [RelationRecord(
-            source="OpenAI", target="GPT-4", type="developed", description="",
-            source_chunk_ids=["d#0"], library_scope=LibraryScope.PERSONAL, owner_id=owner,
-        )],
+        [
+            EntityRecord(
+                name="OpenAI",
+                type="organization",
+                description="AI 公司",
+                source_chunk_ids=["d#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
+            ),
+            EntityRecord(
+                name="GPT-4",
+                type="model",
+                description="大模型",
+                source_chunk_ids=["d#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
+            ),
+        ],
+        [
+            RelationRecord(
+                source="OpenAI",
+                target="GPT-4",
+                type="developed",
+                description="",
+                source_chunk_ids=["d#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
+            )
+        ],
     )
     await store1_comm.upsert_communities(
-        [CommunityRecord(
-            community_id="doc-d", level=1, title="OpenAI 社区", summary="",
-            member_entity_names=["OpenAI"], metadata={"doc_id": "d"},
-            access_level=ClearanceLevel.INTERNAL, library_scope=LibraryScope.PERSONAL,
-            owner_id=owner,
-        )]
+        [
+            CommunityRecord(
+                community_id="doc-d",
+                level=1,
+                title="OpenAI 社区",
+                summary="",
+                member_entity_names=["OpenAI"],
+                metadata={"doc_id": "d"},
+                access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
+            )
+        ]
     )
     # 释放 store1 引用（模拟进程退出）
     del store1_vec, store1_graph, store1_comm

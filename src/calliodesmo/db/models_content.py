@@ -46,6 +46,8 @@ class PublicVector(Vector):
     使列 DDL 与 HNSW 索引在任何 search_path 下都能解析类型，兼顾"无遮蔽"与"类型可解析"。
     """
 
+    cache_ok = True  # 状态仅依赖 dim（不可变），可参与查询缓存键
+
     def get_col_spec(self, **kw):  # type: ignore[override]
         dim = getattr(self, "dim", None)
         return f"public.vector({dim})" if dim else "public.vector"

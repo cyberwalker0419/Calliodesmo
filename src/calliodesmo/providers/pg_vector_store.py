@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -167,3 +167,41 @@ class PgVectorStore(VectorStore):
                 .order_by(ChunkRecordORM.chunk_id)
             )
             return [_row_to_chunk(row) for row in result.scalars()]
+
+    # ---- P4.5 Task 3：增量索引指纹（documents 表）----
+
+    async def get_content_hash(self, doc_id: str, *, access: AccessContext) -> str | None:
+        async with self._session_factory() as session:
+            row = (
+                await session.execute(
+                    select(Document.content_hash).where(
+                        Document.doc_id == doc_id,
+                        _visible_filter(Document, access),
+                    )
+                )
+            ).scalar_one_or_none()
+            return row
+
+    async def record_content_hash(
+        self, doc_id: str, content_hash: str, *, access: AccessContext
+    ) -> None:
+        from calliodesmo.ecl.cognify import _data_access_fields
+
+        vals = {
+            "doc_id": doc_id,
+            "content_hash": content_hash,
+            **_data_access_fields(access),
+        }
+        async with self._session_factory() as session:
+            await session.execute(
+                pg_insert(Document)
+                .values(**vals)
+                .on_conflict_do_update(
+                    index_elements=["doc_id"],
+                    set_={
+                        "content_hash": content_hash,
+                        "last_ingested_at": func.now(),
+                    },
+                )
+            )
+            await session.commit()

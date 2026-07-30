@@ -51,3 +51,15 @@ class VectorStore(ABC):
     async def list_chunks(self, *, access: AccessContext) -> list[ChunkRecord]:
         """枚举当前可见的全部 chunk（按 visible_to 过滤），供推送收集。"""
         ...
+
+    # ---- P4.5 Task 3：增量索引指纹（默认无操作，子类按持久化覆写）----
+
+    async def get_content_hash(self, doc_id: str, *, access: AccessContext) -> str | None:
+        """返回 doc 当前已记录的内容指纹；无记录返回 None（视作新文档需抽取）。"""
+        return None
+
+    async def record_content_hash(
+        self, doc_id: str, content_hash: str, *, access: AccessContext
+    ) -> None:
+        """记录文档内容指纹（增量索引：下次 ingest 据此判定是否短路）。"""
+        return None
