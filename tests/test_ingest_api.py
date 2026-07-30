@@ -110,3 +110,52 @@ async def test_ingest_requires_auth(session):
     async with _make_client(session) as c:
         resp = await c.post("/ingest", files={"file": ("test.md", b"x", "text/markdown")})
     assert resp.status_code == 401
+
+
+async def test_delete_doc_removes_from_personal_library(session):
+    """DELETE /ingest/{doc_id}：删除文档及其派生（chunk 清）。"""
+    reset_app_stores()
+    _, token = await _seed_actor(session, "del1", {Permission.INGEST})
+    content = "# 测试文档\n\nOpenAI 是 AI 公司。GPT-4 是大模型。".encode()
+    async with _make_client(session) as c:
+        resp = await c.post(
+            "/ingest", files={"file": ("test.md", content, "text/markdown")}, headers=_auth(token)
+        )
+        assert resp.status_code == 201
+        # 从 stores 读实际 doc_id（ingest 用临时文件名作 doc_id）
+        stores = get_app_stores()
+        chunks = list(stores.vector_store._records.values())
+        assert chunks, "ingest 应已落 chunk"
+        doc_id = chunks[0].doc_id
+        del_resp = await c.delete(f"/ingest/{doc_id}", headers=_auth(token))
+        assert del_resp.status_code == 204
+    # chunk 已清
+    stores = get_app_stores()
+    chunks_after = list(stores.vector_store._records.values())
+    assert not any(c.doc_id == doc_id for c in chunks_after)
+
+
+async def test_delete_nonexistent_404(session):
+    """删不存在的文档 -> 404。"""
+    reset_app_stores()
+    _, token = await _seed_actor(session, "del2", {Permission.INGEST})
+    async with _make_client(session) as c:
+        resp = await c.delete("/ingest/nope.md", headers=_auth(token))
+    assert resp.status_code == 404
+
+
+async def test_delete_other_users_doc_404(session):
+    """别人的 personal doc 不可见 -> 删除返回 404（不泄漏存在性）。"""
+    reset_app_stores()
+    _, token_a = await _seed_actor(session, "ownerA", {Permission.INGEST})
+    _, token_b = await _seed_actor(session, "ownerB", {Permission.INGEST})
+    content = "# 机密\n\nOpenAI 是 AI 公司。GPT-4 是大模型。".encode()
+    async with _make_client(session) as c:
+        await c.post(
+            "/ingest",
+            files={"file": ("secret.md", content, "text/markdown")},
+            headers=_auth(token_a),
+        )
+        # B 尝试删 A 的文档 -> 404（list_chunks 经 visible_to 过滤，B 看不到 A 的 doc）
+        resp = await c.delete("/ingest/secret.md", headers=_auth(token_b))
+    assert resp.status_code == 404

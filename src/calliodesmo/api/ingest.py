@@ -88,3 +88,39 @@ async def ingest_file(
         communities=stats.communities,
         profile_cards=stats.profile_cards,
     )
+
+
+@router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_doc(
+    doc_id: str,
+    ctx: AccessContext = Depends(get_current_context),
+    stores=Depends(get_app_stores),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """删除某文档及其全部派生（chunk / 图谱引用 / 社区成员）。
+
+    P4.5 Task 3 Step 5。``ingest`` 权限守卫 + owner 校验（personal 库仅本人可删自己的文档）；
+    越权或不存在 -> 404（不泄漏存在性）。复用三 store ``delete_by_doc``。
+    """
+    require_permission(ctx, Permission.INGEST)
+    # 取该文档的 chunk_ids（供图谱清理）——list_chunks 经 visible_to 过滤，非本人 doc 不可见
+    chunks = await stores.vector_store.list_chunks(access=ctx)
+    chunk_ids = [c.chunk_id for c in chunks if c.doc_id == doc_id]
+    if not chunk_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"文档不存在或不属于当前用户: {doc_id}",
+        )
+    await stores.vector_store.delete_by_doc(doc_id)
+    await stores.graph_store.delete_by_doc(chunk_ids)
+    await stores.community_store.delete_by_doc(doc_id)
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="delete",
+        resource_type="document",
+        detail={"doc_id": doc_id, "chunk_ids": chunk_ids},
+        source="api",
+    )
+    await session.commit()
+    return None
