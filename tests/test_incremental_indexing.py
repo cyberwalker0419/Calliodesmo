@@ -146,41 +146,66 @@ async def test_delete_by_doc_across_stores():
     await vec.upsert_chunks(
         [
             ChunkRecord(
-                chunk_id="d#0", doc_id="d", content="c0", vector=[1.0],
-                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+                chunk_id="d#0",
+                doc_id="d",
+                content="c0",
+                vector=[1.0],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
             ),
             ChunkRecord(
-                chunk_id="d#1", doc_id="d", content="c1", vector=[1.0],
-                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+                chunk_id="d#1",
+                doc_id="d",
+                content="c1",
+                vector=[1.0],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
             ),
         ]
     )
     await graph.upsert_graph(
         [
             EntityRecord(
-                name="OnlyD", type="org", description="", source_chunk_ids=["d#0"],
-                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+                name="OnlyD",
+                type="org",
+                description="",
+                source_chunk_ids=["d#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
             ),
             EntityRecord(
-                name="Shared", type="org", description="",
+                name="Shared",
+                type="org",
+                description="",
                 source_chunk_ids=["d#1", "other#0"],
-                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
             ),
         ],
         [
             RelationRecord(
-                source="OnlyD", target="Shared", type="rel", description="",
-                source_chunk_ids=["d#0"], library_scope=LibraryScope.PERSONAL, owner_id=owner,
+                source="OnlyD",
+                target="Shared",
+                type="rel",
+                description="",
+                source_chunk_ids=["d#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
             ),
         ],
     )
     await comm.upsert_communities(
         [
             CommunityRecord(
-                community_id="c1", level=1, title="T", summary="",
+                community_id="c1",
+                level=1,
+                title="T",
+                summary="",
                 member_entity_names=["d", "other"],
-                metadata={}, access_level=ClearanceLevel.INTERNAL,
-                library_scope=LibraryScope.PERSONAL, owner_id=owner,
+                metadata={},
+                access_level=ClearanceLevel.INTERNAL,
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=owner,
             )
         ]
     )
@@ -193,8 +218,12 @@ async def test_delete_by_doc_across_stores():
     from calliodesmo.auth.context import AccessContext
 
     acc = AccessContext(
-        user_id=owner, username="u", clearance=ClearanceLevel.SECRET,
-        permissions=frozenset(), project_ids=frozenset(), team_ids=frozenset(),
+        user_id=owner,
+        username="u",
+        clearance=ClearanceLevel.SECRET,
+        permissions=frozenset(),
+        project_ids=frozenset(),
+        team_ids=frozenset(),
     )
     chunks = await vec.list_chunks(access=acc)
     assert all(c.doc_id != "d" for c in chunks)  # d 的 chunk 全删

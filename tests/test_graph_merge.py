@@ -178,9 +178,7 @@ def test_prune_source_chunks_drops_orphan_entity_and_relation():
         _rel("A", "B", "rel", source_chunk_ids=["d#0", "d#1"]),  # 共享边
         _rel("A", "C", "rel", source_chunk_ids=["d#0"]),  # 丢弃边
     ]
-    kept_e, kept_r, orphans = prune_source_chunks(
-        entities, relations, remove_chunk_ids={"d#0"}
-    )
+    kept_e, kept_r, orphans = prune_source_chunks(entities, relations, remove_chunk_ids={"d#0"})
     assert orphans == ["B"]
     assert [e.name for e in kept_e] == ["A"]
     assert kept_e[0].source_chunk_ids == ["d#1"]
@@ -194,9 +192,7 @@ def test_prune_source_chunks_no_op_when_unrelated():
 
     entities = [_ent("A", "org", source_chunk_ids=["d#0"])]
     relations = [_rel("A", "B", "rel", source_chunk_ids=["d#0"])]
-    kept_e, kept_r, orphans = prune_source_chunks(
-        entities, relations, remove_chunk_ids={"other#0"}
-    )
+    kept_e, kept_r, orphans = prune_source_chunks(entities, relations, remove_chunk_ids={"other#0"})
     assert [e.name for e in kept_e] == ["A"]
     assert len(kept_r) == 1
     assert orphans == []
