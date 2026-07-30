@@ -1,8 +1,13 @@
 """社区版本快照（ORM）+ 版本服务（create/list/rollback，append 式回滚）。
 
-版本快照走 ORM（JSON snapshot，与 auth/audit 同库，可查询可追溯）；社区记录本身走内存
-CommunityStore（单进程）。rollback 用旧版本快照恢复 store 并**创建一个新版本**（git revert
-思路，回滚也是新提交），保留完整审计链，非"栈式只回滚上一版"（B3 修订）。
+版本快照走 ORM（JSON snapshot，与 auth/audit 同库，可查询可追溯）；社区记录走 CommunityStore
+抽象（内存或 P4.5 Task 2 的 PgCommunityStore 真后端，单进程或多进程持久化皆可）。rollback 用
+旧版本快照恢复 store 并**创建一个新版本**（git revert 思路，回滚也是新提交），保留完整审计链，
+非"栈式只回滚上一版"（B3 修订）。
+
+P4.5 Task 4 Step 3：PgCommunityStore 持久化贯通已验证（merge/split/rollback 各走一遍后重启
+store，状态一致不残留半写，见 test_community_version.py）。双写跨轨原子性（store 写与 version
+写）留 Step 4。
 """
 
 from __future__ import annotations
