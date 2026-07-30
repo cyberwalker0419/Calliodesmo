@@ -66,6 +66,17 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+async def _project(session) -> Project:
+    """建真实 Team+Project（PG 强制 FK，Contribution.target_project_id 须引用已存在行）。"""
+    team = Team(name=f"team-{uuid.uuid4().hex[:8]}", description="")
+    session.add(team)
+    await session.flush()
+    project = Project(name=f"proj-{uuid.uuid4().hex[:8]}", description="", team_id=team.id)
+    session.add(project)
+    await session.flush()
+    return project
+
+
 def _create_body(target_project_id=None):
     return {
         "source_scope": "personal",
@@ -88,7 +99,7 @@ async def test_create_push_guard(session):
     _, t_a = await _seed_actor(session, "analyst", {Permission.PUSH})
     _, t_r = await _seed_actor(session, "reviewer", {Permission.PUSH, Permission.APPROVE})
     _, t_n = await _seed_actor(session, "noperm", {Permission.QUERY})
-    pid = uuid.uuid4()
+    pid = (await _project(session)).id
     async with _make_client(session) as c:
         assert (
             await c.post("/collab", json=_create_body(pid), headers=_auth(t_a))
@@ -112,7 +123,7 @@ async def test_create_invalid_scope_direction(session):
 
 async def test_submit_flow(session):
     _, t = await _seed_actor(session, "analyst3", {Permission.PUSH})
-    pid = uuid.uuid4()
+    pid = (await _project(session)).id
     async with _make_client(session) as c:
         r = await c.post("/collab", json=_create_body(pid), headers=_auth(t))
         cid = r.json()["id"]
@@ -126,7 +137,7 @@ async def test_approve_guard_and_self_review(session):
     _, t_s = await _seed_actor(session, "src", {Permission.PUSH})
     _, t_r = await _seed_actor(session, "rev", {Permission.PUSH, Permission.APPROVE})
     _, t_a = await _seed_actor(session, "analyst4", {Permission.PUSH})
-    pid = uuid.uuid4()
+    pid = (await _project(session)).id
     async with _make_client(session) as c:
         r = await c.post("/collab", json=_create_body(pid), headers=_auth(t_s))
         cid = r.json()["id"]
@@ -141,7 +152,7 @@ async def test_approve_guard_and_self_review(session):
 async def test_reject_with_reason(session):
     _, t_s = await _seed_actor(session, "src2", {Permission.PUSH})
     _, t_r = await _seed_actor(session, "rev2", {Permission.PUSH, Permission.APPROVE})
-    pid = uuid.uuid4()
+    pid = (await _project(session)).id
     async with _make_client(session) as c:
         r = await c.post("/collab", json=_create_body(pid), headers=_auth(t_s))
         cid = r.json()["id"]
@@ -157,7 +168,7 @@ async def test_get_invisible_404(session):
     """别人看不到源用户的贡献 -> 404。"""
     _, t_s = await _seed_actor(session, "src3", {Permission.PUSH})
     _, t_o = await _seed_actor(session, "other", {Permission.PUSH})
-    pid = uuid.uuid4()
+    pid = (await _project(session)).id
     async with _make_client(session) as c:
         r = await c.post("/collab", json=_create_body(pid), headers=_auth(t_s))
         cid = r.json()["id"]

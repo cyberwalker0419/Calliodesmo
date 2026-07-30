@@ -8,7 +8,7 @@ from sqlalchemy import select
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.audit.models import AuditLog
 from calliodesmo.auth.context import AccessContext
-from calliodesmo.auth.models import ClearanceLevel, LibraryScope, User
+from calliodesmo.auth.models import ClearanceLevel, LibraryScope, Project, Team, User
 from calliodesmo.collab.models import Contribution, ContributionStatus
 from calliodesmo.collab.push import PushService
 from calliodesmo.interfaces.community_store import CommunityRecord
@@ -118,11 +118,18 @@ async def _seed_source(stores, user_id):
 
 
 async def _draft(session, user, doc_ids=("d",)):
+    # PG 强制 FK：建真实 Team+Project 供 target_project_id 引用
+    team = Team(name=f"team-{uuid.uuid4().hex[:8]}")
+    session.add(team)
+    await session.flush()
+    project = Project(name=f"proj-{uuid.uuid4().hex[:8]}", team_id=team.id)
+    session.add(project)
+    await session.flush()
     c = Contribution(
         source_user_id=user.id,
         source_scope=LibraryScope.PERSONAL,
         target_scope=LibraryScope.PROJECT,
-        target_project_id=uuid.uuid4(),
+        target_project_id=project.id,
         title="t",
         doc_ids=list(doc_ids),
         status=ContributionStatus.DRAFT,

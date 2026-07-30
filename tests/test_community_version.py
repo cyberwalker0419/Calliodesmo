@@ -6,7 +6,7 @@ import pytest
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.auth.context import AccessContext
-from calliodesmo.auth.models import ClearanceLevel, LibraryScope
+from calliodesmo.auth.models import ClearanceLevel, LibraryScope, User
 from calliodesmo.collab.community_version import (
     CommunityVersionService,
     restore_record,
@@ -25,6 +25,14 @@ def _ctx(user_id):
     )
 
 
+async def _user(session) -> User:
+    """建真实 User（PG 强制 FK，CommunityVersion.created_by 须引用已存在行）。"""
+    u = User(username=f"u-{uuid.uuid4().hex[:8]}", hashed_password="x")
+    session.add(u)
+    await session.flush()
+    return u
+
+
 def _record(community_id="c1", title="社区1", members=None, owner=None):
     return CommunityRecord(
         community_id=community_id,
@@ -41,7 +49,7 @@ def _record(community_id="c1", title="社区1", members=None, owner=None):
 
 async def test_create_and_list_versions(session):
     """create_version 递增 version，list_versions 按序。"""
-    uid = uuid.uuid4()
+    uid = (await _user(session)).id
     svc = CommunityVersionService()
     store = InMemoryCommunityStore()
     rec = _record(owner=uid)
@@ -62,7 +70,7 @@ async def test_create_and_list_versions(session):
 
 async def test_rollback_append_creates_new_version(session):
     """B3：rollback 用旧快照恢复 + 创建新版本（不删历史）。"""
-    uid = uuid.uuid4()
+    uid = (await _user(session)).id
     svc = CommunityVersionService()
     store = InMemoryCommunityStore()
     rec = _record(owner=uid)
@@ -86,7 +94,7 @@ async def test_rollback_append_creates_new_version(session):
 
 
 async def test_rollback_nonexistent_version_raises(session):
-    uid = uuid.uuid4()
+    uid = (await _user(session)).id
     svc = CommunityVersionService()
     store = InMemoryCommunityStore()
     with pytest.raises(ValueError, match="不存在"):
@@ -110,7 +118,7 @@ def test_snapshot_restore_roundtrip():
 
 
 async def test_merge_combines_members_and_deletes_source(session):
-    uid = uuid.uuid4()
+    uid = (await _user(session)).id
     store = InMemoryCommunityStore()
     await store.upsert_communities(
         [
@@ -126,7 +134,7 @@ async def test_merge_combines_members_and_deletes_source(session):
 
 
 async def test_split_creates_new_communities(session):
-    uid = uuid.uuid4()
+    uid = (await _user(session)).id
     store = InMemoryCommunityStore()
     await store.upsert_communities([_record("c1", "原", members=["d1", "d2", "d3"], owner=uid)])
     new_ids = await store.split("c1", [["d1", "d2"], ["d3"]], access=_ctx(uid))

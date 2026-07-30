@@ -7,9 +7,14 @@ created: 2026-07-26
 ---
 # 原生部署指南
 
-> [!info] 两种部署模式
-> - **测试 / 开发部署**：SQLite + 离线桩模型（`test/stub` + `hash` + `none`），零基础设施、几分钟拉起，用于跑测试套件与本地冒烟。见第二部分。
-> - **生产部署**：PostgreSQL+pgvector / Neo4j + 真实模型（云端或自建），按步骤完整部署。见第三部分。
+> [!warning] P4.5 起：SQLite 开发模式已移除
+> 测试与运行一律连真实 **PG 16+ + pgvector + Neo4j**（`.env` 驱动，`uv sync --extra persistence`）。
+> 原"第二部分：SQLite 零依赖开发模式"整段已废弃（保留历史，待整体重写——TODO(P4.5, 2026-W32)）。
+> 下方仍提及 SQLite 的"测试/开发"列为历史描述，请以本横幅为准。
+
+> [!info] 部署模式
+> - **测试 / 开发部署**：真实 PG+pgvector + Neo4j + 离线桩模型（`test/stub` + `hash` + `none`），用于跑测试套件与本地冒烟。
+> - **生产部署**：PostgreSQL+pgvector / Neo4j + 真实模型（云端或自建），按步骤完整部署。
 >
 > 一键 Docker 全栈见根目录 `docker-compose.yml` + `Dockerfile`。关联：[[docs/plans/roadmap|年计划]]。
 
@@ -18,9 +23,9 @@ created: 2026-07-26
 | 组件 | 作用 | 测试/开发 | 生产 |
 | --- | --- | --- | --- |
 | 应用（FastAPI + CLI） | API / Web UI / CLI | uv + Python 3.12 | 同左 |
-| 情景层 DB | 文本块 + 向量 | SQLite（内存 stores 降级） | PostgreSQL 16 + pgvector |
-| 语义层 | 实体关系图 | 内存 GraphStore | Neo4j Community |
-| 摘要层 | 社区摘要 | 内存 CommunityStore | PostgreSQL |
+| 情景层 DB | 文本块 + 向量 | PostgreSQL 16+ + pgvector | PostgreSQL 16+ + pgvector |
+| 语义层 | 实体关系图 | Neo4j Community | Neo4j Community |
+| 摘要层 | 社区摘要 | PostgreSQL | PostgreSQL |
 | LLM | 抽取 / 摘要 / 合成 | `test/stub` 离线桩 | 云端 / 本地 / 远端 HTTP |
 | 嵌入 | 向量化 | `hash` 桩 | 本地 BGE-M3 / 远端 HTTP |
 | 重排 | 交叉编码器重排 | `none` 保序降级 | 本地 BGE / 远端 HTTP |

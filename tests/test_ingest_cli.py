@@ -1,6 +1,8 @@
-"""Task 6：ingest CLI 测试（CliRunner + 桩引擎 + 审计落库）。"""
+"""Task 6：ingest CLI 测试（CliRunner + 桩引擎 + 审计落库）。
 
-import sqlite3
+P4.5 Task 1：走真实 PG（``cli_db`` 唯一 schema 隔离），inspect 经 ``cli_inspect``，
+不再用 sqlite3 + sqlite 文件。
+"""
 
 from typer.testing import CliRunner
 
@@ -69,16 +71,17 @@ def _stub_engine_factory(settings):
     )
 
 
-def _setup_db(tmp_path, monkeypatch):
-    db_path = tmp_path / "cli.db"
-    monkeypatch.setenv("CALLIODESMO_DATABASE_URL", f"sqlite+aiosqlite:///{db_path.as_posix()}")
+def _init() -> None:
+    """cli_db 已预建 schema 并 patch engine；这里跑 db init 建表。"""
     get_settings.cache_clear()
-    runner.invoke(app, ["db", "init"])
-    return db_path
+    try:
+        assert runner.invoke(app, ["db", "init"]).exit_code == 0
+    finally:
+        get_settings.cache_clear()
 
 
-def test_ingest_success(tmp_path, monkeypatch):
-    db_path = _setup_db(tmp_path, monkeypatch)
+def test_ingest_success(tmp_path, monkeypatch, cli_db, cli_inspect):
+    _init()
     monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
     (tmp_path / "note.md").write_text("OpenAI 开发了 GPT-4。", encoding="utf-8")
     try:
@@ -89,14 +92,12 @@ def test_ingest_success(tmp_path, monkeypatch):
     assert "文档 1" in result.output
     assert "实体 2" in result.output
 
-    conn = sqlite3.connect(db_path)
-    rows = list(conn.execute("SELECT action, resource_type, source FROM audit_logs"))
-    conn.close()
+    rows = cli_inspect("SELECT action, resource_type, source FROM audit_logs")
     assert rows and rows[0] == ("ingest", "document", "cli")
 
 
-def test_ingest_path_not_exists(tmp_path, monkeypatch):
-    _setup_db(tmp_path, monkeypatch)
+def test_ingest_path_not_exists(tmp_path, monkeypatch, cli_db):
+    _init()
     monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
     try:
         result = runner.invoke(app, ["ingest", str(tmp_path / "nope.md")])
@@ -106,8 +107,8 @@ def test_ingest_path_not_exists(tmp_path, monkeypatch):
     assert "不存在" in result.output
 
 
-def test_ingest_unregistered_suffix(tmp_path, monkeypatch):
-    _setup_db(tmp_path, monkeypatch)
+def test_ingest_unregistered_suffix(tmp_path, monkeypatch, cli_db):
+    _init()
     monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
     # 用真正未注册的后缀（.pdf 在装了 documents-pdf extra 后会注册，不再适合测未注册）
     f = tmp_path / "doc.xyzunknown"
@@ -120,10 +121,12 @@ def test_ingest_unregistered_suffix(tmp_path, monkeypatch):
     assert "未注册的文件类型" in result.output
 
 
-def test_ingest_llm_missing_key(tmp_path, monkeypatch):
-    _setup_db(tmp_path, monkeypatch)
+def test_ingest_llm_missing_key(tmp_path, monkeypatch, cli_db):
+    _init()
     monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "openai/gpt-4o-mini")
-    monkeypatch.delenv("CALLIODESMO_LLM_API_KEY", raising=False)
+    # setenv 空串：环境变量覆盖 .env，使 llm_api_key="" -> not "" 触发缺 key 报错
+    # （delenv 无效：Settings() 会重读 .env 取回 key）
+    monkeypatch.setenv("CALLIODESMO_LLM_API_KEY", "")
     get_settings.cache_clear()
     (tmp_path / "note.md").write_text("OpenAI 开发了 GPT-4。", encoding="utf-8")
     try:
@@ -134,13 +137,13 @@ def test_ingest_llm_missing_key(tmp_path, monkeypatch):
     assert "CALLIODESMO_LLM_API_KEY" in result.output
 
 
-def test_ingest_local_apibase_exempt_from_key(tmp_path, monkeypatch):
+def test_ingest_local_apibase_exempt_from_key(tmp_path, monkeypatch, cli_db):
     """指向 localhost 的 api_base（LM Studio / llama.cpp / Ollama）无需 API key。"""
-    _setup_db(tmp_path, monkeypatch)
+    _init()
     monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
     monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "openai/local-model")
     monkeypatch.setenv("CALLIODESMO_LLM_API_BASE", "http://localhost:1234/v1")
-    monkeypatch.delenv("CALLIODESMO_LLM_API_KEY", raising=False)
+    monkeypatch.setenv("CALLIODESMO_LLM_API_KEY", "")
     (tmp_path / "note.md").write_text("OpenAI 开发了 GPT-4。", encoding="utf-8")
     get_settings.cache_clear()
     try:
@@ -151,12 +154,12 @@ def test_ingest_local_apibase_exempt_from_key(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
 
 
-def test_ingest_lm_studio_prefix_exempt_from_key(tmp_path, monkeypatch):
+def test_ingest_lm_studio_prefix_exempt_from_key(tmp_path, monkeypatch, cli_db):
     """lm-studio/ 前缀同样豁免 key。"""
-    _setup_db(tmp_path, monkeypatch)
+    _init()
     monkeypatch.setattr("calliodesmo.cli.build_default_indexing_engine", _stub_engine_factory)
     monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "lm-studio/local-model")
-    monkeypatch.delenv("CALLIODESMO_LLM_API_KEY", raising=False)
+    monkeypatch.setenv("CALLIODESMO_LLM_API_KEY", "")
     (tmp_path / "note.md").write_text("OpenAI 开发了 GPT-4。", encoding="utf-8")
     get_settings.cache_clear()
     try:

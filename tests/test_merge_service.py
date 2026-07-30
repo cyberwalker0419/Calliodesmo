@@ -7,7 +7,7 @@ import pytest
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.auth.context import AccessContext
-from calliodesmo.auth.models import ClearanceLevel, LibraryScope, Permission, User
+from calliodesmo.auth.models import ClearanceLevel, LibraryScope, Permission, Project, Team, User
 from calliodesmo.collab.merge import MergeService
 from calliodesmo.collab.models import Contribution, ContributionStatus
 from calliodesmo.collab.service import ContributionError, ContributionService
@@ -46,6 +46,17 @@ async def _user(session, name) -> User:
     session.add(u)
     await session.flush()
     return u
+
+
+async def _project(session) -> Project:
+    """建真实 Team+Project（PG 强制 FK，Contribution.target_project_id 须引用已存在行）。"""
+    team = Team(name=f"team-{uuid.uuid4().hex[:8]}")
+    session.add(team)
+    await session.flush()
+    project = Project(name=f"proj-{uuid.uuid4().hex[:8]}", team_id=team.id)
+    session.add(project)
+    await session.flush()
+    return project
 
 
 async def _seed_source(stores, user_id, doc_id="d"):
@@ -122,7 +133,7 @@ async def test_merge_writes_to_target_scope_with_provenance(session):
     source = await _user(session, "source")
     stores = _stores()
     await _seed_source(stores, source.id)
-    project_id = uuid.uuid4()
+    project_id = (await _project(session)).id
     c, reviewer = await _approved_to_project(session, source, project_id)
     source_access = _ctx(source.id)
     target_access = _ctx(reviewer.id, permissions={Permission.APPROVE}, project_ids=[project_id])
@@ -154,7 +165,7 @@ async def test_merge_idempotent(session):
     source = await _user(session, "source")
     stores = _stores()
     await _seed_source(stores, source.id)
-    project_id = uuid.uuid4()
+    project_id = (await _project(session)).id
     c, reviewer = await _approved_to_project(session, source, project_id)
     source_access = _ctx(source.id)
     target_access = _ctx(reviewer.id, permissions={Permission.APPROVE}, project_ids=[project_id])
@@ -179,7 +190,7 @@ async def test_merge_idempotent(session):
 async def test_merge_only_approved(session):
     source = await _user(session, "source")
     stores = _stores()
-    project_id = uuid.uuid4()
+    project_id = (await _project(session)).id
     c = await _svc.create(
         session,
         source_user_id=source.id,
@@ -208,7 +219,7 @@ async def test_merge_self_review_blocked(session):
     source = await _user(session, "source")
     stores = _stores()
     await _seed_source(stores, source.id)
-    project_id = uuid.uuid4()
+    project_id = (await _project(session)).id
     # source 自己 approve（绕过自审：直接用 reviewer approve，但 merge 用 source 自己）
     c = await _svc.create(
         session,

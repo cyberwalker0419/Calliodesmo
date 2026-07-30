@@ -1,10 +1,15 @@
-import sqlite3
+"""CLI 冒烟：version / db init / db seed / serve。
+
+P4.5 Task 1：走真实 PG（``cli_db`` 夹具唯一 schema 隔离），inspect 经 ``cli_inspect``，
+不再用 sqlite3 + sqlite 文件。
+"""
 
 from typer.testing import CliRunner
 
 from calliodesmo import __version__
 from calliodesmo.cli import app
 from calliodesmo.config import get_settings
+from calliodesmo.db.base import Base
 
 runner = CliRunner()
 
@@ -15,10 +20,7 @@ def test_version():
     assert __version__ in result.output
 
 
-def test_db_init_and_seed(tmp_path, monkeypatch):
-    db_path = tmp_path / "cli.db"
-    monkeypatch.setenv("CALLIODESMO_DATABASE_URL", f"sqlite+aiosqlite:///{db_path.as_posix()}")
-    monkeypatch.setenv("CALLIODESMO_ADMIN_PASSWORD", "admin-pw")
+def test_db_init_and_seed(cli_db, cli_inspect):
     get_settings.cache_clear()
     try:
         result = runner.invoke(app, ["db", "init"])
@@ -28,24 +30,20 @@ def test_db_init_and_seed(tmp_path, monkeypatch):
     finally:
         get_settings.cache_clear()
 
-    conn = sqlite3.connect(db_path)
-    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert {
-        "users",
-        "roles",
-        "role_permissions",
-        "user_roles",
-        "teams",
-        "projects",
-        "team_members",
-        "project_members",
-        "audit_logs",
-    } <= tables
-    roles = {r[0] for r in conn.execute("SELECT name FROM roles")}
+    schema = cli_db
+    tables = {
+        r[0]
+        for r in cli_inspect(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = :s",
+            {"s": schema},
+        )
+    }
+    # P0 元数据表（Base.metadata 注册的全部表都应被 create_all 建出）
+    assert set(Base.metadata.tables) <= tables
+    roles = {r[0] for r in cli_inspect("SELECT name FROM roles")}
     assert {"analyst", "reviewer", "admin"} <= roles
-    admins = list(conn.execute("SELECT username, clearance FROM users WHERE username='admin'"))
+    admins = list(cli_inspect("SELECT username, clearance FROM users WHERE username='admin'"))
     assert admins == [("admin", "SECRET")]
-    conn.close()
 
 
 def test_serve_invokes_uvicorn(monkeypatch):

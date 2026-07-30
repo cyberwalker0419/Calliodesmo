@@ -49,7 +49,7 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 | 类别 | 技术 |
 | --- | --- |
 | Web / CLI | FastAPI · uvicorn · Typer |
-| 数据 | SQLAlchemy 2.0 (async) · PostgreSQL 16 + pgvector · Neo4j · aiosqlite |
+| 数据 | SQLAlchemy 2.0 (async) · PostgreSQL 16+ + pgvector · Neo4j |
 | 认证 | PyJWT · pwdlib + Argon2 |
 | LLM / 嵌入 | LiteLLM（多后端可切换）· BGE-M3（本地，可选 extra） |
 | 检索 / Agent | LlamaIndex + LangGraph（P2+）· GraphRAG（P1，库形式集成） |
@@ -82,7 +82,7 @@ docs/
 │   └── weekly/           周计划（含日计划表）
 ├── verification/         各阶段验证报告（README 索引 + P0/P1/P2 验证报告 + pytest 输出/证据）
 └── model-selection.md    模型选型说明
-tests/                     pytest 测试（内存 SQLite + sys.modules 桩，离线可跑）
+tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
 config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml（评估 golden 集）
 scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）
 .github/workflows/ci.yml   CI：ruff + pytest
@@ -107,23 +107,24 @@ scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+
 
 ```bash
 uv sync                          # 安装依赖（含 dev 组）
+uv sync --extra persistence       # 安装 pgvector/neo4j（测试与运行必需，P4.5）
 uv sync --extra embedding-local  # 安装 BGE-M3 重依赖（按需）
 uv run ruff format .             # 格式化
 uv run ruff check .              # 静态检查
-uv run pytest -v                 # 测试（内存 SQLite，离线可跑）
+uv run pytest -v                 # 测试（连 `.env` 的 PG+Neo4j；`-m "not db"` 仅纯逻辑，CI 等价）
 uv run calliodesmo serve         # 启动 API（uvicorn）
 uv run calliodesmo db init       # 建表（幂等）
-uv run calliodesmo db seed      # 种子角色/管理员（幂等）
+uv run calliodesmo db seed      # 种子角色/管理员/系统账户（幂等）
 uv run calliodesmo ingest <path> # 端到端建图
 ```
 
-SQLite 零依赖开发模式：设 `CALLIODESMO_DATABASE_URL=sqlite+aiosqlite:///./data/calliodesmo-dev.db`（无向量检索与图库，P0 全功能可跑）。
+> P4.5 起：测试与运行一律连真实 PG+pgvector+Neo4j（`.env` 驱动）。**SQLite 零依赖模式已移除**——测试经专用 schema `calliodesmo_test` 隔离 + 每测 TRUNCATE（见 `tests/conftest.py`），CLI 测试经 `cli_db` 夹具唯一 schema 隔离。
 
 > 前端联调启 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据；前端 dev proxy 已把 `/api` -> 8000）。
 
 ## 测试策略
 
-- **隔离**：每用例独立内存 SQLite（`sqlite+aiosqlite:///:memory:`，见 `tests/conftest.py`）；`sys.modules` 桩隔离 litellm/uvicorn 等外部依赖--离线可跑。
+- **隔离**：每用例在专用 PG schema `calliodesmo_test`（与生产 `public` 物理隔离）内每测 TRUNCATE 清空；CLI 测试经 `cli_db` 夹具用唯一 schema 隔离；`sys.modules` 桩隔离 litellm/uvicorn 等外部依赖；Neo4j 经 `neo4j_session` 夹具清图。DB 依赖测试自动打 `@pytest.mark.db`，CI 以 `-m "not db"` 跳过（全量回归靠本地 `.env`）。
 - **契约优先**：接口测试断言输入映射与输出结构，保证可插拔。
 - **幂等**：种子与引导脚本均显式验证可重复执行。
 - **异步**：`pytest-asyncio` auto 模式（`asyncio_mode = "auto"`）。
