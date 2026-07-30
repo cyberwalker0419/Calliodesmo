@@ -18,10 +18,24 @@ def _cosine(a: list[float], b: list[float]) -> float:
 class InMemoryVectorStore(VectorStore):
     def __init__(self) -> None:
         self._records: dict[str, ChunkRecord] = {}
+        self._doc_hashes: dict[str, str] = {}  # P4.5 Task 3：doc_id -> content_hash
 
     async def upsert_chunks(self, chunks: list[ChunkRecord]) -> None:
         for c in chunks:
             self._records[c.chunk_id] = c  # 同 chunk_id 覆盖（幂等）
+
+    async def get_content_hash(self, doc_id: str, *, access: AccessContext) -> str | None:
+        return self._doc_hashes.get(doc_id)
+
+    async def record_content_hash(
+        self, doc_id: str, content_hash: str, *, access: AccessContext
+    ) -> None:
+        self._doc_hashes[doc_id] = content_hash
+
+    async def delete_by_doc(self, doc_id: str) -> None:
+        # 删该文档全部 chunk + 指纹记录
+        self._records = {k: v for k, v in self._records.items() if v.doc_id != doc_id}
+        self._doc_hashes.pop(doc_id, None)
 
     async def search(
         self, query_vector: list[float], *, top_k: int, access: AccessContext

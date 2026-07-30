@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 from pathlib import Path
 
@@ -56,6 +57,7 @@ class SingleFileLoader(DocumentLoader):
                     "size_bytes": path.stat().st_size,
                     **self._extra_metadata(path),
                 },
+                content_hash=hashlib.sha256(content.encode("utf-8")).hexdigest(),
             )
         ]
 

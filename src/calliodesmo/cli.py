@@ -73,6 +73,23 @@ async def _seed(
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
         roles = await seed_default_roles(session)
+        # 内建系统账户：CLI/后台无 HTTP 上下文动作的 actor（SYSTEM_USER_ID）。
+        # audit_logs.user_id 是 FK->users.id，PG 强制外键须有真实行
+        # （sqlite 不查 FK 故此前未暴露）。
+        sys_user = (
+            await session.execute(select(User).where(User.id == SYSTEM_USER_ID))
+        ).scalar_one_or_none()
+        if sys_user is None:
+            session.add(
+                User(
+                    id=SYSTEM_USER_ID,
+                    username="__system__",
+                    hashed_password="!",  # 不可登录占位（非 Argon2 哈希）
+                    clearance=ClearanceLevel.PUBLIC,
+                    is_active=False,
+                )
+            )
+            await session.flush()
         admin_created = False
         if admin_password:
             existing = (

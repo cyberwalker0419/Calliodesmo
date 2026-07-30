@@ -115,5 +115,18 @@ class InMemoryGraphStore(GraphStore):
         """枚举当前可见的全部关系（按 visible_to 过滤）。"""
         return [r for r in self._relations.values() if visible_to(r, access)]
 
+    async def delete_by_doc(self, chunk_ids: list[str]) -> None:
+        """P4.5 Task 3：prune_source_chunks 剔除 chunk_ids 引用，孤儿实体删、空边丢。"""
+        from calliodesmo.collab.graph_merge import prune_source_chunks
+
+        _kept_e, kept_r, _orphans = prune_source_chunks(
+            list(self._entities.values()),
+            list(self._relations.values()),
+            remove_chunk_ids=set(chunk_ids),
+        )
+        # prune 已丢弃孤儿实体与空边；按 name / (source,target,type) 重建索引
+        self._entities = {e.name: e for e in _kept_e}
+        self._relations = {(r.source, r.target, r.type): r for r in kept_r}
+
     def __len__(self) -> int:
         return len(self._entities)

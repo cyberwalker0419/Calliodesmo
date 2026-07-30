@@ -3,7 +3,7 @@
 import uuid
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
-from calliodesmo.auth.models import LibraryScope
+from calliodesmo.auth.models import LibraryScope, Project, Team
 from calliodesmo.collab.models import Contribution, ContributionStatus
 
 
@@ -34,11 +34,18 @@ async def test_contribution_table_created(session):
     user = User(username="u", hashed_password="x")
     session.add(user)
     await session.flush()
+    # PG 强制 FK：建真实 Team+Project 供 target_project_id 引用
+    team = Team(name=f"team-{uuid.uuid4().hex[:8]}")
+    session.add(team)
+    await session.flush()
+    project = Project(name=f"proj-{uuid.uuid4().hex[:8]}", team_id=team.id)
+    session.add(project)
+    await session.flush()
     contribution = Contribution(
         source_user_id=user.id,
         source_scope=LibraryScope.PERSONAL,
         target_scope=LibraryScope.PROJECT,
-        target_project_id=uuid.uuid4(),
+        target_project_id=project.id,
         title="推送1",
         doc_ids=["d#0", "d#1"],
         description="描述",

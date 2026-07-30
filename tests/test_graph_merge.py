@@ -25,6 +25,22 @@ def _ent(name, type_, **kw):
     return EntityRecord(**base)
 
 
+def _rel(source, target, type_, **kw):
+    base = dict(
+        source=source,
+        target=target,
+        type=type_,
+        description="",
+        source_chunk_ids=[],
+        metadata={},
+        access_level=ClearanceLevel.INTERNAL,
+        library_scope=LibraryScope.PERSONAL,
+        owner_id=uuid.uuid4(),
+    )
+    base.update(kw)
+    return RelationRecord(**base)
+
+
 def test_merge_new_entity_marked_new():
     src = [_ent("OpenAI", "organization", source_chunk_ids=["d#0"])]
     merged = merge_entities(
@@ -145,3 +161,38 @@ def test_merge_relations_union_dedup():
     bc = next(r for r in merged if (r.source, r.target, r.type) == ("B", "C", "rel"))
     assert bc.metadata["merge_decision"] == "new"
     assert bc.library_scope == LibraryScope.PROJECT
+
+
+# ---- P4.5 Task 3 Step 2：prune_source_chunks（merge 逆运算）----
+
+
+def test_prune_source_chunks_drops_orphan_entity_and_relation():
+    """删文档 chunk_ids：实体来源空->孤儿；关系来源空->丢弃；共享实体保留并裁剪来源。"""
+    from calliodesmo.collab.graph_merge import prune_source_chunks
+
+    entities = [
+        _ent("A", "org", source_chunk_ids=["d#0", "d#1"]),  # 共享：删 d#0 后仍剩 d#1
+        _ent("B", "org", source_chunk_ids=["d#0"]),  # 孤儿：删 d#0 后空
+    ]
+    relations = [
+        _rel("A", "B", "rel", source_chunk_ids=["d#0", "d#1"]),  # 共享边
+        _rel("A", "C", "rel", source_chunk_ids=["d#0"]),  # 丢弃边
+    ]
+    kept_e, kept_r, orphans = prune_source_chunks(entities, relations, remove_chunk_ids={"d#0"})
+    assert orphans == ["B"]
+    assert [e.name for e in kept_e] == ["A"]
+    assert kept_e[0].source_chunk_ids == ["d#1"]
+    assert len(kept_r) == 1
+    assert kept_r[0].source_chunk_ids == ["d#1"]
+
+
+def test_prune_source_chunks_no_op_when_unrelated():
+    """移除不存在的 chunk_ids -> 全保留、无孤儿。"""
+    from calliodesmo.collab.graph_merge import prune_source_chunks
+
+    entities = [_ent("A", "org", source_chunk_ids=["d#0"])]
+    relations = [_rel("A", "B", "rel", source_chunk_ids=["d#0"])]
+    kept_e, kept_r, orphans = prune_source_chunks(entities, relations, remove_chunk_ids={"other#0"})
+    assert [e.name for e in kept_e] == ["A"]
+    assert len(kept_r) == 1
+    assert orphans == []

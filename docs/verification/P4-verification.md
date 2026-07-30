@@ -185,3 +185,60 @@ uv run calliodesmo contributions list / show <id> / submit <id> / approve <id> /
 - **并发 Sync/增量同步**：单进程下 `visible_to` 跨 scope 聚合隐式 Sync；分布式 Sync 留 P9。
 - **前端**：Task 9 贡献面板 + ContributionDetail + CommunityVersions 已闭合；`preview_*` 交互闭环验证通过（A1 mock diff 渲染 + A2 真实 rollback 生成 v2），桌面视口。
 - **`test_ingest_llm_missing_key`**：pre-existing 环境问题（本地 .env 残留 API key + litellm SSL），非 P4 引入，CI 应通过。
+
+---
+
+## P4.5 持久化贯通验证（Task 4，2026-07-31）
+
+> 衔接 [[docs/plans/phases/P4.5-persistence-production|P4.5 计划]] Task 4。证明 P4 协作推送在**持久化基线**（Task 1-3：真 PG+pgvector+Neo4j + 增量索引）上**仍全绿**，且**合并真正落库、重启不丢**，双写一致性已修。
+
+### 闭合项
+
+| Step | 验收 | 状态 | 证据 |
+|------|------|------|------|
+| 1 | P4 全套在持久化基线上全绿 | ✅ | `tests/test_contribution_*.py` / `test_graph_merge.py` / `test_merge_service.py` / `test_community_version.py` / `test_collab_*.py` 等 71 passed（见 commit `251a65f`） |
+| 2 | **合并落库贯通**：merge → 全新 AppStores（同一 PG/Neo4j，模拟重启）→ 项目库实体/关系/社区/chunk 仍可读回 + 向量检索命中 | ✅ | `tests/test_p4_persistence_roundtrip.py`（2 用例） |
+| 3 | **rollback 真后端**：merge/split/rollback 各走一遍后重启 store，状态一致不残留半写 | ✅ | `tests/test_community_version.py` 新增 3 个 PgCommunityStore 贯通用例（共 9 passed） |
+| 4 | **双写一致性**：Neo4j+PG 中途失败不留半写/可检测可重试 | ✅ | `tests/test_merge_double_write_consistency.py`（3 用例，TDD 先红后绿）+ `Neo4jGraphStore.upsert_graph` 改 PG-first |
+| 5 | **权限矩阵**：/collab push/approve/merge × 三角色对齐 `DEFAULT_ROLE_PERMISSIONS`；前端三件套 | ✅ | `tests/test_permission_isolation.py` 新增 3 条参数化矩阵（9 用例）+ 前端 lint/vitest/build 绿 |
+
+### 后端测试结果（2026-07-31，本地 `.env` 连真实 PG+pgvector+Neo4j）
+
+```
+uv run pytest -q
+=> 392 passed, 1 skipped, 1 failed（pre-existing 测试间 JWT 401 污染，与本阶段无关，见下）
+uv run ruff check . && uv run ruff format --check .
+=> All checks passed!
+```
+
+**本阶段新增 17 用例全绿**：持久化贯通 2 + 社区 PG 贯通 3 + 双写一致性 3 + collab 权限矩阵 9。
+
+**已知 pre-existing 失败（非本阶段引入）**：全量跑时偶发某个 JWT token API 测试 401（本次 `test_subgraph_api::test_subgraph_basic_expansion`；隔离跑 `test_permission_isolation` 前 4 条同模式）。**单文件跑全绿**（subgraph 1 passed；permission_isolation 27 passed）——系 `get_settings()` lru_cache 与 `cli_db` 夹具 `cache_clear()+setenv` 的测试间状态污染。已 spawn 独立任务跟进（修夹具隔离，不改生产行为）。CI 跑 `-m "not db"` 不触这些 DB 用例。
+
+### 关键发现（双写一致性，Step 4）
+
+`Neo4jGraphStore.upsert_graph` 原顺序 Neo4j-first：PG 镜像写失败时 Neo4j（权威）已落数据而 PG 缺失——半写。**修复**：改 **PG 镜像先写、Neo4j 权威后写**，强制不变式"Neo4j 写成功 ⇒ PG 镜像已写"（PG 是 Neo4j 超集）：
+- PG 失败 → 立即抛出，Neo4j 不写 → 权威未污染（不留半写）；
+- Neo4j 失败（PG 已写）→ 读以 Neo4j 为准故读不见 → 可检测；两端 upsert 幂等 → 可重试收敛。
+
+TDD 捕获：旧顺序下 `test_pg_mirror_failure_leaves_neo4j_clean` 红（Neo4j 已污染）；改顺序后绿。neo4j 契约 7 用例无回归。
+
+### 前端验证（Step 5）
+
+Task 4 为纯后端（无前端改动）。`serve` 默认 memory 后端，preview 无法触及 PG/Neo4j 持久化路径——按 CLAUDE.md「change affects code the preview can't exercise → skip」，持久化由专用 DB 测试覆盖，前端走三件套作回归守卫：
+
+```
+npm run lint   # tsc -b --noEmit  -> 0 错
+npm run test   # vitest run        -> 5 passed
+npm run build  # vite build        -> 成功（12.11s）
+```
+
+### 边界与后续
+
+- **跨 store 三轨原子性**（向量/图/社区 + ORM 合并）：v1 接受，两阶段（MERGING→合并→MERGED）留 P9。
+- **"合并覆盖源 personal 数据"**：P4 既有语义（InMemory 按 name/chunk_id 覆盖，PG/Neo4j 同），非持久化引入——贯通测试镜像此行为，未断言源库保留。
+- **Task 2 Step 5（ProfileCard/BM25 持久化）**：暂缓 2026-W33（次要 store）。
+- **Task 3 Step 3/4（字段级合并 + 社区 id 稳定化）**：暂缓，归 Task 4 闭合后接续 / roadmap P9。
+- **测试间 JWT 401 污染**：pre-existing，已 spawn 独立任务跟进。
+
+> **Task 4 闭合 → 承诺批次（Task 1-4）完成，P4 生产可用 + 持久化 + 增量。** Task 5（摄入 UI）/ Task 6（三段式对齐）步骤已写全，Task 4 闭合后直接接续。

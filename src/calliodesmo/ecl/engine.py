@@ -37,6 +37,7 @@ class ECLIndexingEngine(IndexingEngine):
         profile_card_store: InMemoryProfileCardStore | None = None,
         enable_profile_cards: bool = True,
         doc_clusterer: DocCommunityClusterer | None = None,
+        incremental_indexing: bool = True,
     ) -> None:
         self.loader = loader
         self.chunker = chunker
@@ -48,6 +49,7 @@ class ECLIndexingEngine(IndexingEngine):
         self.profile_card_store = profile_card_store
         self.enable_profile_cards = enable_profile_cards
         self.doc_clusterer = doc_clusterer
+        self.incremental_indexing = incremental_indexing
         # 最近一次 ingest 的中间结果（供调用方 dump 详情）
         self.last_merged = None
         self.last_communities = []
@@ -55,7 +57,13 @@ class ECLIndexingEngine(IndexingEngine):
         self.last_chunks = []
 
     async def ingest(self, source: str | Path, *, access: AccessContext) -> IngestStats:
-        docs = await self.loader.load(source)
+        loaded = await self.loader.load(source)
+        loaded_count = len(loaded)
+        # P4.5 Task 3：增量短路——指纹未变的文档跳过抽取（LLM call_count==0）
+        if self.incremental_indexing:
+            docs = await self._filter_changed(loaded, access=access)
+        else:
+            docs = loaded
 
         # 切分（按文档）
         chunks_by_doc: dict[str, list] = {}
@@ -86,6 +94,14 @@ class ECLIndexingEngine(IndexingEngine):
         # Load：落三层个人库
         await self.load_service.load(all_chunks, merged, communities, access=access)
 
+        # 记录已处理文档的内容指纹（供下次 ingest 增量判定）
+        if self.incremental_indexing:
+            for doc in docs:
+                if doc.content_hash:
+                    await self.load_service.vector_store.record_content_hash(
+                        doc.doc_id, doc.content_hash, access=access
+                    )
+
         # 文档社区派生（选项 A，level=1）
         doc_communities = await self.deriver.derive(all_chunks, graph, access=access)
 
@@ -103,13 +119,25 @@ class ECLIndexingEngine(IndexingEngine):
         self.last_chunks = all_chunks
 
         return IngestStats(
-            documents=len(docs),
+            documents=loaded_count,
             chunks=len(all_chunks),
             entities=len(merged.entities),
             relations=len(merged.relations),
             communities=len(communities) + len(doc_communities),
             profile_cards=profile_count,
         )
+
+    async def _filter_changed(self, docs: list, *, access: AccessContext) -> list:
+        """P4.5 Task 3：保留内容指纹变化的文档（新/改）；未变文档短路跳过。"""
+        vs = self.load_service.vector_store
+        changed: list = []
+        for doc in docs:
+            existing = (
+                await vs.get_content_hash(doc.doc_id, access=access) if doc.content_hash else None
+            )
+            if not doc.content_hash or existing != doc.content_hash:
+                changed.append(doc)
+        return changed
 
     async def _derive_profile_cards(
         self, merged: ExtractionResult, graph: dict, *, access: AccessContext

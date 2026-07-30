@@ -13,6 +13,11 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo"
 
+    # P4.5 Task 2：store 后端选择（memory 默认兼容旧测试；postgres/neo4j 走真后端）
+    vector_store_backend: str = "memory"  # memory | postgres
+    graph_store_backend: str = "memory"  # memory | neo4j
+    community_store_backend: str = "memory"  # memory | postgres
+
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "calliodesmo"

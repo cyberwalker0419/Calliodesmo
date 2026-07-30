@@ -12,13 +12,13 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 > [!note] 当前阶段
 > **P4 Git-like 协作推送已完成**：个人库 → 项目库 → 团队库的贡献/审核/合并状态机、图谱合并（实体去重/关系并集/来源打标）、抽取模板 review-gated 沉淀、社区版本/合并/回滚、前端 ContributionsPanel。后端 350 passed。**P4.5 持久化与生产化下一步**：stores 真后端持久化（pgvector/Neo4j/Postgres）+ 增量索引 + P4 合并落库贯通 + 摄入 UI + 三段式复核。详见 [路线图](docs/plans/roadmap.md) 与 [P4.5 计划](docs/plans/phases/P4.5-persistence-production.md)。
 
-## 5 分钟测试部署（离线、零基础设施）
+## 5 分钟测试部署（桩模型，需 PG+Neo4j）
 
 ```bash
-uv sync                         # 装依赖
-cp .env.example .env            # Windows: copy .env.example .env
-# .env 设离线桩（全离线、无需 Postgres/Neo4j/真实模型）：
-#   DATABASE_URL=sqlite+aiosqlite:///./data/calliodesmo-dev.db
+uv sync --extra persistence        # 装依赖（含 pgvector/neo4j）
+cp .env.example .env               # Windows: copy .env.example .env
+# .env 填 PG+pgvector 与 Neo4j 连接串（P4.5 必需），LLM/嵌入可用离线桩免真实模型：
+#   DATABASE_URL=postgresql+asyncpg://...   NEO4J_URI=bolt://...
 #   LLM_MODEL=test/stub、EMBEDDING_PROVIDER=hash（DIMENSION=64）、RERANKER_PROVIDER=none
 #   ADMIN_PASSWORD=<你的密码>
 uv run calliodesmo db init && uv run calliodesmo db seed
@@ -47,7 +47,7 @@ graph TB
         L["Load"]
     end
     subgraph Store["Three-Layer Store"]
-        S1["Episodic<br/>Postgres+pgvector / SQLite-dev<br/>chunks + vectors"]
+        S1["Episodic<br/>Postgres+pgvector<br/>chunks + vectors"]
         S2["Semantic<br/>Neo4j / 内存<br/>entity-relation graph"]
         S3["Summary<br/>Postgres / 内存<br/>community summaries"]
     end
@@ -107,7 +107,7 @@ docs/
 
 ## 快速开始
 
-前置：安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)（自动准备 Python 3.12）。基础设施三选一：Docker 全栈 / 原生 Postgres+Neo4j / SQLite 零依赖开发模式。
+前置：安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)（自动准备 Python 3.12）。基础设施二选一：Docker 全栈 / 原生 Postgres+Neo4j（P4.5 起需真实 PG+pgvector+Neo4j，不再支持 SQLite 零依赖模式）。
 
 ### 路径 A：Docker（省心，一键全栈）
 
@@ -126,24 +126,16 @@ docker compose exec app calliodesmo ingest /app/data/docs # 建图（文档放 .
 ### 路径 B：原生（无 Docker）
 
 ```bash
-uv sync                      # 安装依赖
+uv sync --extra persistence     # 安装依赖（含 pgvector/neo4j，P4.5 必需）
 cp .env.example .env         # 按需改密钥与连接串
 uv run calliodesmo db init   # 建表（幂等）
 uv run calliodesmo db seed   # 内置角色/权限 + 初始管理员（先设 CALLIODESMO_ADMIN_PASSWORD）
 uv run calliodesmo serve     # 启动 API + SPA：http://127.0.0.1:8000
 ```
 
-基础设施（PostgreSQL 16 + pgvector、Neo4j）的原生安装见 **[原生部署指南](docs/deploy/native.md)**。
+基础设施（PostgreSQL 16+ + pgvector、Neo4j）的原生安装见 **[原生部署指南](docs/deploy/native.md)**。
 
-### 路径 C：SQLite 零依赖开发模式
-
-无需 Postgres/Neo4j，P0 全功能可跑（认证/权限/审计/CLI/API/UI）；向量检索与图库降级为内存实现，适合本地开发与冒烟：
-
-```bash
-export CALLIODESMO_DATABASE_URL='sqlite+aiosqlite:///./data/calliodesmo-dev.db'  # Windows: $env:...
-# 或一键：scripts/bootstrap.ps1 -Sqlite  /  scripts/bootstrap.sh --sqlite
-uv run calliodesmo db init && uv run calliodesmo db seed
-```
+> P4.5 起：测试与运行一律连真实 PG+pgvector+Neo4j（`.env` 驱动）。原 SQLite 零依赖开发模式已移除——测试经专用 schema `calliodesmo_test` 隔离 + 每测 TRUNCATE，CI 以 `-m "not db"` 跳过 DB 测试。
 
 ### 演示数据（serve --seed-demo）
 
@@ -215,7 +207,7 @@ CALLIODESMO_RERANKER_API_KEY=
 uv sync                         # 安装依赖（含 dev 组）
 uv run ruff format .            # 格式化
 uv run ruff check .             # 静态检查
-uv run pytest -v                # 测试（289 用例，内存 SQLite，离线可跑）
+uv run pytest -v                # 全量测试（连 .env 的 PG+Neo4j；-m "not db" 仅纯逻辑）
 ```
 
 前端（`frontend/`，独立 npm 工程）：
@@ -231,7 +223,7 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 
 ### 测试策略
 
-- **隔离**：每用例独立内存 SQLite；`sys.modules` 桩隔离 litellm/uvicorn 等外部依赖--离线可跑。
+- **隔离**：每用例在专用 PG schema `calliodesmo_test`（与生产 `public` 隔离）内每测 TRUNCATE；CLI 测试经 `cli_db` 夹具唯一 schema 隔离；`sys.modules` 桩隔离 litellm/uvicorn 等。DB 依赖测试打 `@pytest.mark.db`，CI 以 `-m "not db"` 跳过。
 - **契约优先**：接口测试断言输入映射与输出结构，保证可插拔。
 - **幂等**：种子与引导脚本均显式验证可重复执行。
 - **权限矩阵**：`/query` `/admin/*` `/library/*` 受限端点做参数化矩阵（3 角色 × 端点），断言与 `DEFAULT_ROLE_PERMISSIONS` 对齐。
@@ -258,7 +250,7 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 | --- | --- |
 | 语言 | Python 3.12（uv 管理，hatchling 打包） |
 | 后端 | FastAPI · uvicorn · Typer · SQLAlchemy 2.0 (async) |
-| 数据 | PostgreSQL 16 + pgvector · Neo4j · aiosqlite（开发降级） |
+| 数据 | PostgreSQL 16+ + pgvector · Neo4j |
 | 前端 | React 19 · Vite · TypeScript · Tailwind CSS · shadcn/ui（源码拷贝）· TanStack Query · React Router |
 | 认证 | PyJWT · pwdlib + Argon2（httpOnly cookie 会话） |
 | LLM / 嵌入 / 重排 | LiteLLM（多后端）· BGE-M3（本地 extra）/ 远端 HTTP · bge-reranker-v2-m3（本地 / 远端 HTTP） |

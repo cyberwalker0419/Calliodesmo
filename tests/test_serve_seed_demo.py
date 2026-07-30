@@ -19,7 +19,6 @@ def _test_settings(tmp_path: Path) -> Settings:
         llm_model="test/stub",
         embedding_provider="hash",
         embedding_dimension=64,
-        database_url="sqlite+aiosqlite:///:memory:",
         extraction_template_file="config/extraction_templates.example.yaml",
     )
 
@@ -137,7 +136,7 @@ async def test_seed_demo_visible_to_team_member(tmp_path):
     assert ClearanceLevel.CONFIDENTIAL not in levels
 
 
-def test_serve_seed_demo_flag(tmp_path, monkeypatch):
+def test_serve_seed_demo_flag(tmp_path, monkeypatch, cli_db):
     """serve --seed-demo：uvicorn 启动前完成 seed（mock uvicorn 验证顺序）。"""
     import sys
     from types import SimpleNamespace
@@ -151,10 +150,8 @@ def test_serve_seed_demo_flag(tmp_path, monkeypatch):
     demo_dir = tmp_path / "demo"
     demo_dir.mkdir()
     _write_demo_tree(demo_dir)
-    db_path = tmp_path / "serve.db"
 
-    monkeypatch.setenv("CALLIODESMO_DATABASE_URL", f"sqlite+aiosqlite:///{db_path.as_posix()}")
-    monkeypatch.setenv("CALLIODESMO_ADMIN_PASSWORD", "admin-pw")
+    # cli_db 已 patch create_async_engine 绑定唯一 schema + 设 ADMIN_PASSWORD
     monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "test/stub")
     monkeypatch.setenv("CALLIODESMO_EMBEDDING_PROVIDER", "hash")
     monkeypatch.setenv("CALLIODESMO_EMBEDDING_DIMENSION", "64")

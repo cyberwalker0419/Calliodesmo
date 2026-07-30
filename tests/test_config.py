@@ -11,7 +11,7 @@ def test_settings_defaults():
 
 def test_settings_env_override(monkeypatch):
     monkeypatch.setenv("CALLIODESMO_JWT_SECRET_KEY", "test-secret")
-    monkeypatch.setenv("CALLIODESMO_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    monkeypatch.setenv("CALLIODESMO_DATABASE_URL", "postgresql+asyncpg://u:p@localhost:5433/other")
     s = Settings(_env_file=None)
     assert s.jwt_secret_key == "test-secret"
-    assert s.database_url == "sqlite+aiosqlite:///:memory:"
+    assert s.database_url == "postgresql+asyncpg://u:p@localhost:5433/other"

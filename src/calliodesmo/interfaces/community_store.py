@@ -40,6 +40,10 @@ class CommunityStore(ABC):
     @abstractmethod
     async def list_communities(self, *, access: AccessContext) -> list[CommunityRecord]: ...
 
+    async def delete_by_doc(self, doc_id: str) -> None:
+        """P4.5 Task 3：从全部社区的成员中移除该文档（默认 no-op，子类按持久化覆写）。"""
+        return None
+
     # ---- P3 手动操作（手动编辑置 metadata["manual"]=True）----
 
     @abstractmethod

@@ -122,3 +122,65 @@ def merge_relations(
             team_id=target_team_id,
         )
     return list(by_key.values())
+
+
+def prune_source_chunks(
+    entities: list[EntityRecord],
+    relations: list[RelationRecord],
+    *,
+    remove_chunk_ids: set[str],
+) -> tuple[list[EntityRecord], list[RelationRecord], list[str]]:
+    """P4.5 Task 3 Step 2：从 entities/relations 的 source_chunk_ids 移除指定 chunk_ids。
+
+    ``merge_entities``/``merge_relations`` 的逆运算（纯函数，不碰 store）。删除文档时，
+    先把该文档的 chunk_ids 从所有实体/关系的来源里剔除：
+    - 实体 ``source_chunk_ids`` 变空 -> 孤儿（返回 orphan_entity_names，由 store 删）
+    - 关系 ``source_chunk_ids`` 变空 -> 直接丢弃（无证据边）
+    返回 ``(kept_entities, kept_relations, orphan_entity_names)``。
+    """
+    remove = set(remove_chunk_ids)
+
+    kept_entities: list[EntityRecord] = []
+    orphans: list[str] = []
+    for e in entities:
+        pruned = [c for c in e.source_chunk_ids if c not in remove]
+        if not pruned:
+            orphans.append(e.name)
+            continue  # 孤儿实体（无剩余来源）-> 由 store 删除
+        kept_entities.append(
+            EntityRecord(
+                name=e.name,
+                type=e.type,
+                description=e.description,
+                source_chunk_ids=pruned,
+                template_conforming=e.template_conforming,
+                metadata=dict(e.metadata),
+                access_level=e.access_level,
+                library_scope=e.library_scope,
+                owner_id=e.owner_id,
+                project_id=e.project_id,
+                team_id=e.team_id,
+            )
+        )
+
+    kept_relations: list[RelationRecord] = []
+    for r in relations:
+        pruned = [c for c in r.source_chunk_ids if c not in remove]
+        if not pruned:
+            continue  # 关系无剩余来源 -> 丢弃
+        kept_relations.append(
+            RelationRecord(
+                source=r.source,
+                target=r.target,
+                type=r.type,
+                description=r.description,
+                source_chunk_ids=pruned,
+                metadata=dict(r.metadata),
+                access_level=r.access_level,
+                library_scope=r.library_scope,
+                owner_id=r.owner_id,
+                project_id=r.project_id,
+                team_id=r.team_id,
+            )
+        )
+    return kept_entities, kept_relations, orphans

@@ -16,6 +16,7 @@ from calliodesmo import __version__
 from calliodesmo.api.admin import router as admin_router
 from calliodesmo.api.collab import router as collab_router
 from calliodesmo.api.deps import get_current_context, get_search_engine
+from calliodesmo.api.ingest import router as ingest_router
 from calliodesmo.api.library import router as library_router
 from calliodesmo.api.schemas import (
     ChangePasswordRequest,
@@ -215,11 +216,13 @@ def create_app() -> FastAPI:
     app.include_router(core)
     app.include_router(admin_router)
     app.include_router(collab_router)
+    app.include_router(ingest_router)
     app.include_router(library_router)
     # 双挂 /api 前缀：前端 baseURL 固定 /api（dev proxy 去前缀转发 / 生产同源）
     app.include_router(core, prefix="/api", include_in_schema=False)
     app.include_router(admin_router, prefix="/api", include_in_schema=False)
     app.include_router(collab_router, prefix="/api", include_in_schema=False)
+    app.include_router(ingest_router, prefix="/api", include_in_schema=False)
     app.include_router(library_router, prefix="/api", include_in_schema=False)
 
     # 生产同源：前端构建产物静态托管（SPA fallback 到 index.html）；置于最后

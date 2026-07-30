@@ -25,6 +25,12 @@ class InMemoryCommunityStore(CommunityStore):
         visible.sort(key=lambda r: (r.level, r.title))
         return visible
 
+    async def delete_by_doc(self, doc_id: str) -> None:
+        """P4.5 Task 3：从全部社区的 member_entity_names 移除该文档。"""
+        for rec in self._records.values():
+            if doc_id in rec.member_entity_names:
+                rec.member_entity_names = [m for m in rec.member_entity_names if m != doc_id]
+
     def _mark_manual(self, rec: CommunityRecord) -> CommunityRecord:
         md = dict(rec.metadata)
         md["manual"] = True

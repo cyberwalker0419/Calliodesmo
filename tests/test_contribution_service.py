@@ -4,16 +4,22 @@ import uuid
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm.exc import StaleDataError
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.audit.models import AuditLog
 from calliodesmo.auth.context import AccessContext
-from calliodesmo.auth.models import ClearanceLevel, LibraryScope, Permission, User
+from calliodesmo.auth.models import (
+    ClearanceLevel,
+    LibraryScope,
+    Permission,
+    Project,
+    Team,
+    User,
+)
 from calliodesmo.collab.models import Contribution, ContributionStatus
 from calliodesmo.collab.service import ContributionError, ContributionService
-from calliodesmo.db.base import Base
 
 _svc = ContributionService()
 
@@ -36,14 +42,36 @@ async def _user(session, username="u") -> User:
     return u
 
 
+async def _project(session) -> Project:
+    """建真实 Team+Project（PG 强制 FK，Contribution.target_project_id 须引用已存在行）。"""
+    team = Team(name=f"team-{uuid.uuid4().hex[:8]}")
+    session.add(team)
+    await session.flush()
+    project = Project(name=f"proj-{uuid.uuid4().hex[:8]}", team_id=team.id)
+    session.add(project)
+    await session.flush()
+    return project
+
+
 async def _draft(session, user, **kw):
+    target_scope = kw.get("target_scope", LibraryScope.PROJECT)
+    target_project_id = kw.get("target_project_id")
+    target_team_id = kw.get("target_team_id")
+    # PG 强制 FK：PROJECT scope 须有真实 project；TEAM scope 须有真实 team
+    if target_scope == LibraryScope.PROJECT and not target_project_id:
+        target_project_id = (await _project(session)).id
+    elif target_scope == LibraryScope.TEAM and not target_team_id:
+        team = Team(name=f"team-{uuid.uuid4().hex[:8]}")
+        session.add(team)
+        await session.flush()
+        target_team_id = team.id
     return await _svc.create(
         session,
         source_user_id=user.id,
         source_scope=LibraryScope.PERSONAL,
-        target_scope=kw.get("target_scope", LibraryScope.PROJECT),
-        target_project_id=kw.get("target_project_id", uuid.uuid4()),
-        target_team_id=kw.get("target_team_id"),
+        target_scope=target_scope,
+        target_project_id=target_project_id,
+        target_team_id=target_team_id,
         title=kw.get("title", "t"),
         doc_ids=kw.get("doc_ids", ["d#0"]),
         source="api",
@@ -113,11 +141,12 @@ async def test_create_rejects_missing_target_id(session):
 
 async def test_state_machine_happy_path(session):
     user = await _user(session)
+    reviewer = await _user(session, "reviewer")
     c = await _draft(session, user)
     await session.flush()
     await _svc.submit(session, c.id, user_id=user.id)
-    await _svc.approve(session, c.id, user_id=uuid.uuid4())  # Task 3 加自审阻断
-    await _svc.merge(session, c.id, user_id=uuid.uuid4())
+    await _svc.approve(session, c.id, user_id=reviewer.id)  # Task 3 加自审阻断
+    await _svc.merge(session, c.id, user_id=reviewer.id)
     await session.commit()
     fetched = await session.get(Contribution, c.id)
     assert fetched.status == ContributionStatus.MERGED
@@ -142,10 +171,11 @@ async def test_state_machine_illegal_transition(session):
 async def test_reopen_rejected(session):
     """B2：rejected -> submitted reopen，保留同一 MR 上下文。"""
     user = await _user(session)
+    reviewer = await _user(session, "reviewer")
     c = await _draft(session, user)
     await session.flush()
     await _svc.submit(session, c.id, user_id=user.id)
-    await _svc.reject(session, c.id, user_id=uuid.uuid4(), reason="改一下")
+    await _svc.reject(session, c.id, user_id=reviewer.id, reason="改一下")
     assert (await session.get(Contribution, c.id)).status == ContributionStatus.REJECTED
     await _svc.reopen(session, c.id, user_id=user.id)
     assert (await session.get(Contribution, c.id)).status == ContributionStatus.SUBMITTED
@@ -166,7 +196,7 @@ async def test_visibility_filtering(session):
     source = await _user(session, "source")
     reviewer = await _user(session, "reviewer")
     other = await _user(session, "other")
-    pid = uuid.uuid4()
+    pid = (await _project(session)).id
     c = await _draft(session, source, target_project_id=pid)
     await session.flush()
     # 源用户可见
@@ -181,12 +211,9 @@ async def test_visibility_filtering(session):
     assert len(await _svc.list(session, access=_ctx(other.id))) == 0
 
 
-async def test_version_optimistic_lock():
+async def test_version_optimistic_lock(_pg_engine):
     """B1：并发——version 乐观锁，stale 对象提交抛 StaleDataError。"""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    factory = async_sessionmaker(engine, expire_on_commit=False)
+    factory = async_sessionmaker(_pg_engine, expire_on_commit=False)
     async with factory() as s:
         user = User(username="u", hashed_password="x")
         s.add(user)
@@ -204,4 +231,3 @@ async def test_version_optimistic_lock():
         c1.title = "用过期版本改"
         with pytest.raises(StaleDataError):
             await s1.commit()
-    await engine.dispose()

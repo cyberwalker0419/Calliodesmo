@@ -88,3 +88,7 @@ class GraphStore(ABC):
     async def list_relations(self, *, access: AccessContext) -> list[RelationRecord]:
         """枚举当前可见的全部关系（按 visible_to 过滤），供推送收集。"""
         ...
+
+    async def delete_by_doc(self, chunk_ids: list[str]) -> None:
+        """P4.5 Task 3：从图剔除 chunk_ids 的引用——来源空的实体删、来源空的边丢（默认 no-op）。"""
+        return None

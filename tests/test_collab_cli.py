@@ -1,65 +1,76 @@
-"""Task 5：CLI contributions 子命令。"""
+"""Task 5：CLI contributions 子命令。
 
+P4.5 Task 1：走真实 PG（``cli_db`` 唯一 schema 隔离），不再用 sqlite 文件。
+"""
+
+import asyncio
 import uuid
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from typer.testing import CliRunner
 
 import calliodesmo.models  # noqa: F401
-from calliodesmo.auth.models import User
+from calliodesmo.auth.models import LibraryScope, Project, Team, User
 from calliodesmo.cli import app
+from calliodesmo.collab.models import Contribution, ContributionStatus
 from calliodesmo.config import get_settings
 
 runner = CliRunner()
 
 
-def _setup_db(tmp_path, monkeypatch):
-    db_path = tmp_path / "cli.db"
-    monkeypatch.setenv("CALLIODESMO_DATABASE_URL", f"sqlite+aiosqlite:///{db_path.as_posix()}")
+def _init_db() -> None:
     get_settings.cache_clear()
-    runner.invoke(app, ["db", "init"])
-    return db_path
+    try:
+        assert runner.invoke(app, ["db", "init"]).exit_code == 0
+        # db seed 内建 SYSTEM_USER_ID 账户（contributions submit 等 audit 的 actor FK）
+        assert runner.invoke(app, ["db", "seed"]).exit_code == 0
+    finally:
+        get_settings.cache_clear()
 
 
-async def _create_contribution(session, source_id, project_id, title="CLI 测试"):
-    from calliodesmo.auth.models import LibraryScope
-    from calliodesmo.collab.models import Contribution, ContributionStatus
+def _seed_user_and_contribution(schema: str):
+    """在 cli schema 建真实 user/team/project + contribution（满足 PG FK）。返回 (cid, uid)。"""
 
-    c = Contribution(
-        source_user_id=source_id,
-        source_scope=LibraryScope.PERSONAL,
-        target_scope=LibraryScope.PROJECT,
-        target_project_id=project_id,
-        title=title,
-        doc_ids=["d#0"],
-        status=ContributionStatus.DRAFT,
-    )
-    session.add(c)
-    await session.commit()
-    return c.id
-
-
-def _seed_user_and_contribution(db_path):
-    import asyncio
-
-    async def _go():
-        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path.as_posix()}")
+    async def _go() -> tuple:
+        settings = get_settings()
+        engine = create_async_engine(
+            settings.database_url,
+            pool_pre_ping=True,
+            connect_args={"server_settings": {"search_path": schema}},
+        )
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as s:
             u = User(username="u", hashed_password="x")
             s.add(u)
             await s.flush()
-            cid = await _create_contribution(s, u.id, uuid.uuid4())
-            uid = u.id
+            team = Team(name=f"t-{uuid.uuid4().hex[:6]}")
+            s.add(team)
+            await s.flush()
+            project = Project(name=f"p-{uuid.uuid4().hex[:6]}", team_id=team.id)
+            s.add(project)
+            await s.flush()
+            c = Contribution(
+                source_user_id=u.id,
+                source_scope=LibraryScope.PERSONAL,
+                target_scope=LibraryScope.PROJECT,
+                target_project_id=project.id,
+                title="CLI 测试",
+                doc_ids=["d#0"],
+                status=ContributionStatus.DRAFT,
+            )
+            s.add(c)
+            await s.flush()
+            cid, uid = c.id, u.id
+            await s.commit()
         await engine.dispose()
         return cid, uid
 
     return asyncio.run(_go())
 
 
-def test_contributions_list_and_show(tmp_path, monkeypatch):
-    db_path = _setup_db(tmp_path, monkeypatch)
-    cid, _ = _seed_user_and_contribution(db_path)
+def test_contributions_list_and_show(cli_db):
+    _init_db()
+    cid, _ = _seed_user_and_contribution(cli_db)
     get_settings.cache_clear()
     result = runner.invoke(app, ["contributions", "list"])
     assert result.exit_code == 0, result.output
@@ -69,20 +80,19 @@ def test_contributions_list_and_show(tmp_path, monkeypatch):
     assert "draft" in result.output
 
 
-def test_contributions_submit(tmp_path, monkeypatch):
-    db_path = _setup_db(tmp_path, monkeypatch)
-    cid, _ = _seed_user_and_contribution(db_path)
+def test_contributions_submit(cli_db):
+    _init_db()
+    cid, _ = _seed_user_and_contribution(cli_db)
     get_settings.cache_clear()
     result = runner.invoke(app, ["contributions", "submit", str(cid)])
     assert result.exit_code == 0, result.output
     assert "已提交" in result.output
-    # show 确认状态
     result = runner.invoke(app, ["contributions", "show", str(cid)])
     assert "submitted" in result.output
 
 
-def test_contributions_show_nonexistent(tmp_path, monkeypatch):
-    _setup_db(tmp_path, monkeypatch)
+def test_contributions_show_nonexistent(cli_db):
+    _init_db()
     get_settings.cache_clear()
     result = runner.invoke(app, ["contributions", "show", str(uuid.uuid4())])
     assert result.exit_code == 1
