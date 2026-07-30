@@ -54,12 +54,39 @@ class AppStores:
         from calliodesmo.retrieval.in_memory_sparse_index import InMemoryBM25Index
         from calliodesmo.stores.profile_card_store import InMemoryProfileCardStore
 
+        settings = get_settings()
+        # P4.5 Task 2：真后端路由（config 驱动）；默认 memory 兼容旧测试
         if self.vector_store is None:
-            self.vector_store = InMemoryVectorStore()
+            if settings.vector_store_backend == "postgres":
+                from calliodesmo.db.session import SessionLocal
+                from calliodesmo.providers.pg_vector_store import PgVectorStore
+
+                self.vector_store = PgVectorStore(SessionLocal)
+            else:
+                self.vector_store = InMemoryVectorStore()
         if self.graph_store is None:
-            self.graph_store = InMemoryGraphStore()
+            if settings.graph_store_backend == "neo4j":
+                from neo4j import AsyncGraphDatabase
+
+                from calliodesmo.db.session import SessionLocal
+                from calliodesmo.providers.neo4j_graph_store import Neo4jGraphStore
+
+                driver = AsyncGraphDatabase.driver(
+                    settings.neo4j_uri,
+                    auth=(settings.neo4j_user, settings.neo4j_password),
+                )
+                self.graph_store = Neo4jGraphStore(driver, SessionLocal)
+            else:
+                self.graph_store = InMemoryGraphStore()
         if self.community_store is None:
-            self.community_store = InMemoryCommunityStore()
+            if settings.community_store_backend == "postgres":
+                from calliodesmo.db.session import SessionLocal
+                from calliodesmo.providers.pg_community_store import PgCommunityStore
+
+                self.community_store = PgCommunityStore(SessionLocal)
+            else:
+                self.community_store = InMemoryCommunityStore()
+        # TODO(P4.5 Task 2 Step 5, 2026-W33)：ProfileCard 与 BM25 改 PG 数据源
         if self.profile_card_store is None:
             self.profile_card_store = InMemoryProfileCardStore()
         if self.sparse_index is None:
