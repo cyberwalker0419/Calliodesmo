@@ -158,6 +158,42 @@ async def test_admin_document_communities_permission_matrix(session, role):
         deps.reset_app_stores()
 
 
+# ---- P4.5 Task 4 Step 5：/collab push/approve/merge × 三角色矩阵 ----
+# approve/merge 需 APPROVE（analyst 无 -> 403；reviewer/admin 有 -> 守卫过、贡献不存在 -> 404）。
+# 随机 UUID 隔离守卫：403 = 权限拒绝，404 = 守卫通过后业务层找不到。
+
+
+@pytest.mark.parametrize("role", ROLES)
+async def test_collab_list_permission_matrix(session, role):
+    """`GET /collab` 需 PUSH 或 APPROVE。三角色均有 -> 200。"""
+    _, token = await _seed_role_user(session, role)
+    perms = DEFAULT_ROLE_PERMISSIONS[role]
+    expected = 200 if (Permission.PUSH in perms or Permission.APPROVE in perms) else 403
+    async with _make_client(session) as c:
+        resp = await c.get("/collab", headers=_auth(token))
+    assert resp.status_code == expected
+
+
+@pytest.mark.parametrize("role", ROLES)
+async def test_collab_approve_permission_matrix(session, role):
+    """`/collab/{id}/approve` 需 APPROVE。analyst 403；reviewer/admin 404（守卫过、贡献不存在）。"""
+    _, token = await _seed_role_user(session, role)
+    expected = 404 if Permission.APPROVE in DEFAULT_ROLE_PERMISSIONS[role] else 403
+    async with _make_client(session) as c:
+        resp = await c.post(f"/collab/{uuid.uuid4()}/approve", headers=_auth(token))
+    assert resp.status_code == expected
+
+
+@pytest.mark.parametrize("role", ROLES)
+async def test_collab_merge_permission_matrix(session, role):
+    """`/collab/{id}/merge` 需 APPROVE。analyst 403；reviewer/admin 404。"""
+    _, token = await _seed_role_user(session, role)
+    expected = 404 if Permission.APPROVE in DEFAULT_ROLE_PERMISSIONS[role] else 403
+    async with _make_client(session) as c:
+        resp = await c.post(f"/collab/{uuid.uuid4()}/merge", headers=_auth(token))
+    assert resp.status_code == expected
+
+
 async def test_unauthenticated_all_endpoints_reject(session):
     """匿名（无 token）访问受限端点 -> 401。"""
     endpoints = [
