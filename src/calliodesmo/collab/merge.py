@@ -6,8 +6,10 @@
 - access_level 保留源值（不降密）；scope 字段改写为目标 scope。
 - 状态收尾复用 ContributionService.merge（version 乐观锁 + 审计）。
 
-崩溃一致性【修订】：合并跨两轨写（内存 stores + ORM）非原子，v1 接受（演示/单机），
-可选两阶段（ORM MERGING -> 合并 stores -> MERGED）便于崩溃检测；持久化 stores 留 P9。
+崩溃一致性【修订】：合并跨两轨写（stores + ORM）非原子，v1 接受（演示/单机），
+可选两阶段（ORM MERGING -> 合并 stores -> MERGED）便于崩溃检测；跨 store 三轨原子性留 P9。
+**store 内 Neo4j+PG 双写一致性已修（Task 4 Step 4，见 Neo4jGraphStore.upsert_graph：
+PG 镜像先写、Neo4j 权威后写，强制 PG 是 Neo4j 超集）。**
 """
 
 from __future__ import annotations

@@ -6,7 +6,9 @@ P4.5 Task 2 Step 3。对齐 :class:`~calliodesmo.interfaces.graph_store.GraphSto
 
 - Neo4j 节点标签 ``Entity``（按 ``name`` MERGE，与内存实现一致：同名实体覆盖）；
   关系标签 ``RELATED``，``type`` 为属性，按 (source, target, type) MERGE。
-- PG 镜像供 ``visible_to`` 聚合 fallback 与 Task 4 双写一致性；读仍以 Neo4j 为权威。
+- **双写一致性（Task 4 Step 4）**：``upsert_graph`` 先写 PG 镜像、后写 Neo4j 权威，
+  强制不变式"Neo4j 写成功 ⇒ PG 镜像已写"（PG 是 Neo4j 超集）。PG 失败 -> Neo4j 不写（权威未污染）；
+  Neo4j 失败 -> PG 超集 + 读以 Neo4j 为准 -> 可检测可重试（两端 upsert 幂等）。
 - ``visible_to`` 在 Python 过滤（与内存实现语义一致；规模留给后续优化）。
 """
 
@@ -143,7 +145,36 @@ class Neo4jGraphStore(GraphStore):
     async def upsert_graph(
         self, entities: list[EntityRecord], relations: list[RelationRecord]
     ) -> None:
-        # 1) Neo4j MERGE 节点 + 边
+        """双写一致性（P4.5 Task 4 Step 4）：**PG 镜像先写、Neo4j 权威后写**。
+
+        强制不变式"Neo4j 写成功 ⇒ PG 镜像已写"（PG 是 Neo4j 的超集）：
+        - PG 镜像写失败 -> 立即抛出，Neo4j 块不执行 -> 权威未污染（不留半写）。
+        - Neo4j 写失败（PG 已写）-> 读以 Neo4j 为准故读不见 -> 可检测；两端 upsert
+          幂等 -> 可重试收敛。
+        """
+        # 1) PG 镜像先写（按复合唯一键 ON CONFLICT）；失败即中止，Neo4j 不写
+        async with self._session_factory() as session:
+            for e in entities:
+                vals = _entity_to_orm_values(e)
+                await session.execute(
+                    pg_insert(EntityRecordORM)
+                    .values(**vals)
+                    .on_conflict_do_update(
+                        index_elements=["name", "library_scope", "owner_id"], set_=vals
+                    )
+                )
+            for r in relations:
+                vals = _relation_to_orm_values(r)
+                await session.execute(
+                    pg_insert(RelationRecordORM)
+                    .values(**vals)
+                    .on_conflict_do_update(
+                        index_elements=["source", "target", "type", "library_scope", "owner_id"],
+                        set_=vals,
+                    )
+                )
+            await session.commit()
+        # 2) Neo4j 权威后写（读以 Neo4j 为准；MERGE 节点 + 边）
         async with self._driver.session() as s:
             for e in entities:
                 props = _entity_props(e)
@@ -173,28 +204,6 @@ class Neo4jGraphStore(GraphStore):
                     """,
                     **{"source": r.source, "target": r.target, **rprops},
                 )
-        # 2) PG 镜像 upsert（按复合唯一键 ON CONFLICT）
-        async with self._session_factory() as session:
-            for e in entities:
-                vals = _entity_to_orm_values(e)
-                await session.execute(
-                    pg_insert(EntityRecordORM)
-                    .values(**vals)
-                    .on_conflict_do_update(
-                        index_elements=["name", "library_scope", "owner_id"], set_=vals
-                    )
-                )
-            for r in relations:
-                vals = _relation_to_orm_values(r)
-                await session.execute(
-                    pg_insert(RelationRecordORM)
-                    .values(**vals)
-                    .on_conflict_do_update(
-                        index_elements=["source", "target", "type", "library_scope", "owner_id"],
-                        set_=vals,
-                    )
-                )
-            await session.commit()
 
     async def get_entity(self, name: str, *, access: AccessContext) -> EntityRecord | None:
         async with self._driver.session() as s:
