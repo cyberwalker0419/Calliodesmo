@@ -17,6 +17,7 @@ tags:
 | [[docs/verification/P2-verification\|P2 验证报告]] | 基础检索与 RAG | ✅ 219 passed / ruff 0 error | 2026-07-27 |
 | [[docs/verification/P3-verification\|P3 验证报告]] | Web UI | ✅ 289 passed / ruff 0 error | 2026-07-27 |
 | [[docs/verification/P4-verification\|P4 验证报告]] | Git-like 协作推送 | ✅ 332 passed / 1 skipped / 1 failed(pre-existing) / ruff 0 error | 2026-07-29 |
+| [[docs/verification/full-chain-simulation\|全链路仿真验证报告]] | P4.5 全链路仿真（HTTP 驱动真后端） | ✅ 22 步全绿 / 发现并修复 2 处 `/ingest` 真后端 bug / 30+5 回归通过 | 2026-07-31 |
 
 ## 目录结构
 
