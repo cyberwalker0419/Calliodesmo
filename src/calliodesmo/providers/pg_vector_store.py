@@ -18,6 +18,7 @@ from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import ClearanceLevel, LibraryScope
 from calliodesmo.db.models_content import ChunkRecordORM, Document
 from calliodesmo.interfaces.vector_store import ChunkRecord, VectorHit, VectorStore
+from calliodesmo.utils.json import json_safe
 
 
 def _chunk_to_doc_values(c: ChunkRecord) -> dict[str, Any]:
@@ -111,11 +112,12 @@ class PgVectorStore(VectorStore):
                     .values(**doc_values)
                     .on_conflict_do_nothing(index_elements=["doc_id"])
                 )
-            # 2) upsert chunks（同 chunk_id 覆盖；metadata 经列对象传，避保留字冲突）
+            # 2) upsert chunks（同 chunk_id 覆盖；metadata 经 json_safe 清洗，避 JSON 序列化报错）
             for c in chunks:
                 row = _chunk_to_row(c)
-                values = {**row, ChunkRecordORM.metadata_: c.metadata}
-                set_ = {**row, ChunkRecordORM.metadata_: c.metadata}
+                safe_meta = json_safe(c.metadata)
+                values = {**row, ChunkRecordORM.metadata_: safe_meta}
+                set_ = {**row, ChunkRecordORM.metadata_: safe_meta}
                 await session.execute(
                     pg_insert(ChunkRecordORM)
                     .values(values)

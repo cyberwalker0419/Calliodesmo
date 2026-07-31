@@ -17,6 +17,7 @@ from calliodesmo.auth.models import ClearanceLevel, LibraryScope
 from calliodesmo.db.models_content import CommunityRecordORM
 from calliodesmo.interfaces.community_store import CommunityRecord, CommunityStore
 from calliodesmo.stores.visibility import visible_to
+from calliodesmo.utils.json import json_safe
 
 
 def _visible_filter(access: AccessContext):
@@ -83,8 +84,9 @@ class PgCommunityStore(CommunityStore):
                     "team_id": c.team_id,
                     "access_level": c.access_level,
                 }
-                set_ = {**row, CommunityRecordORM.metadata_: c.metadata}
-                values = {**row, CommunityRecordORM.metadata_: c.metadata}
+                safe_meta = json_safe(c.metadata)
+                set_ = {**row, CommunityRecordORM.metadata_: safe_meta}
+                values = {**row, CommunityRecordORM.metadata_: safe_meta}
                 await session.execute(
                     pg_insert(CommunityRecordORM)
                     .values(values)

@@ -169,16 +169,10 @@ def _read_cache(cache_file: Path) -> dict:
 
 
 def _json_safe(obj):
-    """递归转 JSON 可序列化（UUID -> str，枚举 -> value，dict/list 递归）。"""
-    if isinstance(obj, uuid.UUID):
-        return str(obj)
-    if isinstance(obj, dict):
-        return {str(k): _json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_json_safe(v) for v in obj]
-    if isinstance(obj, (ClearanceLevel, LibraryScope)):
-        return obj.value
-    return obj
+    """递归转 JSON 可序列化（委托 shared :func:`json_safe`，保留本名兼容旧调用点）。"""
+    from calliodesmo.utils.json import json_safe
+
+    return json_safe(obj)
 
 
 def _access_dict(rec) -> dict[str, Any]:
