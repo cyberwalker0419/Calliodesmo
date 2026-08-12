@@ -12,6 +12,7 @@ search_path）隔离，inspect 走 SQLAlchemy 而非 sqlite3。
 """
 
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncIterator
 
@@ -27,6 +28,27 @@ from calliodesmo.db.session import get_session
 
 # 专用测试 schema：与生产 public 物理隔离（search_path 仅本 schema，避免 public 同名表遮蔽）
 _TEST_SCHEMA = "calliodesmo_test"
+
+# 测试固定 JWT secret：pydantic-settings 中环境变量优先级高于 .env，会话级写进 os.environ
+# 后，无论 .env 是否被读到 / cwd 是否漂移 / lru_cache 是否被中途清，任意 Settings() 与
+# get_settings() 单例都取同一 secret —— token 签发（测试 helper）与校验（API Depends）恒一致，
+# 杜绝 secret 分裂导致的间歇性 401（预防性加固，仅测试隔离，不改生产行为）。
+_TEST_JWT_SECRET = "calliodesmo-test-suite-secret-0123456789abcdef"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _pin_jwt_secret():
+    """会话级锁定 JWT secret（防间歇性 401）。
+
+    env 变量覆盖 .env，故全局固定后 ``get_settings().jwt_secret_key``（签 token）与
+    API ``Depends(get_settings)``（校验 token）恒取同一值；即便某处
+    ``get_settings.cache_clear()`` 后重建，env 仍在 -> 仍是同一 secret。test_config 的
+    ``monkeypatch.setenv("CALLIODESMO_JWT_SECRET_KEY", ...)`` 会临时覆盖本值并在用例结束时复原，
+    互不干扰。
+    """
+    os.environ["CALLIODESMO_JWT_SECRET_KEY"] = _TEST_JWT_SECRET
+    get_settings.cache_clear()
+    yield
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -127,10 +149,13 @@ async def neo4j_session() -> AsyncIterator:
 # ---------- CLI 测试：唯一 PG schema 隔离 ----------
 
 
-async def _exec_ddl(schema: str, *, drop: bool) -> None:
-    """在一次性 engine 上 CREATE/DROP schema（独立 loop，避免污染会话级 _pg_engine）。"""
-    settings = get_settings()
-    eng = create_async_engine(settings.database_url, pool_pre_ping=True)
+async def _exec_ddl(database_url: str, schema: str, *, drop: bool) -> None:
+    """在一次性 engine 上 CREATE/DROP schema（独立 loop，避免污染会话级 _pg_engine）。
+
+    ``database_url`` 由调用方在 setup 期捕获后传入：teardown 期不再调 ``get_settings()``，
+    以免在 ``monkeypatch`` 撤销 ``CALLIODESMO_ADMIN_PASSWORD`` 前重建出带 admin-pw 的陈旧缓存。
+    """
+    eng = create_async_engine(database_url, pool_pre_ping=True)
     try:
         async with eng.begin() as conn:
             if drop:
@@ -165,8 +190,11 @@ def cli_db(monkeypatch) -> str:
     import calliodesmo.cli as cli_mod
 
     schema = f"cli_test_{uuid.uuid4().hex[:10]}"
-    # 先清 get_settings 缓存：避免先前 sqlite 用例残留的陈旧缓存（setenv sqlite 后 teardown 未清）
+    # 先清 get_settings 缓存：确保本用例读到当前 env（前序用例可能 setenv 后 teardown 未清缓存）。
     get_settings.cache_clear()
+    # 捕获 database_url 供 teardown 期 _exec_ddl 复用（DB URL 在测试中恒定）——teardown 不再调
+    # get_settings()，避免在 monkeypatch 撤销 ADMIN_PASSWORD 前重建出陈旧缓存（间歇性 401 隐患）。
+    database_url = get_settings().database_url
     # 预建 schema + create_all（search_path 仅 schema，避开 public 遮蔽；含 Task 2 pgvector 表）
     asyncio.run(_create_all_in_schema(schema))
     real_create_async_engine = cli_mod.create_async_engine
@@ -184,7 +212,7 @@ def cli_db(monkeypatch) -> str:
     get_settings.cache_clear()
     yield schema
     get_settings.cache_clear()
-    asyncio.run(_exec_ddl(schema, drop=True))
+    asyncio.run(_exec_ddl(database_url, schema, drop=True))
 
 
 @pytest.fixture

@@ -83,3 +83,7 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
 # 中文文案正常全角标点（RUF001/2/3）；B008 为 FastAPI Depends 惯用法
 ignore = ["RUF001", "RUF002", "RUF003", "B008"]
+# 仿真脚本须在 import calliodesmo 前覆盖环境变量（backend 路由 / JWT secret），故顶层
+# import 在赋值语句之后 —— E402 在此为设计所需，单独豁免。
+[tool.ruff.lint.per-file-ignores]
+"scripts/full_chain_simulation.py" = ["E402"]

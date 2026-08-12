@@ -31,6 +31,7 @@ from calliodesmo.interfaces.graph_store import (
     SubgraphView,
 )
 from calliodesmo.stores.visibility import visible_to
+from calliodesmo.utils.json import json_safe
 
 
 def _entity_props(e: EntityRecord) -> dict[str, Any]:
@@ -41,8 +42,8 @@ def _entity_props(e: EntityRecord) -> dict[str, Any]:
         "description": e.description,
         "source_chunk_ids": list(e.source_chunk_ids),
         "template_conforming": e.template_conforming,
-        # Neo4j 属性不支持 Map，metadata 序列化为 JSON 串
-        "metadata": json.dumps(dict(e.metadata), ensure_ascii=False),
+        # Neo4j 属性不支持 Map，metadata 序列化为 JSON 串（json_safe 清洗 UUID/枚举/datetime）
+        "metadata": json.dumps(json_safe(dict(e.metadata)), ensure_ascii=False),
         "access_level": e.access_level.value,
         "library_scope": e.library_scope.value,
         "owner_id": str(e.owner_id) if e.owner_id else None,
@@ -56,7 +57,7 @@ def _relation_props(r: RelationRecord) -> dict[str, Any]:
         "type": r.type,
         "description": r.description,
         "source_chunk_ids": list(r.source_chunk_ids),
-        "metadata": json.dumps(dict(r.metadata), ensure_ascii=False),
+        "metadata": json.dumps(json_safe(dict(r.metadata)), ensure_ascii=False),
         "access_level": r.access_level.value,
         "library_scope": r.library_scope.value,
         "owner_id": str(r.owner_id) if r.owner_id else None,

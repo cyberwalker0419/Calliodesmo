@@ -79,12 +79,9 @@ class DocumentCommunityDeriver:
 
         # 手动编辑保护：跳过 metadata["manual"]=True 的社区（不覆盖手改）
         if self.community_store is not None:
-            communities = [
-                c
-                for c in communities
-                if c.community_id not in self.community_store._records
-                or not self.community_store._records[c.community_id].metadata.get("manual")
-            ]
+            existing = await self.community_store.list_communities(access=access)
+            manual_ids = {r.community_id for r in existing if r.metadata.get("manual")}
+            communities = [c for c in communities if c.community_id not in manual_ids]
             records = [
                 CommunityRecord(
                     community_id=c.community_id,
