@@ -33,6 +33,12 @@ class Settings(BaseSettings):
         True  # 对 reasoning 模型禁用思考链（chat_template_kwargs.enable_thinking=False）
     )
 
+    # --- 实体对齐（P4.5 Task 6 三段式：auto_merge / 复核 / 新节点） ---
+    # 实体 name+description 向量余弦相似度阈值：>=auto_merge 自动合并；
+    # [review, auto_merge) 进人工复核队列；<review 新节点（type 不同一律 new）
+    alignment_auto_merge_threshold: float = 0.95
+    alignment_review_threshold: float = 0.85
+
     # --- 模型栈：OCR（PaddleOCR-VL 专职，indoc 逐字转录） ---
     # none（未启用/纯文本文档）| paddleocr（专用引擎）| stub（test/* 自动走桩）
     ocr_provider: str = "none"

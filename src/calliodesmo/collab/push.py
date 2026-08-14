@@ -6,6 +6,10 @@
 
 重叠判定 ``compute_overlap`` 按 ``(name,type)`` 精确匹配（B4：同名不同义冲突解决留 v2，
 合并时记 ``merge_decision:"exact_name_type"`` 为 v2 embedding 三段式阈值留接口位）。
+
+P4.5 Task 6：``compute_alignment_pending`` 经实体向量余弦三段式把中档（0.85-0.95）
+重叠对收进 ``manifest["alignment_pending"]``（人工复核队列）；不传 embedding 时
+退化为 v1 精确计数（旧行为/测试不变）。
 """
 
 from __future__ import annotations
@@ -69,6 +73,52 @@ class PushService:
         target_keys = {(e.name, e.type) for e in target_entities}
         return sum(1 for e in source_entities if (e.name, e.type) in target_keys)
 
+    @staticmethod
+    async def compute_alignment_pending(
+        source_entities: list,
+        target_entities: list,
+        *,
+        embedding,
+        settings,
+    ) -> list[dict]:
+        """P4.5 Task 6：源/目标实体向量余弦三段式 -> 复核档候选对（JSON-safe）。
+
+        向量直接经 ``embedding.embed`` 对 name+description 拼接文本生成（与 chunk
+        同 provider/同维度；别名嵌入服务在线一致），``compute_overlap_embedding``
+        内部再做 type blocking + 阈值路由。仅 ``review_pending`` 档收进待审
+        （auto_merged 由 merge 自动并集、new 不重叠）；``type_blocked`` 留痕不入队。
+        """
+        from calliodesmo.collab.entity_alignment import compute_overlap_embedding
+
+        names = sorted({e.name for e in [*source_entities, *target_entities]})
+        name_desc = _name_description(names, source_entities, target_entities)
+        texts = [f"{name}: {desc}" for name, desc in name_desc]
+        vectors = {}
+        if texts:
+            result = await embedding.embed(texts)
+            vectors = dict(zip(names, result.vectors, strict=True))
+        pairs, _type_blocked = await compute_overlap_embedding(
+            source_entities,
+            target_entities,
+            vectors=vectors,
+            auto_merge_threshold=settings.alignment_auto_merge_threshold,
+            review_threshold=settings.alignment_review_threshold,
+        )
+        return [
+            {
+                "pair_id": p.pair_id,
+                "source_name": p.source_name,
+                "target_name": p.target_name,
+                "score": p.score,
+                "type": p.type,
+                "source_type": p.source_type,
+                "target_type": p.target_type,
+                "source_description": p.source_description,
+                "target_description": p.target_description,
+            }
+            for p in pairs
+        ]
+
     async def build_manifest(
         self,
         session: AsyncSession,
@@ -78,6 +128,7 @@ class PushService:
         target_overlap: int = 0,
         user_id: uuid.UUID,
         source: str | None = None,
+        alignment_pending: list[dict] | None = None,
     ) -> dict:
         """聚合清单 + 重叠判定，写回 ``contribution.manifest``，记审计 push。"""
         manifest = {
@@ -93,6 +144,8 @@ class PushService:
             },
             "overlap": target_overlap,
         }
+        if alignment_pending is not None:
+            manifest["alignment_pending"] = alignment_pending
         contribution.manifest = manifest
         await session.flush()
         await record_audit(
@@ -127,4 +180,13 @@ class PushService:
             "relation_summaries": [list(r) for r in manifest.get("relations", [])],
             "chunk_ids": list(manifest.get("chunks", [])),
             "community_ids": list(manifest.get("communities", [])),
+            "alignment_pending": list(manifest.get("alignment_pending", [])),
         }
+
+
+def _name_description(names, source_entities, target_entities) -> list[tuple[str, str]]:
+    """按实体名取描述（源优先 > 目标 > 空），供 name+description 拼接嵌入。"""
+    by_name: dict[str, str] = {}
+    for e in [*source_entities, *target_entities]:
+        by_name.setdefault(e.name, e.description or "")
+    return [(name, by_name.get(name, "")) for name in names]
