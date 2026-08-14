@@ -103,6 +103,8 @@ export const api = {
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  // 文件上传：multipart FormData（自动免 Content-Type，由浏览器带 boundary）
+  upload: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
   form: async <T>(path: string, data: URLSearchParams) => {
     const res = await fetch(`/api${path}`, {
       method: "POST",

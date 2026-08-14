@@ -177,6 +177,36 @@ export interface DiffOut {
   community_ids: string[];
 }
 
+export interface IngestStats {
+  documents: number;
+  chunks: number;
+  entities: number;
+  relations: number;
+  communities: number;
+  profile_cards: number;
+}
+
+export interface IngestAccepted {
+  job_id: string;
+  status: string;
+  filename: string;
+}
+
+export type JobStatus = "pending" | "running" | "succeeded" | "failed";
+
+export interface JobOut {
+  id: string;
+  filename: string;
+  status: JobStatus;
+  progress: number;
+  progress_stage: string | null;
+  result: IngestStats | null;
+  error: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
 export type SearchMode = "native_rag" | "local" | "global";
 
 export const CLEARANCE_RANK: Record<string, number> = {

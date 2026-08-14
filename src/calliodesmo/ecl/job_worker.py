@@ -121,31 +121,44 @@ async def _finish_failed(session, job_id: uuid.UUID, exc: Exception) -> None:
     await session.commit()
 
 
-def reset_stale_running_jobs(session_factory: async_sessionmaker) -> None:
+def reset_stale_running_jobs() -> None:
     """serve 重启恢复：把遗留 running/pending job 标记 failed（进程内 worker 已丢）。
 
     P4.5 Task 5 以 BackgroundTasks 进程内 worker 承载异步 ingest；serve 重启即丢
     running 任务（无持久队列）。启动时调用本函数把陈旧非终态 job 置
     ``failed("服务重启，任务中断")``，前端轮询即时得到终态而非永挂。持
     久队列（Celery+Redis）留 roadmap P9。
+
+    自建一次性 engine 并 dispose（同 ``_seed_demo_async`` 模式）——不复用模块级
+    ``SessionLocal`` 的共享池：``asyncio.run`` 关闭的 loop 会让池中连接失效，
+    uvicorn 新 loop 复用即 ``'NoneType' object has no attribute 'send'``。
     """
     import asyncio
     import logging
 
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from calliodesmo.config import get_settings
+
     logger = logging.getLogger(__name__)
 
     async def _reset() -> int:
-        async with session_factory() as s:
-            result = await s.execute(
-                select(Job).where(Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
-            )
-            stale = result.scalars().all()
-            for job in stale:
-                job.status = JobStatus.FAILED
-                job.error = "服务重启，任务中断（请重新上传）"
-                job.finished_at = func.now()
-            await s.commit()
-            return len(stale)
+        engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+        try:
+            factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with factory() as s:
+                result = await s.execute(
+                    select(Job).where(Job.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
+                )
+                stale = result.scalars().all()
+                for job in stale:
+                    job.status = JobStatus.FAILED
+                    job.error = "服务重启，任务中断（请重新上传）"
+                    job.finished_at = func.now()
+                await s.commit()
+                return len(stale)
+        finally:
+            await engine.dispose()
 
     try:
         count = asyncio.run(_reset())

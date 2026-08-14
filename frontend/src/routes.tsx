@@ -4,6 +4,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { AskPanel } from "@/features/qa/AskPanel";
 import { LibraryPage } from "@/features/library/LibraryPage";
+import { IngestPage } from "@/features/ingest/IngestPage";
 import { UserManage } from "@/features/admin/UserManage";
 import { TeamProjectManage } from "@/features/admin/TeamProjectManage";
 import { DocumentCommunityManage } from "@/features/admin/DocumentCommunityManage";
@@ -23,6 +24,7 @@ export const routes = createBrowserRouter([
       { index: true, element: <Navigate to="/app/qa" replace /> },
       { path: "qa", element: <AskPanel /> },
       { path: "library", element: <LibraryPage /> },
+      { path: "ingest", element: <IngestPage /> },
       { path: "admin/users", element: <UserManage /> },
       { path: "admin/teams", element: <TeamProjectManage /> },
       { path: "admin/communities", element: <DocumentCommunityManage /> },
