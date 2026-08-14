@@ -98,8 +98,9 @@ class PushService:
             if texts:
                 result = await embedding.embed(texts)
                 vectors = dict(zip(names, result.vectors, strict=True))
-        except RuntimeError:
-            # 嵌入后端不可用（缺 FlagEmbedding / 远端超时等）-> 退化为 v1 精确计数，不阻断推送
+        except Exception:
+            # 嵌入后端不可用（缺 FlagEmbedding / 远端超时 / 502 等）-> 退化为 v1
+            # 精确计数，不阻断推送（对齐是增强，非推送前置）
             return []
         pairs, _type_blocked = await compute_overlap_embedding(
             source_entities,
@@ -108,6 +109,9 @@ class PushService:
             auto_merge_threshold=settings.alignment_auto_merge_threshold,
             review_threshold=settings.alignment_review_threshold,
         )
+        # 过滤 self-pair：跨库重叠才进复核队列（source 与 target 同名同源属同库重复收集噪声
+        # ——如审核人与源用户同库可见时 personal 自比对，不是待复核的跨库重叠）
+        candidates = [p for p in pairs if p.source_name != p.target_name]
         return [
             {
                 "pair_id": p.pair_id,
@@ -120,7 +124,7 @@ class PushService:
                 "source_description": p.source_description,
                 "target_description": p.target_description,
             }
-            for p in pairs
+            for p in candidates
         ]
 
     async def build_manifest(

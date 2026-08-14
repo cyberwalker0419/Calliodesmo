@@ -99,6 +99,33 @@ async def test_compute_alignment_pending_review_band():
     assert p["source_description"] == "AI 研究"
 
 
+async def test_compute_alignment_pending_filters_self_pairs():
+    """同名同源对（score 1.0）属 v1 精确匹配路径，不进复核队列（跨库异名近似才收）。"""
+    src = [
+        _ent("OpenAI", "organization", "AI 研究"),
+        _ent("Anthropic", "organization", "AI 公司"),
+    ]
+    tgt = [
+        _ent("OpenAI", "organization", "AI 研究"),  # 自比对（source 同名）
+        _ent("Anthropic", "organization", "AI 公司"),  # 自比对
+        _ent("OpenAI Inc", "organization", "AI 研究实验室"),  # 异名近似
+    ]
+    emb = _VecEmbed(
+        {
+            "OpenAI": _unit(0, 64),
+            "OpenAI Inc": _cos_at(0, 0.90, 64),
+            "Anthropic": _unit(1, 64),
+        }
+    )
+    pending = await PushService.compute_alignment_pending(
+        src, tgt, embedding=emb, settings=_settings
+    )
+    # 只有异名近似对进队列；同名自比对被过滤
+    assert len(pending) == 1
+    assert pending[0]["source_name"] == "OpenAI"
+    assert pending[0]["target_name"] == "OpenAI Inc"
+
+
 async def test_build_manifest_stores_alignment_pending(session):
     """build_manifest 传入 alignment_pending -> manifest 落键；diff 返回。"""
     real_user = await _User(session)
