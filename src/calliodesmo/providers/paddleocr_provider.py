@@ -11,6 +11,7 @@ default 保持确定性、零重依赖、离线可测（test/* 走 ``StubOcrProv
 
 from __future__ import annotations
 
+import base64
 import tempfile
 from pathlib import Path
 
@@ -136,47 +137,41 @@ class PaddleOcrProvider(OcrProvider):
         if not self.server_url:
             raise RuntimeError(
                 "OCR remote 模式缺编排地址：设 CALLIODESMO_OCR_SERVER_URL"
-                "（PaddleOCR llama-server / vLLM 的 HTTP 服务地址）"
+                "（PaddleOCR-VL HTTP 服务地址，如 http://host:8084）"
             )
         import httpx  # 延迟导入（项目基础依赖组已含）
 
-        tmp_path, suffix = _save_tmp_image(image, mime)
-        payload: dict
+        # PaddleOCR-VL 1.6 server 契约：POST {base}/v1/ocr，JSON body
+        # {"image": "<base64>"}（裸 base64，非 data URI）；响应
+        # {"results":[{"markdown":{"markdown_texts": ...},
+        #              "json":{"res":{"parsing_res_list":[{"block_content":...}]}}}]}。
+        endpoint = self.server_url.rstrip("/") + "/v1/ocr"
+        payload = {"image": base64.b64encode(image).decode("ascii")}
         try:
-            # 文件字节在 async 体外读好（ASYNC230 规避），post 时仅带字节内容
-            with open(tmp_path, "rb") as f:  # noqa: ASYNC230 - 一次性同步读，非阻塞式副作用
-                img_bytes = f.read()
             async with httpx.AsyncClient(timeout=120) as client:
-                files = {"file": (f"doc{suffix}", img_bytes, mime)}
-                data = {"text_input": "OCR:"}
-                resp = await client.post(self.server_url, files=files, data=data)
+                resp = await client.post(endpoint, json=payload)
                 resp.raise_for_status()
-                payload = resp.json()
+                # httpx 按 content-type charset 解码；服务端声明 utf-8，中文正常
+                data = resp.json()
         except httpx.HTTPStatusError as exc:
             raise RuntimeError(
                 f"OCR remote 编排失败：HTTP {exc.response.status_code} -> "
-                f"{exc.response.text}"
+                f"{exc.response.text[:500]}"
             ) from exc
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)  # noqa: ASYNC240 - 见 _extract_local
-        # PaddleOCR 编排服务的响应多为 {"results":[{...}]}，逐条取 rec_texts/text 拼合；
-        # 形态因部署版本而异，稳妥遍历 dict 中的文本字段回退。
+
         texts: list[str] = []
-
-        def _collect(node):
-            if isinstance(node, dict):
-                rec = node.get("rec_texts")
-                if isinstance(rec, list):
-                    texts.extend(str(t) for t in rec if str(t).strip())
-                for key in ("text", "markdown"):
-                    val = node.get(key)
-                    if isinstance(val, str) and val.strip():
-                        texts.append(val)
-                for v in node.values():
-                    _collect(v)
-            elif isinstance(node, list):
-                for v in node:
-                    _collect(v)
-
-        _collect(payload)
+        for result in data.get("results", []) if isinstance(data, dict) else []:
+            # markdown_texts 是引擎排版后的完整转录，优先取；缺失时回退逐块 block_content
+            md = result.get("markdown")
+            md_text = md.get("markdown_texts") if isinstance(md, dict) else None
+            if isinstance(md_text, str) and md_text.strip():
+                texts.append(md_text)
+                continue
+            js = result.get("json")
+            if isinstance(js, dict):
+                res = js.get("res", {})
+                for block in res.get("parsing_res_list", []) or []:
+                    content = block.get("block_content")
+                    if isinstance(content, str) and content.strip():
+                        texts.append(content)
         return "\n".join(texts)

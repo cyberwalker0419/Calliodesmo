@@ -71,3 +71,82 @@ def test_extract_text_from_result_rec_texts():
     """结果解析：rec_texts 优先，text 回退。"""
     assert _extract_text_from_result(_result_with("A")) == "A\n第二行"
     assert _extract_text_from_result(_result_without_json()) == "单文本回退"
+
+
+_REMOTE_RESPONSE = {
+    "model": "paddle-ocr-vl-1.6",
+    "results": [
+        {
+            "markdown": {"markdown_texts": "Calliodesmo OCR Test 2026\n\n三层知识图谱"},
+            "json": {
+                "res": {
+                    "parsing_res_list": [
+                        {"block_label": "text", "block_content": "Calliodesmo OCR Test 2026"},
+                        {"block_label": "text", "block_content": "三层知识图谱"},
+                    ]
+                }
+            },
+        }
+    ],
+}
+
+
+class _FakeResponse:
+    def __init__(self, payload, status=200):
+        self._payload = payload
+        self.status_code = status
+        self.text = str(payload)
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._payload
+
+
+class _RecordingClient:
+    """记录请求的 url/json，返回固定响应；模拟 httpx.AsyncClient 上下文。"""
+
+    last: dict | None = None
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def post(self, url, **kwargs):
+        _RecordingClient.last = {"url": url, **kwargs}
+        return _FakeResponse(_REMOTE_RESPONSE)
+
+
+async def test_paddleocr_remote_uses_v1_ocr_endpoint(monkeypatch):
+    """remote 模式：POST {base}/v1/ocr，JSON body 为裸 base64 image（非 multipart）。"""
+    import httpx
+
+    monkeypatch.setattr(httpx, "AsyncClient", _RecordingClient)
+    provider = PaddleOcrProvider(
+        server_url="http://example.test:8084", remote=True, model="PaddleOCR-VL-1.6"
+    )
+    res = await provider.extract_text(b"\x89PNG fake", mime="image/png")
+
+    recorded = _RecordingClient.last
+    assert recorded["url"] == "http://example.test:8084/v1/ocr"
+    body = recorded["json"]
+    assert set(body.keys()) == {"image"}
+    # 裸 base64（无 data: 前缀），且可解回原字节
+    assert not body["image"].startswith("data:")
+    assert __import__("base64").b64decode(body["image"]) == b"\x89PNG fake"
+    # markdown_texts 优先；有 markdown 时不重复拼 parsing_res_list
+    assert res.text == "Calliodesmo OCR Test 2026\n\n三层知识图谱"
+    assert res.metadata == {"remote": True}
+
+
+async def test_paddleocr_remote_missing_url_raises():
+    """remote 模式缺 server_url -> RuntimeError 引导配置。"""
+    provider = PaddleOcrProvider(remote=True)
+    with pytest.raises(RuntimeError, match="CALLIODESMO_OCR_SERVER_URL"):
+        await provider.extract_text(b"x", mime="image/png")
