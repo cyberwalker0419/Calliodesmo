@@ -139,6 +139,12 @@ def serve(
 
     if seed_demo:
         _seed_demo_for_serve()
+    # P4.5 Task 5：启动恢复——遗留 pending/running job（进程内 worker 已随重启丢失）
+    # 置 failed，前端轮询即时得到终态而非永挂。清理失败不阻启动。
+    from calliodesmo.db.session import SessionLocal
+    from calliodesmo.ecl.job_worker import reset_stale_running_jobs
+
+    reset_stale_running_jobs(SessionLocal)
     uvicorn.run("calliodesmo.api.app:app", host=host, port=port, reload=reload)
 
 

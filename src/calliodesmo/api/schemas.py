@@ -338,3 +338,26 @@ class IngestStatsOut(BaseModel):
     relations: int
     communities: int
     profile_cards: int
+
+
+class IngestAcceptedOut(BaseModel):
+    """POST /ingest 202 响应：异步 job 已受理，轮询 /jobs/{job_id} 取进度。"""
+
+    job_id: uuid.UUID
+    status: str
+    filename: str
+
+
+class JobOut(BaseModel):
+    """GET /jobs/{id}：摄入任务状态 + 进度 + 结果统计 / 错误。"""
+
+    id: uuid.UUID
+    filename: str
+    status: str
+    progress: int
+    progress_stage: str | None
+    result: dict[str, Any] | None
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
