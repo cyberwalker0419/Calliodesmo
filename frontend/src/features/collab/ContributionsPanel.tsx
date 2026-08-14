@@ -250,6 +250,7 @@ export function ContributionsPanel() {
         title={data?.find((c) => c.id === detailId)?.title ?? ""}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        canApprove={access.canApprove()}
       />
     </div>
   );

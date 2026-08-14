@@ -175,6 +175,30 @@ export interface DiffOut {
   relation_summaries: string[][]; // [source, target, type]
   chunk_ids: string[];
   community_ids: string[];
+  // P4.5 Task 6：待审对齐候选对（embedding 复核档，来自 manifest alignment_pending）
+  alignment_pending?: AlignmentPending[];
+}
+
+/** 待审对齐候选对（P4.5 Task 6）。 */
+export interface AlignmentPending {
+  pair_id: string;
+  source_name: string;
+  target_name: string;
+  score: number;
+  type: string | null;
+  source_type: string | null;
+  target_type: string | null;
+  source_description: string;
+  target_description: string;
+  status?: "pending" | "approved" | "rejected";
+}
+
+/** /collab/{id}/alignment-review/{approve,reject} 响应。 */
+export interface AlignmentReviewOut {
+  pair_id: string;
+  status: "approved" | "rejected";
+  source_name?: string | null;
+  target_name?: string | null;
 }
 
 export interface IngestStats {

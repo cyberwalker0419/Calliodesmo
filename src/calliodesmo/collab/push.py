@@ -94,9 +94,13 @@ class PushService:
         name_desc = _name_description(names, source_entities, target_entities)
         texts = [f"{name}: {desc}" for name, desc in name_desc]
         vectors = {}
-        if texts:
-            result = await embedding.embed(texts)
-            vectors = dict(zip(names, result.vectors, strict=True))
+        try:
+            if texts:
+                result = await embedding.embed(texts)
+                vectors = dict(zip(names, result.vectors, strict=True))
+        except RuntimeError:
+            # 嵌入后端不可用（缺 FlagEmbedding / 远端超时等）-> 退化为 v1 精确计数，不阻断推送
+            return []
         pairs, _type_blocked = await compute_overlap_embedding(
             source_entities,
             target_entities,

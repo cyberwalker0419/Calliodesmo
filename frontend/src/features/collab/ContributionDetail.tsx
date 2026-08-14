@@ -1,9 +1,22 @@
 import type { ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, FileText, GitBranch, Layers, Users } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  CheckCheck,
+  FileText,
+  GitBranch,
+  Layers,
+  Users,
+  X,
+} from "lucide-react";
 import { api } from "@/api/client";
-import type { DiffOut } from "@/api/types";
+import type {
+  AlignmentPending,
+  AlignmentReviewOut,
+  DiffOut,
+} from "@/api/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/use-toast";
 import {
   Tabs,
   TabsContent,
@@ -23,6 +37,7 @@ interface ContributionDetailProps {
   title: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canApprove?: boolean;
 }
 
 /** 计数卡片：图标 + 数字 + 标签。 */
@@ -77,24 +92,110 @@ function DetailList({
   );
 }
 
+/** 待审对齐对列表项：source↔target + 相似度 + 类型/描述对比 + 批准/驳回。 */
+function AlignmentCard({
+  pair,
+  canApprove,
+  onResolve,
+  busy,
+}: {
+  pair: AlignmentPending;
+  canApprove: boolean;
+  onResolve: (pairId: string, action: "approve" | "reject") => void;
+  busy: boolean;
+}) {
+  const pct = Math.round(pair.score * 100);
+  const tone =
+    pair.score >= 0.95 ? "text-emerald-500" : pair.score >= 0.85 ? "text-amber-500" : "text-muted-foreground";
+  return (
+    <div className="rounded-md border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-mono text-sm font-medium">{pair.source_name}</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="truncate font-mono text-sm font-medium">{pair.target_name}</span>
+          <Badge variant="outline" className="ml-1 shrink-0 text-[10px]">
+            {pair.type ?? "—"}
+          </Badge>
+        </div>
+        <span className={`shrink-0 text-sm font-semibold ${tone}`}>
+          {pct}%
+        </span>
+      </div>
+      <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+        <div className="rounded-sm bg-muted/30 p-2">
+          <div className="mb-0.5 font-medium text-foreground">源 · {pair.source_type ?? "—"}</div>
+          {pair.source_description || "（无描述）"}
+        </div>
+        <div className="rounded-sm bg-muted/30 p-2">
+          <div className="mb-0.5 font-medium text-foreground">目标 · {pair.target_type ?? "—"}</div>
+          {pair.target_description || "（无描述）"}
+        </div>
+      </div>
+      {canApprove && (
+        <div className="mt-2 flex justify-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onResolve(pair.pair_id, "reject")}
+          >
+            <X className="mr-1 h-3 w-3" />
+            驳回
+          </Button>
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => onResolve(pair.pair_id, "approve")}
+          >
+            <CheckCheck className="mr-1 h-3 w-3" />
+            批准合并
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * ContributionDetail：差异清单详情（消费 GET /collab/{id}/diff）。
  *
  * 懒加载：仅 ``open`` 时拉取 diff（GET 端点会在 manifest 缺失时自动 collect+build）。
- * 展示 5 个计数卡片（实体/关系/chunk/社区/冲突）+ Tabs 明细（实体名/关系/chunk/社区 id）。
- * 冲突仅计数（同名不同义明细留 v2）。
+ * 展示 6 个计数卡片（实体/关系/chunk/社区/冲突/待审对齐）+ Tabs 明细（实体名/关系/chunk/社区 id/对齐）。
+ * 对齐复核（P4.5 Task 6）：待审对 + 批准/驳回；自审/无 APPROVE 时仅展示无操作按钮。
  */
 export function ContributionDetail({
   contributionId,
   title,
   open,
   onOpenChange,
+  canApprove = false,
 }: ContributionDetailProps) {
+  const qc = useQueryClient();
   const { data: diff, isLoading, error } = useQuery({
     queryKey: ["collab-diff", contributionId],
     queryFn: () => api.get<DiffOut>(`/collab/${contributionId}/diff`),
     enabled: !!contributionId && open,
   });
+
+  const resolve = useMutation({
+    mutationFn: (vars: { pairId: string; action: "approve" | "reject" }) =>
+      api.post<AlignmentReviewOut>(
+        `/collab/${contributionId}/alignment-review/${vars.action}`,
+        { pair_id: vars.pairId }
+      ),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["collab-diff", contributionId] });
+      toast({
+        title: vars.action === "approve" ? "已批准合并" : "已驳回",
+      });
+    },
+    onError: (e) =>
+      toast({ variant: "destructive", title: "复核失败", description: String(e) }),
+  });
+
+  const pending = diff?.alignment_pending ?? [];
+  const pendingCount = pending.filter((p) => p.status !== "approved" && p.status !== "rejected").length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,7 +220,7 @@ export function ContributionDetail({
           </p>
         ) : diff ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
               <StatCard
                 icon={<Users className="h-4 w-4" />}
                 value={diff.new_entities}
@@ -146,18 +247,31 @@ export function ContributionDetail({
                 label="同名冲突"
                 tone={diff.conflicts > 0 ? "warn" : "default"}
               />
+              <StatCard
+                icon={<CheckCheck className="h-4 w-4" />}
+                value={pendingCount}
+                label="待审对齐"
+                tone={pendingCount > 0 ? "warn" : "default"}
+              />
             </div>
 
             {diff.conflicts > 0 && (
               <p className="flex items-center gap-1 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3 w-3 text-destructive" />
                 目标库存在 {diff.conflicts} 项同名同类型实体（v1 按 name 精确合并；
-                同名不同义明细留 v2）。
+                同名不同义明细见下方「对齐复核」Tab）。
+              </p>
+            )}
+
+            {pending.length > 0 && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <CheckCheck className="h-3 w-3 text-amber-500" />
+                {pendingCount} 对待审对齐（相似度 0.85-0.95）：批准并入目标库或驳回保留新节点。
               </p>
             )}
 
             <Tabs defaultValue="entities">
-              <TabsList>
+              <TabsList className="flex-wrap">
                 <TabsTrigger value="entities">
                   实体（{diff.entity_names.length}）
                 </TabsTrigger>
@@ -169,6 +283,9 @@ export function ContributionDetail({
                 </TabsTrigger>
                 <TabsTrigger value="communities">
                   社区（{diff.community_ids.length}）
+                </TabsTrigger>
+                <TabsTrigger value="alignment">
+                  对齐复核（{pendingCount}）
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="entities" className="mt-2">
@@ -212,6 +329,25 @@ export function ContributionDetail({
                   emptyText="（无社区）"
                   render={(c) => String(c)}
                 />
+              </TabsContent>
+              <TabsContent value="alignment" className="mt-2">
+                {pending.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    （暂无待审对齐对）
+                  </p>
+                ) : (
+                  <div className="max-h-80 space-y-2 overflow-auto py-1">
+                    {pending.map((p) => (
+                      <AlignmentCard
+                        key={p.pair_id}
+                        pair={p}
+                        canApprove={canApprove}
+                        busy={resolve.isPending}
+                        onResolve={(pairId, action) => resolve.mutate({ pairId, action })}
+                      />
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
