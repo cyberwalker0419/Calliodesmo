@@ -41,7 +41,7 @@ async def _seed_actor(session, username, permissions, clearance=ClearanceLevel.S
 
 
 def _test_settings() -> Settings:
-    """离线 settings：test/stub LLM + hash 嵌入 + example 模板（零网络）。"""
+    """离线 settings：test/stub LLM + hash 嵌入 + OCR/识图桩 + example 模板（零网络）。"""
     base = get_settings()
     return base.model_copy(
         update={
@@ -49,6 +49,8 @@ def _test_settings() -> Settings:
             "embedding_provider": "hash",
             "extraction_template_file": "config/extraction_templates.example.yaml",
             "llm_api_key": "test",
+            "ocr_provider": "stub",
+            "vision_model": "test/stub-vision",
         }
     )
 
@@ -159,3 +161,27 @@ async def test_delete_other_users_doc_404(session):
         # B 尝试删 A 的文档 -> 404（list_chunks 经 visible_to 过滤，B 看不到 A 的 doc）
         resp = await c.delete("/ingest/secret.md", headers=_auth(token_b))
     assert resp.status_code == 404
+
+
+async def test_ingest_png_with_stub_ocr(session):
+    """上传 PNG -> 201 + chunk（StubOCR 转文本 -> StubLLM 抽取，离线零网络）。"""
+    reset_app_stores()
+    user, token = await _seed_actor(session, "pnguser", {Permission.INGEST})
+    # 1x1 透明 PNG（合法最小）
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+        "0000000a49444154789c6360000002000100ffffff8455a17c0000000049454e44ae426082"
+    )
+    async with _make_client(session) as c:
+        resp = await c.post(
+            "/ingest",
+            files={"file": ("scan.png", png, "image/png")},
+            headers=_auth(token),
+        )
+    assert resp.status_code == 201, resp.text
+    stats = resp.json()
+    assert stats["chunks"] > 0
+    # 落库：OCR 文本进入 chunk（StubLLM 抽取实体）
+    stores = get_app_stores()
+    chunks = list(stores.vector_store._records.values())
+    assert any(c.owner_id == user.id for c in chunks)

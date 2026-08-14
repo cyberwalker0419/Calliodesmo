@@ -170,3 +170,10 @@ async def get_search_engine() -> SearchEngine:
         ) from exc
     stores.search_engine = engine
     return engine
+
+
+async def get_vision_provider():
+    """识图 VLM provider（/query/with-image 用）；按配置路由，测试可经依赖覆盖为桩。"""
+    from calliodesmo.retrieval.factory import build_vision_provider
+
+    return build_vision_provider(get_settings())

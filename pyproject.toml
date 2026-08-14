@@ -31,6 +31,8 @@ documents-opendocument = ["odfpy>=1.4"]
 documents-rich = ["striprtf>=0.0.26", "ebooklib>=0.18", "beautifulsoup4>=4.12"]
 documents-email = ["extract-msg>=0.48"]
 documents-notebooks = ["nbformat>=5.10"]
+# 专用文档 OCR：PaddleOCR-VL（重型依赖，懒加载 + 缺依赖友好报错；远端编排可免装）
+documents-ocr = ["paddleocr[doc-parser]>=3.6"]
 # 可选图分析：networkx Louvain/Leiden
 graph-analytics = ["networkx>=3.3"]
 

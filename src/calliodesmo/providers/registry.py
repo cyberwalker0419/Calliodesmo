@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from calliodesmo.interfaces.document_loader import DocumentLoader, LoadedDocument
+from calliodesmo.interfaces.ocr import OcrProvider
+from calliodesmo.interfaces.vision import VisionProvider
 from calliodesmo.providers._base_loader import dependency_available
 from calliodesmo.providers.markup_loader import OrgLoader, RstLoader, TexLoader
 from calliodesmo.providers.structured_loader import (
@@ -113,8 +115,20 @@ def _register_heavy(registry: LoaderRegistry) -> None:
             registry.register(s, loader)
 
 
-def default_registry() -> LoaderRegistry:
-    """默认注册表：内置格式全注册，重依赖格式懒注册。"""
+#: 图片后缀（经 OCR/识图模型加载，需 provider 注册时才挂载）
+IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp")
+
+
+def default_registry(
+    ocr: OcrProvider | None = None,
+    vision: VisionProvider | None = None,
+    vision_prompt: str | None = None,
+) -> LoaderRegistry:
+    """默认注册表：内置格式全注册，重依赖格式懒注册。
+
+    传了 ``ocr`` / ``vision`` provider 才注册图片后缀（ImageLoader）；
+    两者皆 None 时不注册（离线兼容旧调用，图片文档无法加载并给出引导）。
+    """
     reg = LoaderRegistry()
     text = TextDocumentLoader()
     for s in (".txt", ".log", ".md", ".markdown"):
@@ -131,4 +145,10 @@ def default_registry() -> LoaderRegistry:
     reg.register(".org", OrgLoader())
     reg.register(".tex", TexLoader())
     _register_heavy(reg)
+    if ocr is not None or vision is not None:
+        from calliodesmo.providers.image_loader import ImageLoader
+
+        img = ImageLoader(ocr=ocr, vision=vision, vision_prompt=vision_prompt)
+        for s in IMAGE_SUFFIXES:
+            reg.register(s, img)
     return reg
