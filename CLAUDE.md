@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P4.5-persistence-production**（持久化与生产化：承诺批次 Task 1-4 已完成，后端 407 passed；Task 5 摄入 UI、Task 6 三段式对齐待接续；P4 Git-like 协作推送已完成）。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P4.5-persistence-production**（持久化与生产化：承诺批次 Task 1-4、Task 5 摄入 UI、Task 6 三段式对齐+复核 UI 均已完成；P4 Git-like 协作推送已完成）。
 
 ## 当前阶段
 
@@ -19,7 +19,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
 - **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地）
-- **P4.5** 持久化与生产化 ✅ Task 1-4（承诺批次：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性修复）完成（后端 407 passed / 1 skipped）；Task 5 摄入 UI + 异步 job、Task 6 三段式实体对齐 + 复核 UI 待接续（详见 [docs/plans/phases/P4.5-persistence-production.md](docs/plans/phases/P4.5-persistence-production.md)）
+- **P4.5** 持久化与生产化 ✅ Task 1-4（承诺批次）✅ Task 5（摄入 UI + 异步 job）✅ Task 6（三段式实体对齐 + 复核 UI）完成（详见 [docs/plans/phases/P4.5-persistence-production.md](docs/plans/phases/P4.5-persistence-production.md)）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
