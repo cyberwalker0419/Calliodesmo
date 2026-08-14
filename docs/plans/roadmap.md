@@ -114,7 +114,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - **P2 基础检索与 RAG（里程碑）**：NativeRAG(情景层)/LocalSearch(语义层)/GlobalSearch(摘要层)、**混合检索**（稠密 BGE-M3 三输出 + 稀疏 BM25 + 图，RRF 融合）+ **交叉编码器重排**（`bge-reranker-v2-m3`；向量与 rerank 均打原文，不打摘要）、答案标注来源文本块、按 AccessContext 过滤可见语料、FastAPI+CLI 暴露 Q&A。**此为"基础功能完善"节点。**
 - **P3 Web UI（启动并持续迭代）**：登录注册、个人/组织库视图、问答面板、**用户/用户组管理 UI（添加/编辑/删除/查询、角色与组成员，受 `manage_users` 保护；service/CLI/API 管理端点同期补全）**、**文档社区手动管理 UI**、角色可见性。用 `frontend-design` skill 构建。
 - **P4 Git-like 协作推送**：个人库 -> 项目库 -> 团队库、贡献/审核/合并状态机、图谱合并(实体去重/关系并集/来源打标)、**抽取模板新类型 review-gated 沉淀**（团队模板随语料生长，经审核并入）、推送审核指派到组、**文档社区选项 B（独立文档嵌入聚类引擎 + 社区版本/分支/合并 + 社区回滚，v1 完成）**。
-- **P4.5 持久化与生产化（P3/P4 桥接）**：stores 真后端持久化（pgvector/Neo4j/Postgres；**ProfileCard/BM25 暂缓 2026-W33，PG/Neo4j `delete_by_doc` 留 TODO**）、增量索引 MVP（文档指纹 + 受影响子图 delete；**字段级合并 + 社区 id 稳定化暂缓后置**）、P4 合并落库贯通与双写一致性修复、前端 ingest UI + 异步 job、embedding 三段式实体对齐 + 人工复核。详见 [[docs/plans/phases/P4.5-persistence-production|P4.5 计划]]。
+- **P4.5 持久化与生产化（P3/P4 桥接）✅ 承诺批次（Task 1-4）完成（2026-07-31）**：store 真后端持久化（pgvector/Neo4j/Postgres；**ProfileCard/BM25 暂缓 2026-W33，PG/Neo4j `delete_by_doc` 留 TODO**）、增量索引 MVP（文档指纹 + 受影响子图 delete；**字段级合并 + 社区 id 稳定化暂缓后置**）、P4 合并落库贯通与双写一致性修复——后端 407 passed / 1 skipped（2026-08-13 全量实测）。**Task 5 前端 ingest UI + 异步 job、Task 6 embedding 三段式实体对齐 + 人工复核 已入接续区**（步骤已写全，直接按 [[docs/plans/phases/P4.5-persistence-production|P4.5 计划]] 启动）。**Task 7 多模态 OCR/识图（图片文档摄入 + `/query/with-image` 带图问答）已落地（2026-08-14 闭合）**：后续真机验证（PaddleOCR-VL 部署 / qwen3-vl 真实识图质量）按 `.env.example` 接线。
 - **P5 高级 RAG 与智能检索**：MultiQuery / RAGFusion / SubQuestion；Corrective(CRAG) / SelfCheck / Adaptive；**分层切分 + 上下文富化（contextual retrieval）/ 语义切分**（精度精化）；混合检索与重排成熟。
 - **P6 LLM 分析任务（9 类）**：摘要、关键信息、时间线、实体识别、关系映射、任务列表、概念解释、问答、自定义提示。输出结构化报告。
 - **P7 Agent 模式**：ReAct / ReWOO / PlanExecute（LangGraph）+ 工具定义，权限内行动。
@@ -145,6 +145,9 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）混�
 - 2027-04：P7 完成 + P8 证据验证
 - 2027-05：P8 完成 + P9 规模化
 - 2027-06：稳定、打磨、文档、收尾
+
+> [!note] 进度注记（2026-08-13，08-14 更新）
+> P0-P4 与 **P4.5 承诺批次（Task 1-4）** 均提前完成（全员 407 passed）；原时间表的 2026-08~2027-01 段整体前移约半年。当前处于 **P4.5 接续区**：Task 5-6（摄入 UI + 异步 job / 三段式实体对齐 + 复核 UI）步骤已写全待启动；**Task 7 多模态 OCR/识图（图片文档摄入 + 带图问答）已落地闭合（2026-08-14，见 [[docs/verification/OCR-vision-verification|OCR/识图验证报告]]）**。并按此节奏滚动更新月/周计划（2026-08 起）。
 
 整体跨度约 11 个月，与学年节奏对齐。
 

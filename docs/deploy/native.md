@@ -4,13 +4,13 @@ type: guide
 tags:
   - deploy
 created: 2026-07-26
+updated: 2026-08-13
 ---
 # 原生部署指南
 
-> [!warning] P4.5 起：SQLite 开发模式已移除
+> [!warning] P4.5 起：不再有 SQLite 零依赖开发模式
 > 测试与运行一律连真实 **PG 16+ + pgvector + Neo4j**（`.env` 驱动，`uv sync --extra persistence`）。
-> 原"第二部分：SQLite 零依赖开发模式"整段已废弃（保留历史，待整体重写——TODO(P4.5, 2026-W32)）。
-> 下方仍提及 SQLite 的"测试/开发"列为历史描述，请以本横幅为准。
+> 原"第二部分：SQLite 零依赖开发模式"已重写为"真后端 + 离线桩模型"（2026-08-13），SQLite 遗留均已清除。
 
 > [!info] 部署模式
 > - **测试 / 开发部署**：真实 PG+pgvector + Neo4j + 离线桩模型（`test/stub` + `hash` + `none`），用于跑测试套件与本地冒烟。
@@ -78,19 +78,23 @@ uv sync                       # 核心依赖（含 dev 组）
 # 第二部分　测试 / 开发部署
 
 > [!tip] 目标
-> 几分钟拉起可测试实例：无需 Postgres/Neo4j/真实模型，全离线。适合本地开发、跑测试套件、UI 冒烟。
+> 分钟级拉起可测试实例：**真实 PG+pgvector + Neo4j**（本地或局域网自建均可）+ **离线桩模型**。
+> P4.5 起不再支持 SQLite；测试套件与本地冒烟都连真后端。
 
-## 3. 配置 .env（SQLite + 离线桩模型）
+## 3. 配置 .env（真后端连接串 + 离线桩模型）
 
 ```bash
 cp .env.example .env          # Windows: copy .env.example .env
 ```
 
-把数据/模型三段设为离线桩：
+真后端默认即 .env.example 的连接串（PG+Neo4j 由你自备，见下方 8.x 安装指引）；把模型三段设为离线桩：
 
 ```dotenv
-# 数据库：SQLite 零依赖
-CALLIODESMO_DATABASE_URL=sqlite+aiosqlite:///./data/calliodesmo-dev.db
+# 数据库 / 图库：真实 PG + pgvector + Neo4j（P4.5 必需；无需改即本地默认）
+CALLIODESMO_DATABASE_URL=postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo
+CALLIODESMO_NEO4J_URI=bolt://localhost:7687
+CALLIODESMO_NEO4J_USER=neo4j
+CALLIODESMO_NEO4J_PASSWORD=calliodesmo
 
 # LLM：离线桩（无网络，返回固定响应，仅验证管线机制）
 CALLIODESMO_LLM_MODEL=test/stub
@@ -108,44 +112,51 @@ CALLIODESMO_RERANKER_PROVIDER=none
 CALLIODESMO_ADMIN_PASSWORD=admin-123456
 ```
 
+> [!warning] 前置：PG+pgvector 与 Neo4j 必须已就绪
+> 测试与 `db init` 都会连真后端（`.env` 驱动）。PG 需已 `CREATE EXTENSION IF NOT EXISTS vector`；Neo4j 需可登录。自建实例步骤见第三部分 §8（PG 安装 §8.1，Neo4j §8.1，模型 §8.3）。局域网自建也可（把连接串 host 改为内网 IP）。
+
 > `test/stub` 对任意输入返回写死的抽取（如 `OpenAI -developed-> GPT-4`），**用于验证管线机制而非抽取质量**。真实抽取见第三部分模型配置。
 
 ## 4. 初始化数据库
 
 ```bash
+uv sync --extra persistence  # 装依赖（含 pgvector / neo4j，P4.5 必需）
 uv run calliodesmo db init   # 建表（幂等）
-uv run calliodesmo db seed   # 内置角色/权限 + 初始管理员（幂等）
+uv run calliodesmo db seed   # 内置角色/权限 + 初始管理员 + 系统账户（幂等）
 ```
 
-或一键引导（幂等，自动设 SQLite + 建表 + 种子 + 冒烟）：
+或一键引导（幂等，自动检查 uv → sync → 准备 .env → 建表 → 种子 → 冒烟，`.env` 驱动、无 SQLite 标志）：
 
 ```powershell
 # Windows
-.\scripts\bootstrap.ps1 -Sqlite
+.\scripts\bootstrap.ps1
 ```
 ```bash
 # Linux / macOS
-scripts/bootstrap.sh --sqlite
+scripts/bootstrap.sh
 ```
+
+> 引导脚本不代装 PG/Neo4j；请先按第三部分 §8 自备并确保 `.env` 连接串可达（`db init` 会真实连库）。
 
 ## 5. 测试套件
 
-### 5.1 后端（pytest）
+### 5.1 后端（pytest，连真 PG+Neo4j）
 
 ```bash
-uv run pytest -v             # 289 用例，内存 SQLite，离线可跑
+uv sync --extra persistence   # pgvector / neo4j 为测试与运行必需
+uv run pytest -v             # 407 用例（全量连 .env 的 PG+Neo4j；`-m "not db"` 仅跑纯逻辑 251）
 uv run ruff check .          # 静态检查
 uv run ruff format --check . # 格式检查
 ```
 
-隔离原理（无需外部服务即可跑）：
+隔离原理（全部连真实后端）：
 
-- **内存 SQLite**：每用例独立 `sqlite+aiosqlite:///:memory:`（见 `tests/conftest.py`）。
-- **`sys.modules` 桩**：隔离 litellm / uvicorn 等外部依赖--完全离线。
+- **schema 隔离**：每用例在专用 PG schema `calliodesmo_test`（与生产 `public` 物理隔离）内每测 TRUNCATE；CLI 测试经 `cli_db` 夹具唯一 schema 隔离；Neo4j 经 `neo4j_session` 夹具每测清图。
+- **`sys.modules` 桩**：隔离 litellm / uvicorn 等外部依赖——离线可跑（仅模型桩，不抽真实 LLM）。
 - **契约优先**：接口测试断言输入映射与输出结构，保证可插拔。
 - **幂等**：种子与引导脚本均显式验证可重复执行。
 - **权限矩阵**：`/query` `/admin/*` `/library/*` 受限端点做参数化矩阵（3 角色 × 端点）。
-- **stores 隔离**：内存 stores 单例经 `reset_app_stores()` 在 try/finally 清理。
+- **DB 标记**：依赖 PG/Neo4j 的用例自动打 `@pytest.mark.db`，CI 以 `-m "not db"` 跳过；全量回归靠本地 `.env`。
 
 ### 5.2 前端（vitest）
 
@@ -160,17 +171,17 @@ npm run build               # vite build（验证产物可构建）
 
 `.github/workflows/ci.yml` 在每次 push/PR 自动执行：
 
-- 后端 job：`uv sync` -> `ruff check` + `ruff format --check` -> `pytest`。
+- 后端 job：`uv sync` -> `ruff check` + `ruff format --check` -> `pytest -m "not db"`（纯逻辑）。
 - 前端 job：`npm ci` -> `npm run build` -> `vitest`。
 
-本地复现 CI：依次跑上述 5.1 + 5.2 命令即可。
+本地复现 CI：依次跑上述 5.1 + 5.2 命令（全量 DB 测试在本机跑）。
 
 ## 6. 冒烟验证
 
-启动 API + 桩演示数据（全离线，秒级）：
+启动 API + 演示数据（连真后端，秒级）：
 
 ```bash
-uv run calliodesmo serve --seed-demo   # 对 data/demo/ 跑桩 ECL 灌内存 stores，启动 SPA
+uv run calliodesmo serve --seed-demo   # 对 data/demo/ 跑桩 ECL 写入 PG/Neo4j，启动 SPA
 ```
 
 ```bash
@@ -190,15 +201,18 @@ CLI 建图冒烟（导出抽取详情供检查）：
 uv run calliodesmo ingest <path> --dump-json out.json --dump-html out.html
 ```
 
-## 7. 能力边界（SQLite 开发模式）
+> `--seed-demo` 说明：演示数据走 serve 进程内自灌（对 `data/demo/` 跑 ECL），产物落盘 `data/demo/seed-cache.json`，二次启动命中缓存跳过 LLM；指向自定义语料可设 `CALLIODESMO_DEMO_DIR`。
 
-| 可用 | 不可用 |
+## 7. 能力边界（真后端基线）
+
+| 可用 | 边界 |
 | --- | --- |
-| 认证 / 权限 / 审计 / CLI / API / Web UI 全功能 | pgvector 持久化向量检索 |
-| 检索与问答（向量库/图库/社区库降级为**内存实现**） | Neo4j 持久化语义层 |
-| 完整测试套件（内存 SQLite） | 进程重启后内存 stores 数据丢失（仅 SQLite 持久化元数据） |
+| 认证 / 权限 / 审计 / CLI / API / Web UI 全功能 | — |
+| 三层存储真后端持久化（pgvector 向量检索 / Neo4j 语义层 / PG 摘要） | — |
+| 重启不丢（P4 合并落库、增量索引、双写一致性） | 跨 store 三轨原子性 v1，两阶段留 P9 |
+| 完整测试套件（连真实 PG+Neo4j） | 需 `.env` 指向可达的 PG+Neo4j；CI 仅纯逻辑（`-m "not db"`） |
 
-> 需要持久化向量检索 / 图库时，切到第三部分生产部署（仅改 `.env` 连接串，应用层无感）。
+> 演示/开发期可只装离线桩模型（`test/stub` + `hash` + `none`），但**数据引擎必须真后端**——这是 P4.5 起的最低基线。
 
 ---
 
@@ -255,7 +269,7 @@ psql -d calliodesmo -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
 > [!tip] Windows 门槛高？
-> 先用第二部分 SQLite 开发模式跑通应用；需要向量检索/图库时，把 Postgres/Neo4j 部署到 Linux 机器/容器，仅改 `.env` 连接串，应用层无感。
+> 用**局域网自建** PG/Neo4j 跑第二部分的测试/开发部署（改 `.env` 连接串 host 为内网 IP，应用层无感）；或用 Docker 全栈（根目录 `docker-compose.yml`）一键起库。两路都不用在本机编译 pgvector。
 
 #### Neo4j Community
 
@@ -460,7 +474,7 @@ server {
 | `LLM 缺 API key` | 非 localhost 服务需填 `LLM_API_KEY`（任意非空）或改指向 localhost |
 | litellm 安装失败（Windows） | 钉版 `<1.91`；`≥1.93` 无预编译 wheel，需 Rust/MSVC |
 | PDF / Word 加载报错 | `uv sync --extra documents-pdf` / `documents-office` |
-| pgvector Windows 编译难 | 先用 SQLite 开发模式，或把 Postgres 部署到 Linux/容器 |
+| pgvector Windows 编译难 | 用 Docker 全栈（`docker-compose.yml`）或局域网自建 PG/Neo4j（第二部分测试/开发部署），无需本机编译 |
 | `serve --seed-demo` 重复运行崩溃 | 已修复（`selectinload`）；拉取最新代码 |
 | 查询无结果 | 检查用户 clearance/scope；演示数据需 `serve --seed-demo`；非 admin 看不到他人个人库 |
 | LiteLLM `CERTIFICATE_VERIFY_FAILED` 警告 | 仅模型价格表拉取失败，已回退本地备份，不影响推理 |

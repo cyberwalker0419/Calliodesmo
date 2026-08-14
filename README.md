@@ -2,15 +2,15 @@
 
 > 三层知识图谱驱动的智能情报分析平台 - GraphRAG 索引基座 + 混合检索与 Agent 编排，LLM / 嵌入 / 重排均可切换。
 
-[![phase: P4 done](https://img.shields.io/badge/phase-P4%20done-22c55e)](docs/plans/roadmap.md)
-[![tests: 350 passing](https://img.shields.io/badge/tests-350%20passing-3b82f6)](docs/verification/P4-verification.md)
+[![phase: P4.5 Task1-4 done](https://img.shields.io/badge/phase-P4.5%20Task1--4%20done-22c55e)](docs/plans/phases/P4.5-persistence-production.md)
+[![tests: 407 passing](https://img.shields.io/badge/tests-407%20passing-3b82f6)](docs/verification/P4-verification.md)
 [![python: 3.12](https://img.shields.io/badge/python-3.12-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，并以**三维正交权限模型**（角色 + 访问等级 + 库范围）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
 > [!note] 当前阶段
-> **P4 Git-like 协作推送已完成**：个人库 → 项目库 → 团队库的贡献/审核/合并状态机、图谱合并（实体去重/关系并集/来源打标）、抽取模板 review-gated 沉淀、社区版本/合并/回滚、前端 ContributionsPanel。后端 350 passed。**P4.5 持久化与生产化下一步**：stores 真后端持久化（pgvector/Neo4j/Postgres）+ 增量索引 + P4 合并落库贯通 + 摄入 UI + 三段式复核。详见 [路线图](docs/plans/roadmap.md) 与 [P4.5 计划](docs/plans/phases/P4.5-persistence-production.md)。
+> **P4.5 持久化与生产化——承诺批次（Task 1-4）已完成**：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端持久化、增量索引 MVP、P4 合并落库贯通 + 双写一致性修复（全链路仿真 22 步贯通，后端 407 passed）。**已进入 Task 5（前端摄入 UI + 异步 job）/ Task 6（三段式实体对齐 + 复核 UI）接续区**。详见 [路线图](docs/plans/roadmap.md) 与 [P4.5 计划](docs/plans/phases/P4.5-persistence-production.md)。
 
 ## 5 分钟测试部署（桩模型，需 PG+Neo4j）
 
@@ -239,7 +239,7 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 | **P2** | 基础检索与 RAG（三模式 + RRF 混合 + 重排 + 评估 + /query） | ✅ 完成 |
 | **P3** | Web UI（React SPA + 管理/浏览后端补全 + 权限矩阵回归） | ✅ 完成 |
 | **P4** | Git-like 协作推送（贡献/审核/合并 + 图谱合并 + 模板沉淀 + 社区版本） | ✅ 完成 |
-| **P4.5** | 持久化与生产化（stores 真后端 + 增量索引 + 合并落库贯通 + 摄入 UI + 三段式） | ⏳ 下一步 |
+| **P4.5** | 持久化与生产化（Task 1-4：stores 真后端 + 增量索引 + 合并落库贯通 + 双写一致性） | ⏳ Task 1-4 完成 / Task 5-6 接续 |
 | P5-P9 | 高级检索 / 分析 / Agent / 证据验证 / 规模化 | ⏳ |
 
 完整规划与月/周/阶段计划见 **[实施路线图](docs/plans/roadmap.md)**（Obsidian vault 根为本仓库）。
@@ -264,8 +264,8 @@ CI（`.github/workflows/ci.yml`）在每次 push/PR 自动执行 ruff + pytest�
 - 📋 [实施路线图](docs/plans/roadmap.md) - P0-P9 年计划
 - 🚀 [原生部署指南](docs/deploy/native.md) - 测试/开发 + 生产原生部署（按步骤）
 - 🐳 [Docker 部署指南](docs/deploy/docker.md) - 一键全栈（Postgres+pgvector / Neo4j / app）
-- ✅ [P4 验证报告](docs/verification/P4-verification.md) - Git-like 协作推送验证（350 passed）
-- 📝 [阶段任务计划](docs/plans/phases/) - P0-P4 bite-sized TDD 步骤 + [P4.5 持久化与生产化](docs/plans/phases/P4.5-persistence-production.md)
+- ✅ [P4 验证报告](docs/verification/P4-verification.md) - Git-like 协作推送 + 持久化贯通验证（407 passed）
+- 📝 [阶段任务计划](docs/plans/phases/) - P0-P4 bite-sized TDD 步骤 + [P4.5 持久化与生产化](docs/plans/phases/P4.5-persistence-production.md)（Task 1-4 完成，Task 5-6 接续区）
 
 ## License
 
