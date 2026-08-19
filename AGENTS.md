@@ -140,13 +140,13 @@ uv run calliodesmo ingest <path> # 端到端建图
 
 ## 前端开发与验证闭环
 
-前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端（8000），同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 8200（见 `frontend/vite.config.ts`），后端联调启 `uv run calliodesmo serve --port 8200`，同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
 
 ### 前端命令（在 `frontend/` 执行）
 
 ```bash
 cd frontend
-npm run dev      # Vite dev server（5173，/api 代理到 8000）
+npm run dev      # Vite dev server（5173，/api 代理到 8200）
 npm run build    # tsc -b && vite build -> dist/
 npm run lint     # tsc -b --noEmit（noUnusedLocals/noUnusedParameters 严）
 npm run test     # vitest run（@testing-library/react）
@@ -157,7 +157,7 @@ npm run e2e      # Playwright e2e（@playwright/test，桌面 + 移动视口）
 
 **底线三件套**：任何前端改动都过 `lint` / `test` / `build`。**之上**，有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）走浏览器交互验证闭环；纯逻辑 / 类型改动（无视觉表现）三件套即可。判不准默认走三件套。
 
-1. **开发与启动**：改代码 -> 启 Vite dev（5173）；联调另起 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据，dev proxy 已把 `/api` -> 8000）。
+1. **开发与启动**：改代码 -> 启 Vite dev（5173）；联调另起 `uv run calliodesmo serve --port 8200`（灌演示数据加 `--seed-demo`；dev proxy 已把 `/api` -> 8200）。
 2. **取页面结构**：accessibility snapshot 拿无障碍树，识别按钮 / 输入框 / 路由项及 Selector（**首选 snapshot，非 screenshot**--snapshot 给可操作的 ref/selector，screenshot 不能驱动操作）。
 3. **模拟人类操作**：按业务路径 click / type / hover 像真实用户（登录页输错密码点登录、悬停下拉、切换问答模式、双击图谱节点展开 / 折叠、滑块调跳数与节点上限）。
 4. **视觉与状态感知**：screenshot 截图 -> 视觉识图模型分析布局 / 重叠 / 溢出 / 状态是否符合预期；同步查 console（error）/ network（4xx/5xx）/ snapshot（结构）。

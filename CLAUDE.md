@@ -120,7 +120,7 @@ uv run calliodesmo ingest <path> # 端到端建图
 
 > P4.5 起：测试与运行一律连真实 PG+pgvector+Neo4j（`.env` 驱动）。**SQLite 零依赖模式已移除**——测试经专用 schema `calliodesmo_test` 隔离 + 每测 TRUNCATE（见 `tests/conftest.py`），CLI 测试经 `cli_db` 夹具唯一 schema 隔离。
 
-> 前端联调启 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据；前端 dev proxy 已把 `/api` -> 8000）。
+> 前端联调启 `uv run calliodesmo serve --seed-demo --port 8200`（灌演示数据；前端 dev proxy 的 target 是 `127.0.0.1:8200`，见 `frontend/vite.config.ts`）。
 
 ## 测试策略
 
@@ -157,7 +157,7 @@ uv run calliodesmo ingest <path> # 端到端建图
 > **底线**：任何前端改动都要过三件套（`lint` / `test` / `build`）。
 > **之上**：有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）**必须走此交互验证闭环**；纯逻辑 / 类型改动（无视觉表现）三件套即可，不用 `preview_*`。判不准时默认走三件套。
 
-前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端（8000），同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 **8200**（见 `frontend/vite.config.ts`），同源 cookie 全程可用；后端联调启 `uv run calliodesmo serve --port 8200`。生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
 
 ### 工具说明
 
@@ -182,7 +182,7 @@ uv run calliodesmo ingest <path> # 端到端建图
 
 ```bash
 cd frontend
-npm run dev          # Vite dev server（5173，/api 代理到 8000）-- dev server 用 preview_start 启动，不用 Bash
+npm run dev          # Vite dev server（5173，/api 代理到 8200）-- dev server 用 preview_start 启动，不用 Bash
 npm run build        # tsc -b && vite build -> dist/
 npm run lint         # tsc -b --noEmit（类型检查，noUnusedLocals/noUnusedParameters 严）
 npm run test         # vitest run（单测，@testing-library/react）
@@ -191,7 +191,7 @@ npm run e2e          # Playwright e2e（@playwright/test，桌面 + 移动视口
 
 ### 闭环步骤
 
-1. **开发与启动**：改前端代码 -> `preview_start`（`name=frontend-dev`，5173，见 `.claude/launch.json`）。已启动则复用，不重启。后端联调另开 `uv run calliodesmo serve --seed-demo`（8000，灌演示数据；dev proxy 已把 `/api` -> 8000）。
+1. **开发与启动**：改前端代码 -> `preview_start`（`name=frontend-dev`，5173，见 `.claude/launch.json`）。已启动则复用，不重启。后端联调另开 `uv run calliodesmo serve --port 8200`（灌演示数据加 `--seed-demo`；dev proxy 已把 `/api` -> 8200）。
 2. **取页面结构**：`preview_snapshot` 拿无障碍树，识别按钮 / 输入框 / 路由项及其 selector（**首选 snapshot，非 screenshot**）。
 3. **模拟人类操作**：按业务路径用 `preview_click` / `preview_fill` / `preview_eval`(hover) 像真实用户操作（如：登录页输错密码点登录、悬停下拉、切换图谱布局、双击展开 / 折叠节点、滑块调跳数）。
 4. **视觉与状态感知**：`preview_screenshot` 截图 -> `mcp__GLM-EYE__analyze_image` 识图分析；同时 `preview_console_logs`（查 error）/ `preview_network`（查 4xx/5xx）/ `preview_snapshot`（查结构）。
