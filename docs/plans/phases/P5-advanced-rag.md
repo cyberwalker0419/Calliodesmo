@@ -93,13 +93,12 @@ class _Completion:
     model: str = "test"
     usage: dict = None
 
+
 class _StubLLM(LLMProvider):
     """返回固定 JSON 数组（模拟多视角子查询）。"""
 
     async def complete(self, messages, *, temperature=0.0, max_tokens=256):
-        return _Completion(
-            content='["查询 A 视角", "查询 B 视角", "查询 C 视角"]'
-        )
+        return _Completion(content='["查询 A 视角", "查询 B 视角", "查询 C 视角"]')
 
 
 async def test_multi_query_generator_returns_subqueries():
@@ -282,8 +281,12 @@ async def test_multi_query_retriever_fans_out_and_fuses():
     router = RewriteRouter(_FakeRewriter(), enabled=True)
     mq = MultiQueryRetriever(inner=inner, router=router)
     ctx = AccessContext(
-        user_id="u", username="u", clearance=1, permissions=frozenset(),
-        project_ids=frozenset(), team_ids=frozenset(),
+        user_id="u",
+        username="u",
+        clearance=1,
+        permissions=frozenset(),
+        project_ids=frozenset(),
+        team_ids=frozenset(),
     )
     cands = await mq.retrieve("问题", top_k=5, mode=SearchMode.NATIVE_RAG, access=ctx)
     assert len(cands) == 2  # a+b 融合后
@@ -321,10 +324,14 @@ def mmr_dedup(
     selected: list[Candidate] = []
     remaining = list(candidates)
     while remaining and len(selected) < top_k:
+
         def _score(c: Candidate) -> float:
             rel = _cosine(query_vec, vectors.get(c.chunk_id, []))
             div = max(
-                (_cosine(vectors.get(c.chunk_id, []), vectors.get(s.chunk_id, [])) for s in selected),
+                (
+                    _cosine(vectors.get(c.chunk_id, []), vectors.get(s.chunk_id, []))
+                    for s in selected
+                ),
                 default=0.0,
             )
             return lam * rel - (1 - lam) * div
@@ -425,7 +432,8 @@ class _FakeEmb(EmbeddingProvider):
     async def embed(self, texts):
         return EmbeddingResult(
             vectors=[[1.0 if i == 0 else 0.0 for i in range(4)] for _ in texts],
-            model="test", dimension=4,
+            model="test",
+            dimension=4,
         )
 
 
@@ -437,15 +445,23 @@ class _FakeVS(VectorStore):
     async def search(self, vec, *, top_k, access):
         self.calls.append(vec)
         return [ChunkRecord(chunk_id="c", doc_id="d", content="x", vector=[0.0])]
-    async def get_chunks_by_ids(self, ids): return []
-    async def list_chunks(self, *, access): return []
+
+    async def get_chunks_by_ids(self, ids):
+        return []
+
+    async def list_chunks(self, *, access):
+        return []
 
 
 async def test_context_enriched_blends_query_and_context():
     vs = _FakeVS()
     ctx = AccessContext(
-        user_id="u", username="u", clearance=1, permissions=frozenset(),
-        project_ids=frozenset(), team_ids=frozenset(),
+        user_id="u",
+        username="u",
+        clearance=1,
+        permissions=frozenset(),
+        project_ids=frozenset(),
+        team_ids=frozenset(),
     )
     retriever = ContextEnrichedRetriever(inner=vs, embedding=_FakeEmb(), context_weight=0.5)
     hits = await retriever.retrieve("问题", top_k=3, mode=SearchMode.NATIVE_RAG, access=ctx)
@@ -499,16 +515,28 @@ class ContextEnrichedRetriever(Retriever):
         lanes = {}
         if hits1:
             lanes["content"] = [
-                Candidate(chunk_id=h.chunk_id, doc_id=h.metadata.get("doc_id", ""),
-                          content=h.content, score=h.score, rank=i + 1,
-                          metadata=dict(h.metadata), source="vector")
+                Candidate(
+                    chunk_id=h.chunk_id,
+                    doc_id=h.metadata.get("doc_id", ""),
+                    content=h.content,
+                    score=h.score,
+                    rank=i + 1,
+                    metadata=dict(h.metadata),
+                    source="vector",
+                )
                 for i, h in enumerate(hits1)
             ]
         if hits2:
             lanes["context"] = [
-                Candidate(chunk_id=h.chunk_id, doc_id=h.metadata.get("doc_id", ""),
-                          content=h.content, score=h.score, rank=i + 1,
-                          metadata=dict(h.metadata), source="context")
+                Candidate(
+                    chunk_id=h.chunk_id,
+                    doc_id=h.metadata.get("doc_id", ""),
+                    content=h.content,
+                    score=h.score,
+                    rank=i + 1,
+                    metadata=dict(h.metadata),
+                    source="context",
+                )
                 for i, h in enumerate(hits2)
             ]
         if not lanes:
@@ -551,8 +579,14 @@ from calliodesmo.retrieval.corrective_rag import CorrectiveRagEngine, _confidenc
 
 
 def _ctx():
-    return AccessContext(user_id="u", username="u", clearance=1, permissions=frozenset(),
-                         project_ids=frozenset(), team_ids=frozenset())
+    return AccessContext(
+        user_id="u",
+        username="u",
+        clearance=1,
+        permissions=frozenset(),
+        project_ids=frozenset(),
+        team_ids=frozenset(),
+    )
 
 
 class _FakeEngine(SearchEngine):
@@ -568,7 +602,10 @@ class _FakeEngine(SearchEngine):
 
 async def test_confidence_low_when_no_sources():
     assert _confidence(Answer(text="x", source_chunk_ids=[], mode=SearchMode.NATIVE_RAG)) < 0.5
-    assert _confidence(Answer(text="x", source_chunk_ids=["c1", "c2"], mode=SearchMode.NATIVE_RAG)) > 0.5
+    assert (
+        _confidence(Answer(text="x", source_chunk_ids=["c1", "c2"], mode=SearchMode.NATIVE_RAG))
+        > 0.5
+    )
 
 
 async def test_crag_rewrites_once_on_low_confidence():
@@ -677,13 +714,20 @@ class _Engine(SearchEngine):
         self.calls += 1
         return Answer(
             text="答案一" if self.calls == 1 else "答案二",
-            source_chunk_ids=["c1"], mode=mode,
+            source_chunk_ids=["c1"],
+            mode=mode,
         )
 
 
 def _ctx():
-    return AccessContext(user_id="u", username="u", clearance=1, permissions=frozenset(),
-                         project_ids=frozenset(), team_ids=frozenset())
+    return AccessContext(
+        user_id="u",
+        username="u",
+        clearance=1,
+        permissions=frozenset(),
+        project_ids=frozenset(),
+        team_ids=frozenset(),
+    )
 
 
 async def test_selfcheck_keeps_good_answer():
@@ -722,9 +766,7 @@ class SelfCheckEngine(SearchEngine):
         self._judge = judge
         self._threshold = threshold
 
-    async def query(
-        self, question: str, *, mode: SearchMode, top_k: int, access: AccessContext
-    ):
+    async def query(self, question: str, *, mode: SearchMode, top_k: int, access: AccessContext):
         answer = await self._inner.query(question, mode=mode, top_k=top_k, access=access)
         score = await self._score(question, answer)
         if score >= self._threshold:
