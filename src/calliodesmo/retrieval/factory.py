@@ -221,10 +221,18 @@ def build_default_search_engine(
         embedding_provider=embedding,
         top_communities=settings.global_top_communities,
     )
-    return DefaultSearchEngine(
+    engine = DefaultSearchEngine(
         native_retriever=native,
         local_retriever=local,
         global_retriever=glob,
         reranker=reranker or IdentityReranker(),
         synthesizer=AnswerSynthesizer(llm),
     )
+    # P5 Task 4：crag_enabled 时整体包 CorrectiveRagEngine（低置信重写重查 1 轮）
+    if getattr(settings, "crag_enabled", False):
+        from calliodesmo.retrieval.corrective_rag import CorrectiveRagEngine
+
+        engine = CorrectiveRagEngine(
+            inner=engine, threshold=getattr(settings, "crag_threshold", 0.5)
+        )
+    return engine

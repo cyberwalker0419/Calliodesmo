@@ -107,6 +107,10 @@ class Settings(BaseSettings):
     contextual_retrieval_enabled: bool = False
     # context 路向量缩放占比（0=纯 native 召回，越大越偏上下文摘要通道）
     contextual_context_weight: float = 0.5
+    # CRAG 检索自知开关（默认关，开启时引擎被 CorrectiveRagEngine 包装：来源不足重写重查 1 轮）
+    crag_enabled: bool = False
+    # CRAG 置信阈值（来源 chunk 数/3，低于则触发重写重查）
+    crag_threshold: float = 0.5
     eval_golden_file: str = "config/golden_qa.yaml"
 
 
