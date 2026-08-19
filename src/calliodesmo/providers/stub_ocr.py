@@ -29,8 +29,7 @@ class StubOcrProvider(OcrProvider):
         prompt_hint = (prompt or "OCR")[:24]
         return OcrResult(
             text=(
-                f"[离线桩 OCR 占位] 提示词={prompt_hint}，图片 "
-                f"{len(image)} 字节（仅验证管线联通）"
+                f"[离线桩 OCR 占位] 提示词={prompt_hint}，图片 {len(image)} 字节（仅验证管线联通）"
             ),
             model=self.model,
             metadata={"stub": True, "mime": mime},

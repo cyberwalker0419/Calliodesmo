@@ -81,9 +81,7 @@ def build_vision_provider(settings: Settings):
     is_local = bool(settings.vision_api_base) and any(
         h in (settings.vision_api_base or "") for h in local_hosts
     )
-    exempt = (
-        model.startswith("ollama/") or model.startswith("lm-studio/") or is_local
-    )
+    exempt = model.startswith("ollama/") or model.startswith("lm-studio/") or is_local
     if not exempt and not settings.vision_api_key:
         raise RuntimeError(
             "识图模型缺 API key：设置环境变量 CALLIODESMO_VISION_API_KEY"

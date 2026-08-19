@@ -155,8 +155,7 @@ class PaddleOcrProvider(OcrProvider):
                 data = resp.json()
         except httpx.HTTPStatusError as exc:
             raise RuntimeError(
-                f"OCR remote 编排失败：HTTP {exc.response.status_code} -> "
-                f"{exc.response.text[:500]}"
+                f"OCR remote 编排失败：HTTP {exc.response.status_code} -> {exc.response.text[:500]}"
             ) from exc
 
         texts: list[str] = []

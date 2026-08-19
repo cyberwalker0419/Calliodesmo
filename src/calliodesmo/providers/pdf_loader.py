@@ -88,7 +88,5 @@ class PdfLoader(DocumentLoader):
                 png_bytes = pix.tobytes("png")
         finally:
             doc.close()
-        result = await self._ocr.extract_text(
-            png_bytes, mime="image/png", prompt=self._ocr_prompt
-        )
+        result = await self._ocr.extract_text(png_bytes, mime="image/png", prompt=self._ocr_prompt)
         return result.text

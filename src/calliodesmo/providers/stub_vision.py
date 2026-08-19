@@ -29,8 +29,7 @@ class StubVisionProvider(VisionProvider):
         prompt_hint = (text or "识图")[:24]
         return VisionResponse(
             content=(
-                f"[离线桩 VLM 占位] 提示词={prompt_hint}，图片 "
-                f"{len(image)} 字节（仅验证管线联通）"
+                f"[离线桩 VLM 占位] 提示词={prompt_hint}，图片 {len(image)} 字节（仅验证管线联通）"
             ),
             model=self.model,
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
