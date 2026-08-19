@@ -102,6 +102,9 @@ class Settings(BaseSettings):
     # P5 检索质量精化：MultiQuery 查询改写开关（默认关，开启时 native 路经
     # MultiQueryRetriever 多视角子查询 -> RRF 融合）
     multi_query_enabled: bool = False
+    # contextual retrieval：块级摘要向量混搜开关（默认关，开启时 native 路经
+    # ContextEnrichedRetriever 两路召回；需 chunk_summary_enabled 供料摘要）
+    contextual_retrieval_enabled: bool = False
     eval_golden_file: str = "config/golden_qa.yaml"
 
 
