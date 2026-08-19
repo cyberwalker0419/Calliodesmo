@@ -188,6 +188,15 @@ def build_default_search_engine(
     native = HybridRetriever(
         vector_store=vector_store, embedding_provider=embedding, sparse_index=sparse_index
     )
+    # P5 Task 2：multi_query_enabled 时 native 路经 MultiQueryRetriever（多视角子查询 -> RRF 融合）
+    if getattr(settings, "multi_query_enabled", False):
+        from calliodesmo.retrieval.multi_query_retriever import MultiQueryRetriever
+        from calliodesmo.retrieval.rewrite import MultiQueryGenerator, RewriteRouter
+
+        native = MultiQueryRetriever(
+            inner=native,
+            router=RewriteRouter(MultiQueryGenerator(llm), enabled=True),
+        )
     local = LocalSearchRetriever(
         seed_extractor=seed,
         graph_store=graph_store,

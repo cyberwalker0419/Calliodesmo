@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     global_top_communities: int = 10
     default_search_mode: str = "native_rag"
     chunk_summary_enabled: bool = False
+    # P5 检索质量精化：MultiQuery 查询改写开关（默认关，开启时 native 路经
+    # MultiQueryRetriever 多视角子查询 -> RRF 融合）
+    multi_query_enabled: bool = False
     eval_golden_file: str = "config/golden_qa.yaml"
 
 
