@@ -239,6 +239,14 @@ def build_default_indexing_engine(
 
     registry = ExtractionTemplateRegistry.from_yaml(settings.extraction_template_file)
     extractor = LLMExtractor(llm, registry)
+    # OCR / 识图 provider：test/* 走桩；其余按配置路由（OCR=PaddleOCR-VL，识图=LiteLLM 视觉）
+    from calliodesmo.retrieval.factory import build_ocr_provider, build_vision_provider
+
+    ocr = build_ocr_provider(settings)
+    vision = build_vision_provider(settings)
+    loader = default_registry(
+        ocr=ocr, vision=vision, vision_prompt=getattr(settings, "vision_prompt", None)
+    )
     # 嵌入 provider 路由：hash（离线/测试）| bge-m3（本地 FlagEmbedding）| remote（OpenAI 兼容远端）
     emb_provider_name = (settings.embedding_provider or "hash").lower()
     if emb_provider_name == "remote":
@@ -300,7 +308,7 @@ def build_default_indexing_engine(
             embedding_provider, community_store, threshold=settings.doc_cluster_threshold
         )
     return ECLIndexingEngine(
-        loader=default_registry(),
+        loader=loader,
         chunker=TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap),
         extractor=extractor,
         cognify=cognify,

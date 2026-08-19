@@ -18,6 +18,8 @@ tags:
 | [[docs/verification/P3-verification\|P3 验证报告]] | Web UI | ✅ 289 passed / ruff 0 error | 2026-07-27 |
 | [[docs/verification/P4-verification\|P4 验证报告]] | Git-like 协作推送 | ✅ 332 passed / 1 skipped / 1 failed(pre-existing) / ruff 0 error | 2026-07-29 |
 | [[docs/verification/full-chain-simulation\|全链路仿真验证报告]] | P4.5 全链路仿真（HTTP 驱动真后端） | ✅ 22 步全绿 / 发现并修复 2 处 `/ingest` 真后端 bug / 30+5 回归通过 | 2026-07-31 |
+| [[docs/verification/P4-verification\|P4 验证报告 ·持久化贯通段]]→ | P4.5 Task 1-4（真后端持久化 + 增量 + 合并落库贯通 + 双写一致性） | ✅ **407 passed / 1 skipped / 0 failed**（2026-08-13 全量实测；JWT 401 污染已修）/ ruff 0 error | 2026-07-31 起 / 08-13 复核 |
+| [[docs/verification/OCR-vision-verification\|OCR/识图多模态验证报告]] | P4.5 Task 7（图片文档摄入 + 带图问答 /query/with-image） | ✅ **423 passed / 1 skipped / 0 failed**（全量净增 16 用例）/ 前端三件套绿 + preview 闭环 200 | 2026-08-14 |
 
 ## 目录结构
 
@@ -28,11 +30,13 @@ docs/verification/
 ├── P1-verification.md        # P1 验证报告
 ├── P2-verification.md        # P2 验证报告
 ├── P3-verification.md        # P3 验证报告
-├── P4-verification.md        # P4 验证报告
-├── pytest-output.txt         # 证据：pytest 原始输出
+├── P4-verification.md        # P4 验证报告（含 P4.5 持久化贯通验证段）
+├── OCR-vision-verification.md # P4.5 Task 7 多模态 OCR/识图验证报告
+├── pytest-output.txt         # 证据：pytest 原始输出（P4.5 407 passed）
 ├── pytest-output-p3.txt      # 证据：P3 pytest 输出
 ├── pytest-output-p4.txt      # 证据：P4 pytest 输出
-└── bootstrap-evidence.txt    # 证据：bootstrap 两次运行（幂等）+ DB 内容佐证
+├── bootstrap-evidence.txt    # 证据：bootstrap 两次运行（幂等）+ DB 内容佐证
+└── full-chain-simulation.md  # 证据：P4.5 全链路仿真验证报告
 ```
 
 ## 验证标准

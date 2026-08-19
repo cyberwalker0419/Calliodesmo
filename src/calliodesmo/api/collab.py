@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.api.deps import get_app_stores, get_current_context, require_permission
 from calliodesmo.api.schemas import (
+    AlignmentReviewOut,
+    AlignmentReviewRequest,
     ContributionCreate,
     ContributionOut,
     DiffOut,
@@ -22,6 +24,7 @@ from calliodesmo.api.schemas import (
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import LibraryScope, Permission
 from calliodesmo.auth.service import get_access_context
+from calliodesmo.collab.alignment_review import AlignmentReviewService
 from calliodesmo.collab.merge import MergeService
 from calliodesmo.collab.push import PushService
 from calliodesmo.collab.service import (
@@ -39,6 +42,7 @@ router = APIRouter(prefix="/collab", tags=["collab"])
 _svc = ContributionService()
 _push = PushService()
 _merge = MergeService()
+_alignment = AlignmentReviewService()
 
 
 def _to_out(c) -> ContributionOut:
@@ -166,6 +170,7 @@ async def get_diff(
     ctx: AccessContext = Depends(get_current_context),
     stores=Depends(get_app_stores),
     session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
 ) -> DiffOut:
     c = await _svc.get(session, contribution_id, access=ctx)
     if c is None:
@@ -174,6 +179,10 @@ async def get_diff(
         collected = await _push.collect(c, stores=stores, access=ctx)
         target_entities = await stores.graph_store.list_entities(access=ctx)
         overlap = PushService.compute_overlap(collected.entities, target_entities)
+        # P4.5 Task 6：嵌入三段式复核队列（BGE-M3 等真嵌入；缺失时零 overlap 候选）
+        alignment_pending = await _compute_alignment_pending(
+            collected.entities, target_entities, settings
+        )
         await _push.build_manifest(
             session,
             c,
@@ -181,10 +190,28 @@ async def get_diff(
             target_overlap=overlap,
             user_id=ctx.user_id,
             source="api",
+            alignment_pending=alignment_pending,
         )
         await session.commit()
         c = await _svc.get(session, contribution_id, access=ctx)
     return DiffOut(**_push.diff(c))
+
+
+async def _compute_alignment_pending(
+    source_entities: list, target_entities: list, settings: Settings
+) -> list[dict]:
+    """按 embedding 三段式算对齐候选；缺嵌入 provider 时返回空（v1 退化，不阻断）。"""
+    if not source_entities or not target_entities:
+        return []
+    from calliodesmo.retrieval.factory import build_embedding_provider
+
+    try:
+        embedding = build_embedding_provider(settings)
+    except (RuntimeError, ValueError):
+        return []
+    return await PushService.compute_alignment_pending(
+        source_entities, target_entities, embedding=embedding, settings=settings
+    )
 
 
 @router.post("/{contribution_id}/submit", response_model=ContributionOut)
@@ -264,3 +291,90 @@ async def merge_contribution(
     await session.commit()
     c = await _svc.get(session, contribution_id, access=ctx)
     return _to_out(c)
+
+
+# ---- 对齐复核（P4.5 Task 6 Step 4）----
+
+
+@router.get("/{contribution_id}/alignment-review", response_model=list[dict])
+async def list_alignment_pending(
+    contribution_id: uuid.UUID,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict]:
+    """待审对齐对列表（approve 权限 + 贡献可见）。"""
+    require_permission(ctx, Permission.APPROVE)
+    try:
+        return await _alignment.collect_pending(session, contribution_id, access=ctx)
+    except ContributionNotFoundError as exc:
+        raise _err(exc) from exc
+
+
+async def _resolve_alignment_pair(
+    contribution_id: uuid.UUID,
+    req: AlignmentReviewRequest,
+    ctx: AccessContext,
+    stores,
+    session: AsyncSession,
+    resolve: str,
+) -> AlignmentReviewOut:
+    require_permission(ctx, Permission.APPROVE)
+    c = await _svc.get(session, contribution_id, access=ctx)
+    if c is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="贡献不存在或不可见")
+    source_access = await get_access_context(session, c.source_user_id)
+    if source_access is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="源用户不存在")
+    try:
+        if resolve == "approve":
+            result = await _alignment.approve(
+                session,
+                contribution_id,
+                pair_id=req.pair_id,
+                user_id=ctx.user_id,
+                stores=stores,
+                source_access=source_access,
+                target_access=ctx,
+            )
+        else:
+            result = await _alignment.reject(
+                session,
+                contribution_id,
+                pair_id=req.pair_id,
+                user_id=ctx.user_id,
+                stores=stores,
+                source_access=source_access,
+                target_access=ctx,
+            )
+    except (ContributionError, ContributionNotFoundError) as exc:
+        raise _err(exc) from exc
+    await session.commit()
+    return AlignmentReviewOut(**result)
+
+
+@router.post("/{contribution_id}/alignment-review/approve", response_model=AlignmentReviewOut)
+async def approve_alignment_pair(
+    contribution_id: uuid.UUID,
+    req: AlignmentReviewRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    stores=Depends(get_app_stores),
+    session: AsyncSession = Depends(get_session),
+) -> AlignmentReviewOut:
+    """批准待审对齐对：源实体并入目标库实体（并集 + provenance），幂等。"""
+    return await _resolve_alignment_pair(
+        contribution_id, req, ctx, stores, session, resolve="approve"
+    )
+
+
+@router.post("/{contribution_id}/alignment-review/reject", response_model=AlignmentReviewOut)
+async def reject_alignment_pair(
+    contribution_id: uuid.UUID,
+    req: AlignmentReviewRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    stores=Depends(get_app_stores),
+    session: AsyncSession = Depends(get_session),
+) -> AlignmentReviewOut:
+    """驳回待审对齐对：仅置 rejected + 审计，不动 stores。"""
+    return await _resolve_alignment_pair(
+        contribution_id, req, ctx, stores, session, resolve="reject"
+    )

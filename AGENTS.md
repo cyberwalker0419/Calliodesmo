@@ -15,7 +15,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
 - **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地）
-- **P4.5** 持久化与生产化 ⏳ 下一步（stores 真后端持久化 + 增量索引 + P4 合并落库贯通 + 摄入 UI + 三段式复核；详见 `docs/plans/phases/P4.5-persistence-production.md`）
+- **P4.5** 持久化与生产化 ✅ Task 1-4（承诺批次：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性修复）完成（后端 407 passed / 1 skipped）；Task 5 摄入 UI + 异步 job、Task 6 三段式实体对齐 + 复核 UI 待接续（详见 `docs/plans/phases/P4.5-persistence-production.md`）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 

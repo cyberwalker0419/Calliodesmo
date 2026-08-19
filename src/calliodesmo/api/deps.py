@@ -170,3 +170,21 @@ async def get_search_engine() -> SearchEngine:
         ) from exc
     stores.search_engine = engine
     return engine
+
+
+async def get_vision_provider():
+    """识图 VLM provider（/query/with-image 用）；按配置路由，测试可经依赖覆盖为桩。"""
+    from calliodesmo.retrieval.factory import build_vision_provider
+
+    return build_vision_provider(get_settings())
+
+
+def get_job_session_factory():
+    """后台 job worker 的 session 工厂（默认生产 SessionLocal；测试可覆盖为测试 schema）。
+
+    P4.5 Task 5：worker 无请求上下文，须自建 session 落 job 状态/审计；经依赖注入
+    暴露，测试（conftest 专用 schema 隔离）可 override 指向测试 engine。
+    """
+    from calliodesmo.db.session import SessionLocal
+
+    return SessionLocal

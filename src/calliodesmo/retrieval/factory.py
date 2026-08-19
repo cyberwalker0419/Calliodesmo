@@ -57,6 +57,72 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
     )
 
 
+def build_vision_provider(settings: Settings):
+    """按配置路由识图 VLM 后端（qwen3-vl 等；test/* 走桩）。
+
+    与 LLM 同一套豁免规则（localhost / ollama/ / lm-studio/ 免 key），
+    零本地重型依赖；云端改 CALLIODESMO_VISION_MODEL / API_KEY / API_BASE 即切。
+    """
+
+    model = settings.vision_model
+    if model.startswith("test/"):
+        from calliodesmo.providers.stub_vision import StubVisionProvider
+
+        return StubVisionProvider(model=model)
+
+    from calliodesmo.providers.litellm_vision import LiteLLMVisionProvider
+
+    extra_body = (
+        {"chat_template_kwargs": {"enable_thinking": False}}
+        if getattr(settings, "llm_disable_thinking", True)
+        else None
+    )
+    local_hosts = ("localhost", "127.0.0.1", "0.0.0.0", "::1")
+    is_local = bool(settings.vision_api_base) and any(
+        h in (settings.vision_api_base or "") for h in local_hosts
+    )
+    exempt = model.startswith("ollama/") or model.startswith("lm-studio/") or is_local
+    if not exempt and not settings.vision_api_key:
+        raise RuntimeError(
+            "识图模型缺 API key：设置环境变量 CALLIODESMO_VISION_API_KEY"
+            "（本地服务可设 CALLIODESMO_VISION_API_BASE 指向 http://localhost:... 自动豁免）"
+        )
+    return LiteLLMVisionProvider(
+        model=model,
+        api_key=settings.vision_api_key,
+        api_base=settings.vision_api_base,
+        extra_body=extra_body,
+    )
+
+
+def build_ocr_provider(settings: Settings):
+    """按配置路由 OCR 后端（PaddleOCR-VL；test/* 走桩；none 返回 None）。
+
+    - ``none``：未启用 OCR（纯文本文档，无图片摄入）-> 返回 None
+    - ``stub`` / ``test/*``：离线桩
+    - ``paddleocr``：PaddleOCR-VL，本机 extra 懒加载或远端编排（ocr_remote）
+    """
+    name = (settings.ocr_provider or "none").lower()
+    if name in ("", "none"):
+        return None
+    if name == "stub" or str(settings.ocr_model).startswith("test/"):
+        from calliodesmo.providers.stub_ocr import StubOcrProvider
+
+        return StubOcrProvider(model="test/stub-ocr")
+    if name == "paddleocr":
+        from calliodesmo.providers.paddleocr_provider import PaddleOcrProvider
+
+        return PaddleOcrProvider(
+            pipeline_version=settings.ocr_pipeline_version,
+            vl_backend=settings.ocr_vl_backend,
+            server_url=settings.ocr_server_url,
+            prompt=settings.ocr_prompt,
+            remote=settings.ocr_remote,
+            model=settings.ocr_model,
+        )
+    raise ValueError(f"未知 OCR provider: {name}（可选 none / stub / paddleocr）")
+
+
 def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
     """嵌入 provider 路由：hash | bge-m3 | remote。"""
     name = (settings.embedding_provider or "hash").lower()

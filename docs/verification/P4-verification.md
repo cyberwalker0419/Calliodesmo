@@ -202,18 +202,20 @@ uv run calliodesmo contributions list / show <id> / submit <id> / approve <id> /
 | 4 | **双写一致性**：Neo4j+PG 中途失败不留半写/可检测可重试 | ✅ | `tests/test_merge_double_write_consistency.py`（3 用例，TDD 先红后绿）+ `Neo4jGraphStore.upsert_graph` 改 PG-first |
 | 5 | **权限矩阵**：/collab push/approve/merge × 三角色对齐 `DEFAULT_ROLE_PERMISSIONS`；前端三件套 | ✅ | `tests/test_permission_isolation.py` 新增 3 条参数化矩阵（9 用例）+ 前端 lint/vitest/build 绿 |
 
-### 后端测试结果（2026-07-31，本地 `.env` 连真实 PG+pgvector+Neo4j）
+### 后端测试结果（2026-07-31 基线；2026-08-13 复核更新）
 
 ```
 uv run pytest -q
-=> 392 passed, 1 skipped, 1 failed（pre-existing 测试间 JWT 401 污染，与本阶段无关，见下）
+=> 392 passed, 1 skipped, 1 failed（pre-existing 测试间 JWT 401 污染，已由 PR #8 修复）
 uv run ruff check . && uv run ruff format --check .
 => All checks passed!
 ```
 
+**2026-08-13 复核（PR #8 `586b40e` 落地后全量实测）**：`uv run pytest -q` → **407 passed / 1 skipped / 0 failed**（连远端 PG 18.4 + pgvector + Neo4j），pre-existing JWT 401 污染已清除。测试数 392→407 = 07-31→08-13 期间新增（`test_json_safe` 5 + serve_seed_demo 等增补），非神祕复现。
+
 **本阶段新增 17 用例全绿**：持久化贯通 2 + 社区 PG 贯通 3 + 双写一致性 3 + collab 权限矩阵 9。
 
-**已知 pre-existing 失败（非本阶段引入）**：全量跑时偶发某个 JWT token API 测试 401（本次 `test_subgraph_api::test_subgraph_basic_expansion`；隔离跑 `test_permission_isolation` 前 4 条同模式）。**单文件跑全绿**（subgraph 1 passed；permission_isolation 27 passed）——系 `get_settings()` lru_cache 与 `cli_db` 夹具 `cache_clear()+setenv` 的测试间状态污染。已 spawn 独立任务跟进（修夹具隔离，不改生产行为）。CI 跑 `-m "not db"` 不触这些 DB 用例。
+**已知 pre-existing 失败（已修复）**：全量跑时偶发某个 JWT token API 测试 401（本次 `test_subgraph_api::test_subgraph_basic_expansion`；隔离跑 `test_permission_isolation` 前 4 条同模式）。**2026-08-13 已随 PR #8 `586b40e`（`fix/test-jwt-secret-isolation`）修复**——锁定 JWT secret + cli_db teardown 陈旧缓存清理，全量实测 0 failed。CI 跑 `-m "not db"` 本就不触这些 DB 用例。
 
 ### 关键发现（双写一致性，Step 4）
 
@@ -239,6 +241,6 @@ npm run build  # vite build        -> 成功（12.11s）
 - **"合并覆盖源 personal 数据"**：P4 既有语义（InMemory 按 name/chunk_id 覆盖，PG/Neo4j 同），非持久化引入——贯通测试镜像此行为，未断言源库保留。
 - **Task 2 Step 5（ProfileCard/BM25 持久化）**：暂缓 2026-W33（次要 store）。
 - **Task 3 Step 3/4（字段级合并 + 社区 id 稳定化）**：暂缓，归 Task 4 闭合后接续 / roadmap P9。
-- **测试间 JWT 401 污染**：pre-existing，已 spawn 独立任务跟进。
+- **测试间 JWT 401 污染**：已随 PR #8 `586b40e`（2026-08-13）修复，全量 0 failed。
 
 > **Task 4 闭合 → 承诺批次（Task 1-4）完成，P4 生产可用 + 持久化 + 增量。** Task 5（摄入 UI）/ Task 6（三段式对齐）步骤已写全，Task 4 闭合后直接接续。

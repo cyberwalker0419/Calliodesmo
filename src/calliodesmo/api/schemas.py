@@ -302,10 +302,40 @@ class DiffOut(BaseModel):
     relation_summaries: list[list[str]]  # [source, target, type]
     chunk_ids: list[str]
     community_ids: list[str]
+    alignment_pending: list[dict[str, Any]] = []
 
 
 class RejectRequest(BaseModel):
     reason: str = ""
+
+
+# ---- /collab 对齐复核（P4.5 Task 6）----
+
+
+class AlignmentPending(BaseModel):
+    """待审对齐候选对（diff 返回，取自 manifest alignment_pending）。"""
+
+    pair_id: str
+    source_name: str
+    target_name: str
+    score: float
+    type: str | None = None
+    source_type: str | None = None
+    target_type: str | None = None
+    source_description: str = ""
+    target_description: str = ""
+    status: str = "pending"
+
+
+class AlignmentReviewRequest(BaseModel):
+    pair_id: str = Field(min_length=1)
+
+
+class AlignmentReviewOut(BaseModel):
+    pair_id: str
+    status: str
+    source_name: str | None = None
+    target_name: str | None = None
 
 
 # ---- /collab 抽取模板 review-gated ----
@@ -338,3 +368,26 @@ class IngestStatsOut(BaseModel):
     relations: int
     communities: int
     profile_cards: int
+
+
+class IngestAcceptedOut(BaseModel):
+    """POST /ingest 202 响应：异步 job 已受理，轮询 /jobs/{job_id} 取进度。"""
+
+    job_id: uuid.UUID
+    status: str
+    filename: str
+
+
+class JobOut(BaseModel):
+    """GET /jobs/{id}：摄入任务状态 + 进度 + 结果统计 / 错误。"""
+
+    id: uuid.UUID
+    filename: str
+    status: str
+    progress: int
+    progress_stage: str | None
+    result: dict[str, Any] | None
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None

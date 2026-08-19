@@ -13,6 +13,7 @@ from calliodesmo.auth.models import (
 )
 from calliodesmo.collab.community_version import CommunityVersion
 from calliodesmo.collab.models import Contribution
+from calliodesmo.db.models_job import Job, JobStatus
 
 # 内容层 ORM（P4.5 Task 2）需 pgvector 扩展（uv sync --extra persistence）。
 # 未装时（CI / 未 sync extra）跳过注册——CI 以 -m "not db" 不触这些表，非 DB 测试不依赖。
@@ -37,6 +38,8 @@ __all__ = [
     "Contribution",
     "Document",
     "EntityRecordORM",
+    "Job",
+    "JobStatus",
     "ProfileCardORM",
     "Project",
     "ProjectMember",

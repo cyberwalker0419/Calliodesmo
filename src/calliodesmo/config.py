@@ -33,6 +33,33 @@ class Settings(BaseSettings):
         True  # 对 reasoning 模型禁用思考链（chat_template_kwargs.enable_thinking=False）
     )
 
+    # --- 实体对齐（P4.5 Task 6 三段式：auto_merge / 复核 / 新节点） ---
+    # 实体 name+description 向量余弦相似度阈值：>=auto_merge 自动合并；
+    # [review, auto_merge) 进人工复核队列；<review 新节点（type 不同一律 new）
+    alignment_auto_merge_threshold: float = 0.95
+    alignment_review_threshold: float = 0.85
+
+    # --- 模型栈：OCR（PaddleOCR-VL 专职，indoc 逐字转录） ---
+    # none（未启用/纯文本文档）| paddleocr（专用引擎）| stub（test/* 自动走桩）
+    ocr_provider: str = "none"
+    ocr_model: str = "PaddleOCR-VL-1.6"
+    ocr_pipeline_version: str = "v1.6"
+    # PaddleOCR-VL 识别后端：llama-cpp-server | vllm-server（GGUF / vLLM 部署）
+    ocr_vl_backend: str = "llama-cpp-server"
+    ocr_server_url: str | None = None  # PaddleOCR 编排 API 地址（llama-server / vLLM）
+    ocr_remote: bool = False  # true=远端编排（本机零重型依赖）
+    ocr_prompt: str = "OCR:"  # PaddleOCR-VL 提示词（OCR:/Table:/Formula:/Chart:/Seal:）
+    ocr_image_max_bytes: int = 15 * 1024 * 1024  # 摄入图片大小上限
+    ocr_image_prefer_ocr: bool = False  # 扫描 PDF：pypdf 提取为空才触发 OCR（默认关）
+
+    # --- 模型栈：识图（qwen3-vl 专职，语义理解描述） ---
+    # 视觉理解模型（本地 Ollama 默认；云端可切 GPT-4o/Qwen-VL）
+    vision_model: str = "ollama/qwen3-vl:8b"
+    vision_api_key: str | None = None
+    vision_api_base: str | None = None  # 默认空 = Ollama 默认（localhost:11434）
+    vision_prompt: str = "请描述这张图片的内容：其中的实体、关系、场景、图表信息等。"
+    vision_image_max_bytes: int = 15 * 1024 * 1024  # 提问侧上传图片大小上限
+
     embedding_provider: str = "bge-m3"  # hash | bge-m3 | remote
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
