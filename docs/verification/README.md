@@ -20,6 +20,7 @@ tags:
 | [[docs/verification/full-chain-simulation\|全链路仿真验证报告]] | P4.5 全链路仿真（HTTP 驱动真后端） | ✅ 22 步全绿 / 发现并修复 2 处 `/ingest` 真后端 bug / 30+5 回归通过 | 2026-07-31 |
 | [[docs/verification/P4-verification\|P4 验证报告 ·持久化贯通段]]→ | P4.5 Task 1-4（真后端持久化 + 增量 + 合并落库贯通 + 双写一致性） | ✅ **407 passed / 1 skipped / 0 failed**（2026-08-13 全量实测；JWT 401 污染已修）/ ruff 0 error | 2026-07-31 起 / 08-13 复核 |
 | [[docs/verification/OCR-vision-verification\|OCR/识图多模态验证报告]] | P4.5 Task 7（图片文档摄入 + 带图问答 /query/with-image） | ✅ **423 passed / 1 skipped / 0 failed**（全量净增 16 用例）/ 前端三件套绿 + preview 闭环 200 | 2026-08-14 |
+| [[docs/verification/P5-verification|P5 高级 RAG 验证报告]] | P5 Task 1-5/7（改写/MultiQuery/contextual/CRAG/SelfCheck + golden 回归；Task 6 语义切分按证据跳过） | ✅ 32 检索层新用例 + 9 golden × 6 配置回归（baseline ctx_recall 0.4444，MultiQuery 空生成回退缺陷已修）/ ruff 0 error | 2026-08-19 |
 
 ## 目录结构
 

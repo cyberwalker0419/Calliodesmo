@@ -2,15 +2,15 @@
 
 > 三层知识图谱驱动的智能情报分析平台 - GraphRAG 索引基座 + 混合检索与 Agent 编排，LLM / 嵌入 / 重排均可切换。
 
-[![phase: P4.5 Task1-4 done](https://img.shields.io/badge/phase-P4.5%20Task1--4%20done-22c55e)](docs/plans/phases/P4.5-persistence-production.md)
-[![tests: 407 passing](https://img.shields.io/badge/tests-407%20passing-3b82f6)](docs/verification/P4-verification.md)
+[![phase: P5 done](https://img.shields.io/badge/phase-P5%20advanced--rag%20done-22c55e)](docs/plans/phases/P5-advanced-rag.md)
+[![tests: 291 passing (CI non-db)](https://img.shields.io/badge/tests-291%20passing%20(CI)-3b82f6)](docs/verification/P5-verification.md)
 [![python: 3.12](https://img.shields.io/badge/python-3.12-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，并以**三维正交权限模型**（角色 + 访问等级 + 库范围）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
 > [!note] 当前阶段
-> **P4.5 持久化与生产化——承诺批次（Task 1-4）已完成**：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端持久化、增量索引 MVP、P4 合并落库贯通 + 双写一致性修复（全链路仿真 22 步贯通，后端 407 passed）。**已进入 Task 5（前端摄入 UI + 异步 job）/ Task 6（三段式实体对齐 + 复核 UI）接续区**。详见 [路线图](docs/plans/roadmap.md) 与 [P4.5 计划](docs/plans/phases/P4.5-persistence-production.md)。
+> **P5 高级 RAG 已闭合（2026-08-19）**：检索质量精化完成——查询改写/MultiQuery、RAGFusion+MMR 去重、contextual retrieval（装配收尾）、CRAG、SelfCheck 全部落地并有工厂装配；golden 回归（9 例 × 6 配置）确定性基线 ctx_recall 0.4444，MultiQuery 空生成回退缺陷已修；**Task 6 语义切分按收益证据跳过并记录**（提升 0.00 < 0.05 门槛，contextual v2 独立向量列留 P9）。详见 [路线图](docs/plans/roadmap.md) 与 [P5 计划](docs/plans/phases/P5-advanced-rag.md)、[P5 验证报告](docs/verification/P5-verification.md)。
 
 ## 5 分钟测试部署（桩模型，需 PG+Neo4j）
 

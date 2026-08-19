@@ -1,0 +1,578 @@
+{
+  "baseline": {
+    "total": 9,
+    "mean_context_recall": 0.4444,
+    "mean_faithfulness": 0.4444,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      }
+    ]
+  },
+  "multi_query": {
+    "total": 9,
+    "mean_context_recall": 0.4444,
+    "mean_faithfulness": 0.4444,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      }
+    ]
+  },
+  "contextual": {
+    "total": 9,
+    "mean_context_recall": 0.4444,
+    "mean_faithfulness": 0.4444,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      }
+    ]
+  },
+  "crag": {
+    "total": 9,
+    "mean_context_recall": 0.4444,
+    "mean_faithfulness": 0.4444,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      }
+    ]
+  },
+  "selfcheck": {
+    "total": 9,
+    "mean_context_recall": 0.4444,
+    "mean_faithfulness": 0.4444,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      }
+    ]
+  },
+  "all": {
+    "total": 9,
+    "mean_context_recall": 0.4444,
+    "mean_faithfulness": 0.4444,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 0.0,
+        "faithfulness": 0.0,
+        "answer_relevance": 1.0,
+        "answer_text": "无可引用证据，无法基于现有上下文回答该问题。",
+        "source_chunk_ids": []
+      }
+    ]
+  }
+}

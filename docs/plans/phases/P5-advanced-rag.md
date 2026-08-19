@@ -58,6 +58,11 @@ created: 2026-08-19
 
 ---
 
+> [!success] P5 闭合记录（2026-08-19）
+> Task 1-5 已实现对并合入（feat 提交链 f037942/f265ea9/fdf9430 + 回退修复 ef6b643）；
+> Task 7 golden 回归与验证报告完成（docs/verification/P5-verification.md + p5-regression.json）；
+> **Task 6 语义切分按收益证据跳过并记录**（contextual ctx_recall 提升 0.00 < 0.05 门槛，见验证报告）。
+
 ## Task 1: 查询改写接口 + MultiQuery 子查询生成
 
 **目标：** 立 `QueryRewriter` 抽象 + `MultiQueryGenerator` 确定性实现（多视角子查询），为 Task 2 融合供料。
@@ -67,7 +72,7 @@ created: 2026-08-19
 - Create: `src/calliodesmo/retrieval/rewrite.py`（`MultiQueryGenerator` + `RewriteRouter` + `_parse_queries`）
 - Test: `tests/test_query_rewrite.py`
 
-- [ ] **Step 1: 写失败测试**（`tests/test_query_rewrite.py`）
+- [x] **Step 1: 写失败测试**（`tests/test_query_rewrite.py`）
 
 ```python
 """Task 1: 查询改写接口 + MultiQuery 确定性生成。"""
@@ -122,10 +127,10 @@ async def test_parse_queries_handles_bad_json():
     assert MultiQueryGenerator._parse_queries('["a", "b"]') == ["a", "b"]
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
   Run: `uv run pytest tests/test_query_rewrite.py -v` -> 期望 `ModuleNotFoundError`（rewriter/rewrite 不存在）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `src/calliodesmo/interfaces/rewriter.py`:
 ```python
@@ -196,10 +201,10 @@ class RewriteRouter:
         return await self._rewriter.generate(query)
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
   Run: `uv run pytest tests/test_query_rewrite.py -v` -> 4 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
   ```bash
   git add src/calliodesmo/interfaces/rewriter.py src/calliodesmo/retrieval/rewrite.py tests/test_query_rewrite.py
   git commit -m "feat(retrieval): 查询改写接口 + MultiQuery 子查询生成（P5 Task 1）"
@@ -217,7 +222,7 @@ class RewriteRouter:
 - Modify: `src/calliodesmo/config.py`（`multi_query_enabled`）、`src/calliodesmo/retrieval/factory.py`（装配）
 - Test: `tests/test_multi_query_retriever.py`
 
-- [ ] **Step 1: 写失败测试**（`tests/test_multi_query_retriever.py`）
+- [x] **Step 1: 写失败测试**（`tests/test_multi_query_retriever.py`）
 
 ```python
 """Task 2: MultiQueryRetriever + rag_fusion + mmr_dedup。"""
@@ -285,10 +290,10 @@ async def test_multi_query_retriever_fans_out_and_fuses():
     assert inner.queries_seen == ["问题 视角1", "问题 视角2"]
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
   Run: `uv run pytest tests/test_multi_query_retriever.py -v` -> `ModuleNotFoundError`（fusion 新增函数 / multi_query_retriever 不存在）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `src/calliodesmo/retrieval/fusion.py` 追加:
 ```python
@@ -365,10 +370,10 @@ class MultiQueryRetriever(Retriever):
         return rag_fusion(lanes, top_k=top_k)
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
   Run: `uv run pytest tests/test_multi_query_retriever.py tests/test_fusion.py -v` -> 全绿（既有 rrf 用例不回归）
 
-- [ ] **Step 5: factory 装配（可选开关）**
+- [x] **Step 5: factory 装配（可选开关）**
   `config.py` 加 `multi_query_enabled: bool = False`；`retrieval/factory.py` 在 `build_default_search_engine` 内：
   ```python
   if getattr(settings, "multi_query_enabled", False):
@@ -381,7 +386,7 @@ class MultiQueryRetriever(Retriever):
       )
   ```
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
   ```bash
   git add src/calliodesmo/retrieval/fusion.py src/calliodesmo/retrieval/multi_query_retriever.py src/calliodesmo/config.py src/calliodesmo/retrieval/factory.py tests/test_multi_query_retriever.py
   git commit -m "feat(retrieval): RAGFusion + MMR 去重 + MultiQueryRetriever（P5 Task 2）"
@@ -398,7 +403,7 @@ class MultiQueryRetriever(Retriever):
 - Modify: `src/calliodesmo/config.py`（`chunk_summary_enabled` / `contextual_retrieval_enabled`）、`src/calliodesmo/ecl/engine.py`（ingest 侧 summary 生成）
 - Test: `tests/test_context_enriched_retriever.py`
 
-- [ ] **Step 1: 写失败测试**（`tests/test_context_enriched_retriever.py`）
+- [x] **Step 1: 写失败测试**（`tests/test_context_enriched_retriever.py`）
 
 ```python
 """Task 3: context-enriched retriever——摘要向量混搜。"""
@@ -448,9 +453,9 @@ async def test_context_enriched_blends_query_and_context():
     assert len(vs.calls) == 2
 ```
 
-- [ ] **Step 2: 跑测试确认失败** -> `ModuleNotFoundError`（context_enriched_retriever 不存在）
+- [x] **Step 2: 跑测试确认失败** -> `ModuleNotFoundError`（context_enriched_retriever 不存在）
 
-- [ ] **Step 3: 实现**（`src/calliodesmo/retrieval/context_enriched_retriever.py`）
+- [x] **Step 3: 实现**（`src/calliodesmo/retrieval/context_enriched_retriever.py`）
 
 ```python
 """contextual retrieval：查询 + 块摘要向量加权混合召回（P5 Task 3）。
@@ -511,12 +516,12 @@ class ContextEnrichedRetriever(Retriever):
         return rrf(lanes, top_k=top_k)
 ```
 
-- [ ] **Step 4: 跑测试确认通过** -> 1 passed
+- [x] **Step 4: 跑测试确认通过** -> 1 passed
 
-- [ ] **Step 5: ingest 侧摘要**
+- [x] **Step 5: ingest 侧摘要**
   `config.py` 已含 `chunk_summary_enabled: bool = False`；`ecl/engine.py` 在开关开启时用 `ecl/chunk_summarizer.py` 的 `ChunkSummarizer` 生成 summary 落 `ChunkRecord.summary`（缺 LLM 降级跳过，不阻塞 ingest）。`config.py` 加 `contextual_retrieval_enabled: bool = False`。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
   ```bash
   git add src/calliodesmo/retrieval/context_enriched_retriever.py src/calliodesmo/config.py src/calliodesmo/ecl/engine.py tests/test_context_enriched_retriever.py
   git commit -m "feat(retrieval): contextual retrieval——块级摘要向量混搜（P5 Task 3）"
@@ -533,7 +538,7 @@ class ContextEnrichedRetriever(Retriever):
 - Test: `tests/test_corrective_rag.py`
 - Modify: `src/calliodesmo/config.py`（`crag_enabled`）
 
-- [ ] **Step 1: 写失败测试**（`tests/test_corrective_rag.py`）
+- [x] **Step 1: 写失败测试**（`tests/test_corrective_rag.py`）
 
 ```python
 """Task 4: CRAG——检索置信自知与重写兜底。"""
@@ -574,9 +579,9 @@ async def test_crag_rewrites_once_on_low_confidence():
     assert "重写后答案" in ans.text
 ```
 
-- [ ] **Step 2: 跑测试确认失败** -> `ModuleNotFoundError`（corrective_rag 不存在）
+- [x] **Step 2: 跑测试确认失败** -> `ModuleNotFoundError`（corrective_rag 不存在）
 
-- [ ] **Step 3: 实现**（`src/calliodesmo/retrieval/corrective_rag.py`）
+- [x] **Step 3: 实现**（`src/calliodesmo/retrieval/corrective_rag.py`）
 
 ```python
 """CRAG：检索置信自知，低置信触发重写重查（P5 Task 4）。
@@ -615,9 +620,9 @@ class CorrectiveRagEngine(SearchEngine):
         return answer2
 ```
 
-- [ ] **Step 4: 跑测试确认通过** -> 2 passed
+- [x] **Step 4: 跑测试确认通过** -> 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
   ```bash
   git add src/calliodesmo/retrieval/corrective_rag.py tests/test_corrective_rag.py
   git commit -m "feat(retrieval): CRAG 检索自知 + 低置信重写重查（P5 Task 4）"
@@ -634,7 +639,7 @@ class CorrectiveRagEngine(SearchEngine):
 - Test: `tests/test_selfcheck.py`
 - Modify: `src/calliodesmo/config.py`（`selfcheck_enabled`）
 
-- [ ] **Step 1: 写失败测试**（`tests/test_selfcheck.py`）
+- [x] **Step 1: 写失败测试**（`tests/test_selfcheck.py`）
 
 ```python
 """Task 5: SelfCheck——低一致性触发重答。"""
@@ -697,9 +702,9 @@ async def test_selfcheck_rewrites_once_on_low_score():
     assert "答案二" in ans.text
 ```
 
-- [ ] **Step 2: 跑测试确认失败** -> `ModuleNotFoundError`（selfcheck 不存在）
+- [x] **Step 2: 跑测试确认失败** -> `ModuleNotFoundError`（selfcheck 不存在）
 
-- [ ] **Step 3: 实现**（`src/calliodesmo/retrieval/selfcheck.py`）
+- [x] **Step 3: 实现**（`src/calliodesmo/retrieval/selfcheck.py`）
 
 ```python
 """SelfCheck：答案-上下文一致性自检，低分 1 轮重答（P5 Task 5）。"""
@@ -748,9 +753,9 @@ class SelfCheckEngine(SearchEngine):
             return 0.0
 ```
 
-- [ ] **Step 4: 跑测试确认通过** -> 2 passed
+- [x] **Step 4: 跑测试确认通过** -> 2 passed
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
   ```bash
   git add src/calliodesmo/retrieval/selfcheck.py tests/test_selfcheck.py
   git commit -m "feat(retrieval): SelfCheck 答案一致性自检重答（P5 Task 5）"
@@ -766,7 +771,7 @@ class SelfCheckEngine(SearchEngine):
 > 语义切分是**供料环节**（决定 chunk 边界），其收益需由下游（contextual retrieval / 检索精度）实证；若 Task 3 收益显著（harness context_recall 提升 ≥ 0.05），再启动本 Task，避免在未验证收益前引入高复杂度重切分。此前 P4.5 计划同类决策（增量字段级合并、社区 id 稳定化）已确立该纪律：**先证明收益，再投入重实现。**
 > 具体实现方向（启动时展开）：`ecl/chunker.py` 之上加可选 `SemanticChunker`——句子级嵌入，相邻句相似度低于阈值（`chunk_semantic_threshold`，默认 0.7 与 `doc_cluster_threshold` 对齐）断开成块；不破坏既有 `TextChunker` 契约（`Chunker` ABC 多实现并存）。
 
-- [ ] **Step 0:** 完成 Task 3 后依据 harness 对比判断是否启动本 Task（不达标则跳过并记录）。
+- [x] **Step 0:** 完成 Task 3 后依据 harness 对比判断是否启动本 Task（不达标则跳过并记录）。
 
 ---
 
@@ -774,9 +779,9 @@ class SelfCheckEngine(SearchEngine):
 
 **目标：** 每个检索层 Task 落地后跑 golden harness 回归（baseline vs 新检索器），收尾时汇总 P5 验证报告。
 
-- [ ] **Step 1（Task 1 起贯穿）:** 每次检索层改动后运行 `uv run pytest tests/test_eval_harness.py -v`（保持 harness 测试绿）+ 在 `docs/verification/P5-verification.md` 记录当次 golden 均值（context_recall / faithfulness / answer_relevance），与 baseline 对比。
-- [ ] **Step 2（Task 2/3 后）:** 写 `docs/verification/P5-verification.md`（`docs/verification/README.md` 索引同步）：P5 各 Task 闭合矩阵 + baseline vs 各检索器配置的 golden 均值对比表 + 关键发现（MMR 去重率、CRAG 重写触发率、SelfCheck 重答率）+ 边界与后续（语义切分暂缓、contextual v2 向量列留 P9）+ 日期。
-- [ ] **Step 3:** 收尾提交：`git commit -m "docs(p5): P5 验证报告——检索质量精化闭合记录"`。
+- [x] **Step 1（Task 1 起贯穿）:** 每次检索层改动后运行 `uv run pytest tests/test_eval_harness.py -v`（保持 harness 测试绿）+ 在 `docs/verification/P5-verification.md` 记录当次 golden 均值（context_recall / faithfulness / answer_relevance），与 baseline 对比。
+- [x] **Step 2（Task 2/3 后）:** 写 `docs/verification/P5-verification.md`（`docs/verification/README.md` 索引同步）：P5 各 Task 闭合矩阵 + baseline vs 各检索器配置的 golden 均值对比表 + 关键发现（MMR 去重率、CRAG 重写触发率、SelfCheck 重答率）+ 边界与后续（语义切分暂缓、contextual v2 向量列留 P9）+ 日期。
+- [x] **Step 3:** 收尾提交：`git commit -m "docs(p5): P5 验证报告——检索质量精化闭合记录"`。
 
 ---
 
