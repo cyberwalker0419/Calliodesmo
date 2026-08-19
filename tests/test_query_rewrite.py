@@ -42,3 +42,16 @@ async def test_rewrite_router_delegates_when_enabled():
 async def test_parse_queries_handles_bad_json():
     assert MultiQueryGenerator._parse_queries("not-json") == []
     assert MultiQueryGenerator._parse_queries('["a", "b"]') == ["a", "b"]
+
+
+class _EmptyGen:
+    """永不产出子查询的 rewriter（模拟 LLM 吐非法 JSON 的空生成）。"""
+
+    async def generate(self, query):
+        return []
+
+
+async def test_rewrite_router_falls_back_when_generation_empty():
+    """enabled 但空生成 -> 回退原查询（防 MultiQuery 空召回，P5 Task 2 收尾）。"""
+    router = RewriteRouter(rewriter=_EmptyGen(), enabled=True)
+    assert await router.rewrite("原始问题") == ["原始问题"]

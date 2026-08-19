@@ -56,4 +56,7 @@ class RewriteRouter:
     async def rewrite(self, query: str) -> list[str]:
         if not self._enabled:
             return [query]
-        return await self._rewriter.generate(query)
+        generated = await self._rewriter.generate(query)
+        # 空生成回退原查询：LLM 偶发吐不出可解析子查询时降级为单查询，
+        # 避免 MultiQueryRetriever 空召回（P5 Task 2 健壮性收尾）
+        return generated if generated else [query]
