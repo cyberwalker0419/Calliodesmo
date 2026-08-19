@@ -197,6 +197,17 @@ def build_default_search_engine(
             inner=native,
             router=RewriteRouter(MultiQueryGenerator(llm), enabled=True),
         )
+    # P5 Task 3：contextual_retrieval_enabled 时 native 路再包 ContextEnrichedRetriever
+    # （正常召回 dense+sparse + 混摘要权重向量召回 -> RRF 融合）
+    if getattr(settings, "contextual_retrieval_enabled", False):
+        from calliodesmo.retrieval.context_enriched_retriever import ContextEnrichedRetriever
+
+        native = ContextEnrichedRetriever(
+            inner=native,
+            vector_store=vector_store,
+            embedding=embedding,
+            context_weight=getattr(settings, "contextual_context_weight", 0.5),
+        )
     local = LocalSearchRetriever(
         seed_extractor=seed,
         graph_store=graph_store,
