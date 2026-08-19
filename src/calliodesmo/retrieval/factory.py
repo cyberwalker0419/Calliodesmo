@@ -235,4 +235,11 @@ def build_default_search_engine(
         engine = CorrectiveRagEngine(
             inner=engine, threshold=getattr(settings, "crag_threshold", 0.5)
         )
+    # P5 Task 5：selfcheck_enabled 时最外层包 SelfCheckEngine（answer 一致性重答 1 轮）
+    if getattr(settings, "selfcheck_enabled", False):
+        from calliodesmo.retrieval.selfcheck import SelfCheckEngine
+
+        engine = SelfCheckEngine(
+            inner=engine, judge=llm, threshold=getattr(settings, "selfcheck_threshold", 0.5)
+        )
     return engine

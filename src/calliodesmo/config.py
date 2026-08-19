@@ -111,6 +111,10 @@ class Settings(BaseSettings):
     crag_enabled: bool = False
     # CRAG 置信阈值（来源 chunk 数/3，低于则触发重写重查）
     crag_threshold: float = 0.5
+    # SelfCheck 答案一致性自检开关（默认关，开启时答案产出后 LLM judge 低分重答 1 轮）
+    selfcheck_enabled: bool = False
+    # SelfCheck judge 一致性阈值（低于则重答）
+    selfcheck_threshold: float = 0.5
     eval_golden_file: str = "config/golden_qa.yaml"
 
 
