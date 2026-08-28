@@ -117,6 +117,28 @@ async def test_ingest_job_succeeds(session):
     assert any(c.library_scope == LibraryScope.PERSONAL and c.owner_id == user.id for c in chunks)
 
 
+async def test_ingest_clearance_prefix_preserved(session):
+    """文件名密级前缀（public__）经临时文件保留 -> chunk access_level 生效。"""
+    reset_app_stores()
+    _, token = await _seed_actor(session, "analyst-prefix", {Permission.INGEST})
+    content = "# 公开材料\n\nOpenAI 是 AI 公司。".encode()
+    async with _make_client(session) as c:
+        resp = await c.post(
+            "/ingest",
+            files={"file": ("public__openai.md", content, "text/markdown")},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 202, resp.text
+        job = (await c.get(f"/jobs/{resp.json()['job_id']}", headers=_auth(token))).json()
+        assert job["status"] == "succeeded", job
+    stores = get_app_stores()
+    chunks = list(stores.vector_store._records.values())
+    assert chunks, "应有摄入的 chunk"
+    assert all(c.access_level == ClearanceLevel.PUBLIC for c in chunks), [
+        c.access_level for c in chunks
+    ]
+
+
 async def test_ingest_job_owner_isolation(session):
     """他人 job 不可见 -> 404（不泄漏存在性）。"""
     reset_app_stores()
