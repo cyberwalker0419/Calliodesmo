@@ -1,28 +1,18 @@
----
-title: 部署指南索引
-type: index
-tags:
-  - deploy
-created: 2026-07-27
----
 # 部署指南
 
-三种路径，按需选择：
+生产部署二选一；测试/开发环境独立在 [testing.md](testing.md)。
 
-| 路径 | 适用场景 | 文档 |
+## 生产方式
+
+| 方式 | 适合 | 文档 |
 | --- | --- | --- |
-| 5 分钟测试部署 | 离线桩、零基础设施、快速验证管线/UI | [README §5 分钟测试部署](../../README.md#5-分钟测试部署离线零基础设施) |
-| 原生部署（测试 / 生产） | 无 Docker，本机或服务器按步骤 | [native.md](native.md) |
-| Docker 全栈 | 一键起 Postgres+pgvector / Neo4j / app | [docker.md](docker.md) |
+| **Docker 全栈** | 想省心、一键含基础设施 | [docker.md](docker.md) |
+| **本地原生**（uv，无 Docker） | 已有 / 想自管 PostgreSQL+pgvector 与 Neo4j | [native.md](native.md) |
 
-## 怎么选
+## 测试 / 开发环境
 
-- **只想快速看看 / 跑测试套件** -> 5 分钟测试部署（SQLite + `test/stub` + `hash` 桩，全离线）。
-- **生产、不想装 Docker** -> 原生部署（PostgreSQL+pgvector / Neo4j 原生安装 + 真实模型，按步骤）。
-- **生产、想容器化** -> Docker 全栈。
-
-> 原生部署指南分三部分：基础准备（共用）-> 测试/开发部署（快速离线）-> 生产部署（按步骤）。两种模式共享 uv/依赖安装，差异在数据库与模型配置。
+桩模型冒烟（`test/stub` + `hash` + `none`）、pytest 测试套件、前端联调 —— 见 [testing.md](testing.md)。
 
 ## 模型配置（三层）
 
-LLM / 嵌入 / 重排三层**独立可切**（本地或远端 HTTP），配置总览见 [README §部署：模型配置](../../README.md#部署模型配置三层可切换)，各路径细节见对应指南。三层互不耦合，例如 LLM 用云端、嵌入与重排用局域网自建 BGE 服务。
+LLM / 嵌入 / 重排三层**独立可切**（本地或远端 HTTP），只改 `.env` 不动代码。配置示例见 `.env.example`，各路径细节见对应指南。
