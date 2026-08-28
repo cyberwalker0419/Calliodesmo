@@ -113,3 +113,28 @@ def test_build_reranker_remote_returns_http_reranker():
     )
     assert isinstance(r, HttpReranker)
     assert r._api_base == "http://rerank-host:8083"
+
+
+async def test_http_reranker_degrades_on_server_error():
+    """上游 500 -> 降级保序（原召回顺序截断 top_k），不击穿查询（P5 真实语料发现）。"""
+
+    def handler(request):
+        return httpx.Response(500, json={"error": "parse error"})
+
+    rr = HttpReranker("http://x:8083", transport=_mock(handler))
+    cands = [_c("c0", "a"), _c("c1", "b"), _c("c2", "c")]
+    out = await rr.rerank("q", cands, top_k=2)
+    assert [c.chunk_id for c in out] == ["c0", "c1"]
+    assert [c.rank for c in out] == [1, 2]
+
+
+async def test_http_reranker_degrades_on_network_error():
+    """网络异常（连接失败/超时）-> 降级保序，不抛异常。"""
+
+    def handler(request):
+        raise httpx.ConnectError("connection refused")
+
+    rr = HttpReranker("http://x:8083", transport=_mock(handler))
+    cands = [_c("c0", "a"), _c("c1", "b")]
+    out = await rr.rerank("q", cands, top_k=5)
+    assert [c.chunk_id for c in out] == ["c0", "c1"]
