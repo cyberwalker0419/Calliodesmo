@@ -17,10 +17,12 @@ import re
 from collections.abc import Iterator, Mapping
 from typing import Any
 
-from calliodesmo.analysis.schemas import AnalysisEnvelope, AnalysisStatus
+from calliodesmo.analysis.schemas import (
+    CONFIDENCE_CAP,  # 单一事实源（schemas）：失配封顶与缺证据降置信共用，本模块保持导出路径
+    AnalysisEnvelope,
+    AnalysisStatus,
+)
 
-#: 失配证据置信封顶值
-CONFIDENCE_CAP = 0.3
 #: 失败占比阈值：严格大于该值才降级 partial
 FAILURE_RATIO_THRESHOLD = 0.3
 

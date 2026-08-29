@@ -55,7 +55,7 @@ created: 2026-08-29
 | 2 | `Permission.ANALYZE` 全链路 + `seed_default_roles` 回填修复 + 幂等测试 + 前端常量 | ✅ 必做 | ✅ 完成 |
 | 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | ✅ 完成 |
 | 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | ✅ 完成 |
-| 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | 未开始 |
+| 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | ✅ 完成 |
 | 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | 未开始 |
 | 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | 未开始 |
 | 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | 未开始 |
@@ -446,11 +446,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/analysis/schemas.py`（9 类模型）· 新 `src/calliodesmo/analysis/specs.py` · 测试 `tests/test_analysis_specs.py`。
 
-- [ ] **Step 1:** 写失败测试：9 类各一条正例 + 关键反例——`SummaryReport`（summary + key_points）；`KeyInfoReport`（label/value 条目）；`TimelineReport`（date_normalized ISO 8601 + date_raw + granularity exact/approximate/relative）；`EntityRecognitionReport`（name/type/description）；`RelationMappingReport`（head/tail/type/description）；`ActionItemReport`（action/owner_raw/deadline_raw，「任务」类模型名避免与 Job 混淆）；`ConceptReport`（name/definition/related）；`QAReport`（question/answer/citations）；`CustomReport`（fields 开放字典）。每条 item 带 `confidence`（0–1 区间校验）与 `evidence` 列表（缺证据自动降置信的校验器）。注册表按 `task_type` 可取 spec，未注册抛 `KeyError`。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现模型 + `AnalysisTaskSpec`（type / output_cls / template_name / stub_marker / max_retries）+ `BUILTIN_ANALYSIS_SPECS`（本批注册 5 类；`build_custom_spec` 声明留 Task 22）。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(analysis): 九类报告模型与任务注册表（契约先行）`。
+- [x] **Step 1:** 写失败测试：9 类各一条正例 + 关键反例——`SummaryReport`（summary + key_points）；`KeyInfoReport`（label/value 条目）；`TimelineReport`（date_normalized ISO 8601 + date_raw + granularity exact/approximate/relative）；`EntityRecognitionReport`（name/type/description）；`RelationMappingReport`（head/tail/type/description）；`ActionItemReport`（action/owner_raw/deadline_raw，「任务」类模型名避免与 Job 混淆）；`ConceptReport`（name/definition/related）；`QAReport`（question/answer/citations）；`CustomReport`（fields 开放字典）。每条 item 带 `confidence`（0–1 区间校验）与 `evidence` 列表（缺证据自动降置信的校验器）。注册表按 `task_type` 可取 spec，未注册抛 `KeyError`。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现模型 + `AnalysisTaskSpec`（type / output_cls / template_name / stub_marker / max_retries）+ `BUILTIN_ANALYSIS_SPECS`（本批注册 5 类；`build_custom_spec` 声明留 Task 22）。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(analysis): 九类报告模型与任务注册表（契约先行）`。
 
 ---
 
