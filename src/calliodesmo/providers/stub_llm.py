@@ -11,6 +11,8 @@
   不静默回退——钉死「标记写错 → 静默回退抽取输出而测试不红」的坑。
   分析提示词可能含「摘要 / 抽取」等既有分发裸词（如 summary 模板），故标记分发必须
   先于关键词分支判定。
+- 评估 judge 标记（``[ANALYSIS:judge]``，P6 Task 17）-> G-Eval rubric 四维固定评分
+  （非分析类型，评估域标记；桩对生成质量零区分度，离线证据只承诺结构 / 契约）。
 - 抽取（``知识图谱抽取引擎``）-> 返回固定 entities/relations/claims/covariates JSON
 - 摘要（``文档摘要引擎``）-> 返回固定 {title, summary} JSON
 - 其余未知调用（未携带分析标记）-> 回退为抽取格式（既有行为，避免管线中断）
@@ -58,6 +60,7 @@ _SUMMARY = {"title": "示例文档社区", "summary": "由离线桩 LLM 生成�
 #: 含注册表未交付的第二批 4 类（relation_mapping / tasks / concepts / custom）——
 #: 桩一次落齐，注册与交付分批由注册表控制，避免批次间回改桩。
 #: 不带证据、显式置信见模块 docstring（缺证据 → 模型自动封顶降置信）。
+#: 另含评估域 ``judge`` 键（P6 Task 17，非分析类型）：G-Eval 四维固定评分。
 _ANALYSIS_PAYLOADS: dict[str, dict[str, Any]] = {
     "summary": {
         "summary": "离线桩占位摘要：由 StubLLM 固定输出，仅验证分析管线联通，不代表真实分析质量。",
@@ -150,6 +153,10 @@ _ANALYSIS_PAYLOADS: dict[str, dict[str, Any]] = {
         "fields": {"placeholder_field": "离线桩占位值（用户 schema 驱动的开放字段示例）"},
         "confidence": 1.0,
     },
+    # G-Eval judge 固定评分（P6 Task 17，评估域标记而非分析类型）：四维均 3 的中性分。
+    # 桩对生成质量零区分度——固定分仅锁 judge 契约（可解析、1–5 内），离线证据只承诺
+    # 结构 / 契约；质量证据由 scripts/eval_p6.py --real 承担（锚点 2026-W45）。
+    "judge": {"completeness": 3, "evidence_support": 3, "no_fabrication": 3, "structure": 3},
 }
 
 #: 分析标记形状：``[ANALYSIS:<type>]``（系统段，模板首行标记，见 config/analysis_prompts/）

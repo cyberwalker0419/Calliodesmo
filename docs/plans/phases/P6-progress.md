@@ -7,12 +7,12 @@ created: 2026-08-30
 ---
 # P6 进度快照与新会话交接
 
-> 快照时间：2026-08-30 02:28（2026-W35）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
+> 快照时间：2026-08-30（2026-W35，Task 17 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
 
-## 总进度：15/23 必做 Task 完成
+## 总进度：17/23 必做 Task 完成
 
 - 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
-- 测试基线：**886 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）
+- 测试基线：**933 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
 | 批次 | 范围 | 状态 |
@@ -20,9 +20,9 @@ created: 2026-08-30
 | Task 1–3 | 时区 TODO / ANALYZE 权限+种子回填 / 配置对账 | ✅ `b066e8e` `aa3fa50` `569927c` |
 | Task 4–10 | 信封 / 九类模型+注册表 / 模板 / 解析链 / 桩 / 材料 / 引擎 | ✅ `8be6f2f`…`87b8c1c` |
 | Task 11–15 | Job 泛化 + migrate / 报告 ORM / worker / 分析 API / 导出 | ✅ `ee47783`…`88aa23c` |
-| Task 16–17 | 评估两件套 + 离线基线（**第二批门槛**） | 🔄 进行中（见「续接方法」） |
+| Task 16–17 | 评估两件套 + 离线基线（**第二批门槛**） | ✅ `07272de`（golden+F1）+ Task 17（judge+eval_p6+基线落盘）|
 | Task 18–20 | 前端第一批（preview_* 闭环 + 三角色矩阵） | ⏭️ 未开始 |
-| Task 21–22 | 第二批接线 + 自定义分析 | ⏭️ 未开始（门槛：#17 基线绿 + #20 矩阵过） |
+| Task 21–22 | 第二批接线 + 自定义分析 | ⏭️ 未开始（门槛：#17 基线绿 ✅ + #20 矩阵过） |
 | Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ⏭️ 未开始 |
 | Task 24（可选） | `analyze` CLI | ⏭️ 视工时 |
 
@@ -38,6 +38,7 @@ created: 2026-08-30
 ## 移交注意事项
 
 - **`--real` 质量补跑不做**：`eval_p6.py --real` 与 `eval_p5.py --real` 锚点 2026-W45 用户本机；离线证据只承诺结构/契约，不得表述为「分析质量好」。
+- **P6 离线基线已落盘**（Task 17，`docs/verification/p6-regression.json`）：10 例全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0（桩零区分度）/ mean_judge_overall 3.0（桩固定分）——结构/契约证据，非质量结论；第二批（Task 21–22）门槛之一已满足。
 - **Task 25 不做**：按计划顺延 2026-W49（P9 模型层清单）。
 - `design/` 未追踪目录与本阶段无关，不动。
 - 既有库迁移已由 `db/migrate.py` 承接并挂进 `db init`（Task 11）；复杂迁移需 Alembic 已留痕 2026-W49。

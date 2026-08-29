@@ -27,4 +27,4 @@ tags:
 
 ## 证据文件
 
-`pytest-output.txt`（P4.5 407 passed）/ `pytest-output-p3.txt` / `pytest-output-p4.txt` / `bootstrap-evidence.txt` / `p5-regression.json`（golden 回归全量）。
+`pytest-output.txt`（P4.5 407 passed）/ `pytest-output-p3.txt` / `pytest-output-p4.txt` / `bootstrap-evidence.txt` / `p5-regression.json`（P5 golden 检索回归全量）/ `p6-regression.json`（P6 分析评估离线基线：结构/契约证据，非质量结论）。

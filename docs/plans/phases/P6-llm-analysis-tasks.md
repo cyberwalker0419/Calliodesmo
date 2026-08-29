@@ -67,7 +67,7 @@ created: 2026-08-29
 | 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | ✅ 完成 |
 | 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | ✅ 完成 |
 | 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | ✅ 完成 |
-| 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | 未开始 |
+| 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | ✅ 完成 |
 | 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | 未开始 |
 | 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | 未开始 |
 | 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | 未开始 |
@@ -618,12 +618,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/eval/judge_analysis.py` · 改 `src/calliodesmo/eval/harness.py`（扩展 AnalysisEvalHarness，`expected_answer` 消费路径）· 新 `scripts/eval_p6.py` · 测试 `tests/test_eval_analysis_judge.py`。
 
-- [ ] **Step 1:** 写失败测试：judge rubric 四维（完整性 / 证据支撑 / 无编造 / 结构规范）→ 1–5 结构化评分；离线桩固定分（桩对生成质量零区分度——离线证据只承诺结构 / 契约，此断言写入测试注释）；harness 聚合输出含 `field_f1 / tuple_f1 / judge 均值` 与逐例明细。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 judge + harness 扩展 + `scripts/eval_p6.py`（`--dump-golden` / 默认离线桩落盘 `p6-regression.json`（与 `p5-regression.json` 同级）/ `--real` 缺 key 友好报错）；脚本输出显式打印「离线证据≠质量证据」警示行。
-- [ ] **留痕:** `--real` 真实模型补跑 → 用户本机，锚点 2026-W45（连同 `scripts/eval_p5.py --real` 同批），延误顺延 2026-W46。
-- [ ] **Step 4:** 跑绿并记录离线基线入证据。
-- [ ] **Step 5:** 提交：`feat(eval): G-Eval judge 与 eval_p6 三用法脚本`。
+- [x] **Step 1:** 写失败测试：judge rubric 四维（完整性 / 证据支撑 / 无编造 / 结构规范）→ 1–5 结构化评分；离线桩固定分（桩对生成质量零区分度——离线证据只承诺结构 / 契约，此断言写入测试注释）；harness 聚合输出含 `field_f1 / tuple_f1 / judge 均值` 与逐例明细。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 judge + harness 扩展 + `scripts/eval_p6.py`（`--dump-golden` / 默认离线桩落盘 `p6-regression.json`（与 `p5-regression.json` 同级）/ `--real` 缺 key 友好报错）；脚本输出显式打印「离线证据≠质量证据」警示行。
+- [x] **留痕:** `--real` 真实模型补跑 → 用户本机，锚点 2026-W45（连同 `scripts/eval_p5.py --real` 同批），延误顺延 2026-W46。
+- [x] **Step 4:** 跑绿并记录离线基线入证据。
+- [x] **Step 5:** 提交：`feat(eval): G-Eval judge 与 eval_p6 三用法脚本`。
 
 ---
 
