@@ -54,7 +54,7 @@ created: 2026-08-29
 | 1 | 前置批：闭环 `collab/service.py:18` 时区 TODO + `api/deps.py:89` 锚点顺延 P9 | ✅ 必做 | ✅ 完成 |
 | 2 | `Permission.ANALYZE` 全链路 + `seed_default_roles` 回填修复 + 幂等测试 + 前端常量 | ✅ 必做 | ✅ 完成 |
 | 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | ✅ 完成 |
-| 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | 未开始 |
+| 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | ✅ 完成 |
 | 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | 未开始 |
 | 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | 未开始 |
 | 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | 未开始 |
@@ -432,11 +432,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/analysis/__init__.py` · `src/calliodesmo/analysis/schemas.py`（公共层）· `src/calliodesmo/analysis/evidence.py` · 测试 `tests/test_analysis_schemas.py`。
 
-- [ ] **Step 1:** 写失败测试：`AnalysisStatus`（ok/partial/failed，非法值报错）；`Evidence(chunk_id, quote)` 非空校验；`AnalysisEnvelope`（task_type / status / generated_at / model / prompt_version / usage / warnings / source_chunk_ids / payload）；`verify_evidence(envelope, sources)`——quote 去空白后非源文子串的证据置信封顶 0.3 + warning，失败占比 >30% → partial（纯函数，无夹具）。`Evidence` 为本层 pydantic 形态，与 `interfaces/analysis.py` 的 dataclass `EvidenceRef` 一一对应互转（引擎内部流转 `EvidenceRef`、契约层用 `Evidence`，见架构节「信封装配」）。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 `schemas.py` 公共层 + `evidence.py`。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(analysis): 报告公共信封与证据子串校验`。
+- [x] **Step 1:** 写失败测试：`AnalysisStatus`（ok/partial/failed，非法值报错）；`Evidence(chunk_id, quote)` 非空校验；`AnalysisEnvelope`（task_type / status / generated_at / model / prompt_version / usage / warnings / source_chunk_ids / payload）；`verify_evidence(envelope, sources)`——quote 去空白后非源文子串的证据置信封顶 0.3 + warning，失败占比 >30% → partial（纯函数，无夹具）。`Evidence` 为本层 pydantic 形态，与 `interfaces/analysis.py` 的 dataclass `EvidenceRef` 一一对应互转（引擎内部流转 `EvidenceRef`、契约层用 `Evidence`，见架构节「信封装配」）。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 `schemas.py` 公共层 + `evidence.py`。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(analysis): 报告公共信封与证据子串校验`。
 
 ---
 
