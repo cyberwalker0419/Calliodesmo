@@ -7,69 +7,29 @@ tags:
 created: 2026-07-26
 ---
 # P1 ECL 管线 MVP 实施计划
-
 > **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [x]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P0-scaffolding|P0]] / [[docs/plans/monthly/2026-08|2026-08 月计划]]。
-
-**Goal:** 打通 ECL 主链路（Extract -> Cognify -> Load），实现“数据进 -> 建图 -> 落个人库”。Extract 入口支持**多格式文档解析**：纯文本/标记/表格/结构化文本等基础格式内置，PDF、Office 全家桶、开放文档、富文本/电子书、邮件、Jupyter 笔记本 等以可拓展插件方式按需接入。
-
-**Architecture:** `DocumentLoader` 抽象接口（P0 已立）保持不变；每种/每类文档格式一个具体 Loader（插件），按后缀分发。基础格式默认内置；重依赖格式列为可选 extra（`[project.optional-dependencies]`），懒加载，缺依赖时友好报错（沿用 FlagEmbedding 模式）。`LoaderRegistry` 按 `source.suffix` 选择实现；新增格式只需新增 Loader + 注册，不动核心。Cognify 默认自建（实体-关系图 + 实体消解 + 连通分量社区检测 + LLM 社区摘要），networkx/GraphRAG Leiden 列可选 extra；抽取走团队级软引导模板；Load 写个人库三层数据（情景/语义/摘要）。
-
+**Goal:** 打通 ECL 主链路（Extract -> Cognify -> Load），实现“数据进 -> 建图 -> 落个人库”。Extract 入口支持多格式文档解析：基础格式（纯文本/标记/表格/结构化）内置，PDF、Office 全家桶、开放文档、富文本/电子书、邮件、Jupyter 笔记本以可拓展插件方式按需接入。
+**Architecture:** `DocumentLoader` 抽象（P0 已立）不变；每类格式一个 Loader 插件，按 `source.suffix` 经 `LoaderRegistry` 分发，新增格式只需新增 Loader + 注册，不动核心。基础格式默认内置；重依赖格式列 optional extra、懒加载、缺依赖友好报错。Cognify 默认自建（实体-关系图 + 实体消解 + 连通分量社区检测 + LLM 社区摘要；networkx/GraphRAG Leiden 可选 extra）；抽取走团队级软引导模板；Load 写个人库三层数据（情景/语义/摘要）。
 **Tech Stack（P0 基础上追加）:**
-- 基础格式：标准库 `csv`/`json`/`html.parser`/`xml.etree`；`PyYAML`；纯文本/Markdown 已有
-- 可选 extra `documents-pdf`：`pypdf`（备选 `pdfplumber`/`pymupdf`）
-- 可选 extra `documents-office`：`python-docx`（Word）/ `openpyxl`（Excel）/ `python-pptx`（PowerPoint）
-- 可选 extra `documents-opendocument`：`odfpy`（ODT/ODS/ODP）
-- 可选 extra `documents-rich`：`striprtf`（RTF）/ `ebooklib`（EPUB）
-- 可选 extra `documents-email`：标准库 `email`（.eml）+ `extract-msg`（.msg）
-- 可选 extra `documents-notebooks`：`nbformat`（.ipynb）
-- 可选后端：`pandoc` / `LibreOffice(headless)`（旧二进制 office 与格式转换兜底）
-- 测试：`pytest` + 临时样例文件 + `monkeypatch`/`sys.modules` 桩隔离重依赖
+- 基础格式：标准库 `csv`/`json`/`html.parser`/`xml.etree` + `PyYAML`；纯文本/Markdown 已有；测试用 `pytest` + 临时样例 + `sys.modules` 桩隔离重依赖
+- 可选 extra：`documents-pdf`（pypdf）｜ `documents-office`（python-docx/openpyxl/python-pptx）｜ `documents-opendocument`（odfpy）｜ `documents-rich`（striprtf/ebooklib）｜ `documents-email`（extract-msg）｜ `documents-notebooks`（nbformat）；后端兜底 `pandoc` / `LibreOffice(headless)`
 
 ---
 
 ### Task 1: 文档解析与加载器（多格式 + 可拓展插件）
 
 **目标：** P1 阶段可解析多种基础格式，并按可拓展插件接入 PDF、Office 全家桶及更多富文档格式。
-
 **Files:**
-- Modify: `src/calliodesmo/providers/text_loader.py`（保留 txt/md，抽公共逻辑）
-- Create: `src/calliodesmo/providers/structured_loader.py`（csv/tsv/json/yaml/xml/html）
-- Create: `src/calliodesmo/providers/markup_loader.py`（rst/org/tex）
-- Create: `src/calliodesmo/providers/pdf_loader.py`（extra: documents-pdf）
-- Create: `src/calliodesmo/providers/office_loader.py`（extra: documents-office，docx/xlsx/pptx）
-- Create: `src/calliodesmo/providers/opendocument_loader.py`（extra: documents-opendocument，odt/ods/odp）
-- Create: `src/calliodesmo/providers/rich_loader.py`（extra: documents-rich，rtf/epub/mobi）
-- Create: `src/calliodesmo/providers/email_loader.py`（extra: documents-email，eml/msg）
-- Create: `src/calliodesmo/providers/notebook_loader.py`（extra: documents-notebooks，ipynb）
+- Modify: `src/calliodesmo/providers/text_loader.py`（保留 txt/md，抽公共逻辑）；Create: `providers/{structured_loader,markup_loader}.py`（csv/tsv/json/yaml/xml/html、rst/org/tex）
 - Create: `src/calliodesmo/providers/registry.py`（按后缀分发 + 注册表）
-- Modify: `pyproject.toml`（新增 optional-dependencies 分组）
-- Test: `tests/test_document_loaders.py`
+- Create（extra）: `pdf_loader.py`（documents-pdf）｜ `office_loader.py`（documents-office，docx/xlsx/pptx）｜ `opendocument_loader.py`（documents-opendocument）｜ `rich_loader.py`（documents-rich，rtf/epub/mobi）｜ `email_loader.py`（documents-email，eml/msg）｜ `notebook_loader.py`（documents-notebooks，ipynb）
+- Modify: `pyproject.toml`（新增 optional-dependencies 分组）；Test: `tests/test_document_loaders.py`
 
-**接口与分发设计：**
-- `DocumentLoader.load(source) -> list[LoadedDocument]` 签名不变
-- `LoaderRegistry`：`register(suffix, loader)` / `resolve(source) -> DocumentLoader`；按后缀查表，未注册抛清晰错误并提示安装哪个 extra
-- 基础格式默认注册；重依赖格式懒注册（用到且依赖在时注册）；多后缀可映射同一 Loader
-
-**支持的格式矩阵：**
-
-| 类别           | 格式                                           | 接入                             | 候选库/方式                         |
-| ------------ | -------------------------------------------- | ------------------------------ | ------------------------------ |
-| 纯文本/Markdown | `.txt` `.log` `.md` `.markdown`              | 内置                             | 已有 `TextDocumentLoader`        |
-| 表格           | `.csv` `.tsv`                                | 内置                             | 标准库 `csv`                      |
-| 结构化文本        | `.json` `.yaml`/`.yml` `.xml` `.html`/`.htm` | 内置                             | 标准库 + `PyYAML`                 |
-| 标记语言         | `.rst` `.org` `.tex`                         | 内置（轻解析取纯文本）                    | 标准库/正则                         |
-| PDF          | `.pdf`（文本型）                                  | extra `documents-pdf`          | `pypdf`（备选 pdfplumber/pymupdf） |
-| Word         | `.docx`                                      | extra `documents-office`       | `python-docx`                  |
-| Excel        | `.xlsx`                                      | extra `documents-office`       | `openpyxl`                     |
-| PowerPoint   | `.pptx`                                      | extra `documents-office`       | `python-pptx`                  |
-| 开放文档         | `.odt` `.ods` `.odp`                         | extra `documents-opendocument` | `odfpy`                        |
-| 富文本/电子书      | `.rtf` `.epub` `.mobi`                       | extra `documents-rich`         | `striprtf`/`ebooklib`          |
-| 邮件           | `.eml` `.msg`                                | extra `documents-email`        | 标准库 `email`/`extract-msg`      |
-| 笔记本          | `.ipynb`                                     | extra `documents-notebooks`    | `nbformat`                     |
+**接口与分发设计 / 格式矩阵：** `DocumentLoader.load` 签名不变；`LoaderRegistry` `register/resolve` 按后缀查表，未注册抛清晰错误并提示安装哪个 extra；基础格式默认注册，重依赖格式懒注册，多后缀可映射同一 Loader。格式矩阵：txt/log/md、csv/tsv、json/yaml/xml/html、rst/org/tex——内置；pdf、docx/xlsx/pptx、odt/ods/odp、rtf/epub/mobi、eml/msg、ipynb——按对应 extra 接入。
 
 **基础格式（P1 必做，内置）：**
 - [x] **Step 1:** txt/md/log 复用 `TextDocumentLoader`（回归测试）
-- [x] **Step 2:** 写 `LoaderRegistry` 分发与未注册报错的失败测试 -> 实现跑绿
+- [x] **Step 2:** `LoaderRegistry` 分发与未注册报错的失败测试 -> 实现跑绿
 - [x] **Step 3:** csv/tsv 测试（表头/多行/空文件）-> 实现跑绿（标准库 `csv`）
 - [x] **Step 4:** json/yaml/xml/html 测试 -> 实现跑绿（提取正文 + 元数据）
 - [x] **Step 5:** rst/org/tex 测试 -> 实现跑绿（轻解析取纯文本）
@@ -89,442 +49,150 @@ created: 2026-07-26
 - [x] **Step 15:** `ingest` 入口（CLI/API）走 `LoaderRegistry` 按后缀加载，端到端冒烟（覆盖内置 + 至少一个 extra）
 
 **验收：**
-- 内置格式（txt/md/log/csv/tsv/json/yaml/xml/html/rst/org/tex）装基础依赖即可用
-- 重依赖格式装对应 extra 后可用；未装 extra 时清晰报错并给出 `uv sync --extra documents-pdf`（等）提示
-- 新增格式只需新增 Loader + 注册一行，不动核心
+- 内置格式（txt/md/log/csv/tsv/json/yaml/xml/html/rst/org/tex）装基础依赖即可用；重依赖格式装对应 extra 后可用，未装时清晰报错并给出 `uv sync --extra documents-pdf`（等）提示；新增格式只需新增 Loader + 注册一行，不动核心
 
 ---
 
 ### Task 2: 分块与抽取（Chunk + Extract）
 
-**目标：** 把 Task 1 的 `LoadedDocument` 切成 `Chunk`，再用 LLM 抽取**实体/关系/声明/协变量四类**结构化 `ExtractionResult`。实体类型走**团队级抽取模板（软引导）**：每个团队有且仅有一套 `ExtractionTemplate`（user 可编辑、配置文件可改），注入 prompt 作为**引导**（优先类型/含义/关系类型/指令）但**不限定死**--模板外的实体**仍捕获并打标**（`template_conforming`/`discovered_types`），不丢弃；新类型沉淀进模板为 **review-gated**（P4）。LLM 走 `LLMProvider`，测试用 `sys.modules` 桩隔离 litellm（沿用 P0 `test_llm_provider`）。
-
-> [!note] 本任务引入的 `Chunk`/`Entity`/`Relation`/`Claim`/`Covariate`/`ExtractionResult`/`ExtractionTemplate` 为 P1 全局共享类型，Task 3-6 直接引用。
-
+**目标：** 把 `LoadedDocument` 切成 `Chunk`，再用 LLM 抽取实体/关系/声明/协变量四类 `ExtractionResult`。实体类型走团队级抽取模板（软引导）：每团队唯一一套 `ExtractionTemplate`（user 可编辑、配置文件可改），注入 prompt 引导但不限定死——模板外实体仍捕获并打标（`template_conforming`/`discovered_types`），不丢弃；新类型沉淀进模板为 review-gated（P4）。LLM 走 `LLMProvider`，测试用 `sys.modules` 桩隔离 litellm。
+> [!note] 本任务引入的 `Chunk`/`Entity`/`Relation`/`Claim`/`Covariate`/`ExtractionResult`/`ExtractionTemplate` 为 P1 全局共享类型，Task 3-6 直接引用；代码已同步于 `src/calliodesmo/interfaces/{chunker,extractor}.py`。
 **Files:**
-- Create: `src/calliodesmo/interfaces/chunker.py`（`Chunker` ABC + `Chunk` dataclass）
-- Create: `src/calliodesmo/interfaces/extractor.py`（`Extractor` ABC + `ExtractionResult`/`Entity`/`Relation`/`Claim`/`Covariate`/`ExtractionTemplate`）
-- Create: `src/calliodesmo/ecl/__init__.py`
-- Create: `src/calliodesmo/ecl/chunker.py`（`TextChunker`，结构感知，确定性）
-- Create: `src/calliodesmo/ecl/extractor.py`（`LLMExtractor`，prompt 构造 + JSON 解析 + 模板引导 + 打标）
-- Create: `src/calliodesmo/ecl/extraction_template.py`（`ExtractionTemplateRegistry`：从 YAML 加载，按 team 唯一）
-- Create: `config/extraction_templates.example.yaml`（团队模板样例）
-- Modify: `src/calliodesmo/config.py`（新增 `extraction_template_file`，默认 `config/extraction_templates.yaml`）
-- Test: `tests/test_chunker.py`、`tests/test_extractor.py`、`tests/test_extraction_template.py`
+- Create: `src/calliodesmo/interfaces/{chunker,extractor}.py`（`Chunker`/`Extractor` ABC + 共享类型）
+- Create: `src/calliodesmo/ecl/{__init__,chunker,extractor,extraction_template}.py`（`TextChunker` 结构感知确定性切分 / `LLMExtractor` prompt 构造 + JSON 解析 + 模板引导 / `ExtractionTemplateRegistry` 从 YAML 按 team 唯一加载）
+- Create: `config/extraction_templates.example.yaml`（团队模板样例）；Modify: `src/calliodesmo/config.py`（新增 `extraction_template_file`）；Test: `tests/test_{chunker,extractor,extraction_template}.py`
 
-**共享类型（`interfaces/extractor.py`）：**
-
-```python
-@dataclass
-class Chunk:
-    chunk_id: str  # f"{doc_id}#{ordinal}"
-    doc_id: str
-    content: str
-    ordinal: int
-    metadata: dict[str, Any]
-    access_level: ClearanceLevel
-    library_scope: LibraryScope
-    owner_id: uuid.UUID | None
-    project_id: uuid.UUID | None
-    team_id: uuid.UUID | None
-    summary: str | None = (
-        None  # L0 短摘要预留（~100 token）：P1 填 None，P2/P5 检索粗筛/rerank 时再补生成逻辑
-    )
-
-
-@dataclass
-class Entity:
-    name: str
-    type: str | None
-    description: str
-    source_chunk_ids: list[str]
-    template_conforming: bool = False  # 是否落入团队模板 preferred_entity_types
-
-
-@dataclass
-class Relation:
-    source: str  # 实体 name
-    target: str
-    type: str | None
-    description: str
-    source_chunk_ids: list[str]
-
-
-@dataclass
-class Claim:
-    text: str
-    entity_name: str | None
-    source_chunk_ids: list[str]
-
-
-@dataclass
-class Covariate:
-    name: str
-    entity_name: str
-    value: str
-    source_chunk_ids: list[str]
-
-
-@dataclass
-class ExtractionTemplate:
-    """团队级抽取模板（软引导，非白名单）：每团队有且仅一套，user 可编辑、配置文件可改。"""
-
-    team: str  # team_id 字符串
-    preferred_entity_types: list[str]  # 引导类型（优先抽取，不拒绝其他）
-    type_descriptions: dict[str, str] = field(default_factory=dict)
-    relation_types: list[str] = field(default_factory=list)  # 关系类型引导
-    instructions: str = ""  # user 自由文本指令（吸收 prompt 模板）
-
-
-@dataclass
-class ExtractionResult:
-    entities: list[Entity]
-    relations: list[Relation]
-    claims: list[Claim]
-    covariates: list[Covariate]
-    schema_mode: str  # 输出属性 "template-guided" | "free"
-    discovered_types: list[str] = field(
-        default_factory=list
-    )  # 模板外新发现类型（供 review-gated 沉淀）
-```
-
-**接口（`interfaces/chunker.py`、`interfaces/extractor.py`）：**
-
-```python
-class Chunker(ABC):
-    @abstractmethod
-    async def chunk(self, doc: LoadedDocument) -> list[Chunk]: ...
-
-
-class Extractor(ABC):
-    @abstractmethod
-    async def extract(
-        self,
-        chunks: list[Chunk],
-        *,
-        access: AccessContext,
-    ) -> ExtractionResult: ...
-```
-
-> [!note] 模板是**引导非约束**：`ExtractionTemplateRegistry` 按 ingest 所属团队从配置解析（每团队唯一），注入 prompt 引导 LLM 优先抽模板类型；模板外的实体**仍抽取并打 `template_conforming=False`**，类型入 `discovered_types`，**不 reject**。`access` 提供 team 上下文解析模板；无 team/未配置 -> `schema_mode="free"`。新类型沉淀进模板为 **review-gated**（P4 Git-like 推送审核），P1 只捕获+打标+收集。
-
-- [x] **Step 1:** `TextChunker` 结构感知切分失败测试（默认 `chunk_size=1200`/`overlap=100` 字符；先按 Markdown 标题/代码块/表为原子单元，段/句兜底，贪心装填 + overlap 接缝；空文档返空；确定性；无丢失覆盖；`len<=chunk_size` 除非不可分单元；相邻 chunk 共享 overlap）-> 实现跑绿
-- [x] **Step 2:** `Chunk` 携带 access 字段（`access_level`/`library_scope`/`owner_id`/`project_id`/`team_id` 从 `LoadedDocument.metadata` 继承，缺省 INTERNAL/personal）测试 -> 实现跑绿
-- [x] **Step 3:** `ExtractionTemplateRegistry` 失败测试：从 YAML 加载 `team -> ExtractionTemplate`；**每团队唯一**（同 team 重复键 -> 加载报错）；缺文件/空文件 -> registry 为空（全 free）；`CALLIODESMO_EXTRACTION_TEMPLATE_FILE` 可覆盖路径；模板字段含 `preferred_entity_types`/`type_descriptions`/`relation_types`/`instructions` -> 实现跑绿
-- [x] **Step 4:** `LLMExtractor` 模板引导混合抽取：团队模板已配置 -> prompt 注入引导（优先类型/含义/关系类型/指令）+ **明确要求同时抽取模板外实体并标记**；桩 litellm 返回"模板内 + 模板外"混合实体 -> 解析后**全部保留**，模板内 `template_conforming=True`、模板外 `False` 且类型入 `discovered_types`；`schema_mode="template-guided"`；无模板时 `schema_mode="free"`、全部 `conforming=False`、`discovered_types=[]` -> 实现跑绿
-- [x] **Step 5:** 健壮性：LLM 返回非法 JSON / 空抽取 -> 抛 `ExtractionError`（含原始响应片段），不静默吞异常测试 -> 实现跑绿
-- [x] **Step 6:** 来源打标：跨 chunk 抽取的 `Entity.source_chunk_ids` 含所有出现该实体的 chunk ordinal 测试 -> 实现跑绿
-- [x] **Step 7:** 四类齐全端到端（entities/relations/claims/covariates 均非空，桩 LLM 一次返回）测试 -> 实现跑绿
-- [x] **Step 8:** 模型经 `LLMProvider` 可切换（`CALLIODESMO_LLM_MODEL`）；`ExtractionTemplate.instructions` 作为 user 可编辑 prompt 指令注入；模型选型 + 指令作为精度杠杆，单测覆盖 prompt 构造与模型参数透传；选型详见 `docs/model-selection.md` -> 实现跑绿
+- [x] **Step 1:** `TextChunker` 结构感知切分（默认 `chunk_size=1200`/`overlap=100` 字符；Markdown 标题/代码块/表为原子单元，段/句兜底，贪心装填 + overlap；空文档空返；确定性；无丢失覆盖）-> 实现跑绿
+- [x] **Step 2:** `Chunk` 携带 access 字段（`access_level`/`library_scope`/`owner_id`/`project_id`/`team_id` 从 `LoadedDocument.metadata` 继承，缺省 INTERNAL/personal）-> 实现跑绿
+- [x] **Step 3:** `ExtractionTemplateRegistry` 失败测试：按 team 唯一（同 team 重复键 -> 加载报错）；缺文件/空文件 -> 空 registry（全 free）；`CALLIODESMO_EXTRACTION_TEMPLATE_FILE` 可覆盖路径 -> 实现跑绿
+- [x] **Step 4:** `LLMExtractor` 模板软引导混合抽取：模板内实体 `template_conforming=True`；模板外实体保留打标 `False` 且类型入 `discovered_types`；`schema_mode` 为输出属性（`template-guided`/`free`）-> 实现跑绿
+- [x] **Step 5:** 健壮性：LLM 返回非法 JSON / 空抽取 -> 抛 `ExtractionError`（含原始响应片段），不静默吞异常 -> 实现跑绿
+- [x] **Step 6:** 来源打标：跨 chunk 抽取 `Entity.source_chunk_ids` 含出现该实体的全部 chunk -> 实现跑绿
+- [x] **Step 7:** 四类齐全端到端（entities/relations/claims/covariates 均非空，桩 LLM 一次返回）-> 实现跑绿
+- [x] **Step 8:** 模型经 `LLMProvider` 可切换（`CALLIODESMO_LLM_MODEL`）；`ExtractionTemplate.instructions` 作为 user 可编辑 prompt 指令注入；选型见 `docs/model-selection.md` -> 实现跑绿
 
 **验收：**
-- `TextChunker` 结构感知（标题/代码块/表为原子 + 段句兜底 + overlap）、确定性、无丢失覆盖；`Chunk` 携带完整 access 字段
-- `ExtractionTemplateRegistry` 按 team 唯一、user 可编辑、配置文件可改；同 team 重复键加载报错
-- 模板为**软引导**：模板外实体**保留并打 `template_conforming=False`**（不 reject），类型入 `discovered_types`；`schema_mode` 为输出属性（`template-guided`/`free`）
-- 新类型沉淀进模板为 review-gated（P4），P1 只捕获+打标+收集
-- LLM 全程经 `LLMProvider`，离线测试用 `sys.modules` 桩，零真实请求；非法输出有清晰错误
+- `TextChunker` 结构感知、确定性、无丢失覆盖；`Chunk` 携带完整 access 字段；模板为软引导：模板外实体保留 + 打 `template_conforming=False`（不 reject），类型入 `discovered_types`，`schema_mode` 为输出属性
+- 新类型沉淀进模板为 review-gated（P4），P1 只捕获+打标+收集；LLM 全程经 `LLMProvider`，离线测试用 `sys.modules` 桩，零真实请求，非法输出有清晰错误
 
 ---
 
 ### Task 3: 建图、实体消解与社区检测（Cognify）
 
-**目标：** 把 `ExtractionResult` 建成实体-关系图，**做实体消解**（把切分/抽取造成的碎片实体拼回去--名归一化、别名合并、多 chunk 描述汇总），再做社区检测，对每个社区生成 LLM 摘要，输出 `list[Community]`。
-
-> [!note] 实体消解是 P1 精度的主回收层：切分把同一实体切碎到不同 chunk，靠这一步合并回单节点（GraphRAG 内置 entity summarization 同思路）。社区检测在合并后的图上进行，避免重复节点错分社区。
-
+**目标：** 把 `ExtractionResult` 建成实体-关系图，做实体消解（名归一化、别名合并、多 chunk 描述汇总，把切碎实体拼回单节点），再做社区检测，对每个社区生成 LLM 摘要，输出 `list[Community]`。
+> [!note] 实体消解是 P1 精度的主回收层（GraphRAG entity summarization 同思路）：切分把同一实体切碎到不同 chunk，靠此合并回单节点；社区检测在消解后的图上进行，避免重复节点错分社区。
 **Files:**
-- Create: `src/calliodesmo/interfaces/cognify.py`（`GraphBuilder`/`EntityResolver`/`CommunityDetector`/`CommunitySummarizer` ABC + `Community` dataclass）
-- Create: `src/calliodesmo/ecl/cognify.py`（`EntityRelationGraphBuilder` / `NameEntityResolver` / `LLMAliasResolver`（可选）/ `ConnectedComponentsDetector` / `NetworkxCommunityDetector`（extra）/ `LLMCommunitySummarizer`）
-- Test: `tests/test_cognify.py`
-
-**共享类型（`interfaces/cognify.py`）：**
-
-```python
-@dataclass
-class Community:
-    community_id: str
-    level: int  # 0=实体社区，1=文档社区（Task 5）
-    title: str
-    summary: str
-    member_entity_names: list[str]
-    metadata: dict[str, Any]
-    access_level: ClearanceLevel
-    library_scope: LibraryScope
-    owner_id: uuid.UUID | None
-    project_id: uuid.UUID | None
-    team_id: uuid.UUID | None
-```
+- Create: `src/calliodesmo/interfaces/cognify.py`（`GraphBuilder`/`EntityResolver`/`CommunityDetector`/`CommunitySummarizer` ABC + `Community` dataclass，含 access 字段）
+- Create: `src/calliodesmo/ecl/cognify.py`（`EntityRelationGraphBuilder` / `NameEntityResolver` / `LLMAliasResolver`（可选）/ `ConnectedComponentsDetector` / `NetworkxCommunityDetector`（extra）/ `LLMCommunitySummarizer`）；Test: `tests/test_cognify.py`
 
 - [x] **Step 1:** `EntityRelationGraphBuilder` 失败测试（entities->节点、relations->边、自环/重复边过滤；最终去重留待 Step 2 消解）-> 实现跑绿
-- [x] **Step 2:** `EntityResolver` 一等公民：`NameEntityResolver`（名归一化：大小写/空白/标点 + 显式别名表合并 + 跨 chunk 描述汇总为单节点；合并时 `template_conforming` 取并集--任一实例 conforming 则合并后 conforming）测试 -> 实现跑绿
-- [x] **Step 3:** 可选 `LLMAliasResolver`：LLM 判别名/指代合并（如 "OpenAI"=="OpenAI Inc."，桩 litellm）；未启用时回退纯名归一化测试 -> 实现跑绿
-- [x] **Step 4:** `CommunityDetector` 接口 + 默认 `ConnectedComponentsDetector`（零重依赖、确定性、按 name 排序可复现；在**消解后**的图上检测）测试 -> 实现跑绿
-- [x] **Step 5:** 可选 `NetworkxCommunityDetector`（extra）：`monkeypatch` 模拟 networkx 缺失 -> 友好报错 `RuntimeError("社区检测需 networkx：uv sync --extra graph-analytics")` 测试 -> 实现跑绿
-- [x] **Step 6:** `LLMCommunitySummarizer`：对社区成员实体名+描述喂 LLM 生成 `title`+`summary`（桩 litellm）测试 -> 实现跑绿
-- [x] **Step 7:** Cognify 串联（build -> **resolve** -> detect -> summarize -> `list[Community]`，access 字段从 chunk 继承）端到端测试 -> 实现跑绿
+- [x] **Step 2:** `NameEntityResolver` 一等公民：名归一化（大小写/空白/标点）+ 显式别名表合并 + 跨 chunk 描述汇总为单节点；`template_conforming` 取并集（任一 conforming 则合并后 conforming）-> 实现跑绿
+- [x] **Step 3:** 可选 `LLMAliasResolver`（LLM 判别名/指代合并，桩 litellm）；未启用时回退纯名归一化 -> 实现跑绿
+- [x] **Step 4:** 默认 `ConnectedComponentsDetector`（零重依赖、确定性、按 name 排序可复现；在消解后的图上检测）-> 实现跑绿
+- [x] **Step 5:** 可选 `NetworkxCommunityDetector`：monkeypatch 模拟 networkx 缺失 -> 友好报错 `RuntimeError("社区检测需 networkx：uv sync --extra graph-analytics")` -> 实现跑绿
+- [x] **Step 6:** `LLMCommunitySummarizer`：成员实体名+描述喂 LLM 生成 `title`+`summary`（桩 litellm）-> 实现跑绿
+- [x] **Step 7:** Cognify 串联（build -> resolve -> detect -> summarize -> `list[Community]`，access 字段从 chunk 继承）端到端 -> 实现跑绿
 
 **验收：**
 - 实体消解为一等公民：名归一化 + 别名合并 + 多 chunk 描述汇总；碎片实体合并为单节点（断言合并前后节点数）
-- 默认社区检测零重依赖、确定性可复现；networkx 路径缺依赖友好报错
-- 社区摘要经 `LLMProvider`，离线测试用桩
-- `Community` 携带 access 字段，供 Task 4 落库与 P2 检索过滤
+- 默认社区检测零重依赖、确定性可复现；networkx 路径缺依赖友好报错；社区摘要经 `LLMProvider`，离线测试用桩；`Community` 携带 access 字段供 Task 4 落库与 P2 检索过滤
 
 ---
 
 ### Task 4: 三层存储与落库（Load）
 
-**目标：** 引入 `VectorStore`/`GraphStore`/`CommunityStore` 三抽象接口（路线图"六个可插拔接口"之 P1 部分）+ 确定性内存默认实现；把 `Chunk`（嵌入向量）+ `ExtractionResult`（图）+ `Community`（摘要）落个人库，全程带 access 字段供 `AccessContext` 过滤。
-
-> [!note] pgvector/Neo4j 真后端列为 optional extra（容器验证），与 BGE-M3 同策略；P1 默认内存实现保证离线可测、CI 可跑。
-
+**目标：** 引入 `VectorStore`/`GraphStore`/`CommunityStore` 三抽象接口 + 确定性内存默认实现；把 `Chunk`（嵌入向量）+ `ExtractionResult`（图）+ `Community`（摘要）落个人库，全程带 access 字段供 `AccessContext` 过滤。
+> [!note] pgvector/Neo4j 真后端列为 optional extra（容器验证，与 BGE-M3 同策略）；P1 默认内存实现保证离线可测、CI 可跑。
 **Files:**
-- Create: `src/calliodesmo/interfaces/vector_store.py`（`VectorStore` ABC + `ChunkRecord`/`VectorHit`）
-- Create: `src/calliodesmo/interfaces/graph_store.py`（`GraphStore` ABC + `EntityRecord`/`RelationRecord`）
-- Create: `src/calliodesmo/interfaces/community_store.py`（`CommunityStore` ABC + `CommunityRecord`）
-- Create: `src/calliodesmo/stores/__init__.py`
-- Create: `src/calliodesmo/stores/visibility.py`（`visible_to(record, ctx)` 谓词）
-- Create: `src/calliodesmo/providers/in_memory_vector_store.py` / `in_memory_graph_store.py` / `in_memory_community_store.py`
-- Create: `src/calliodesmo/ecl/load.py`（`LoadService`：把 ECL 中间产物写入三 store）
+- Create: `src/calliodesmo/interfaces/{vector_store,graph_store,community_store}.py`（ABC + `ChunkRecord`/`VectorHit`/`EntityRecord`/`RelationRecord`/`CommunityRecord`）
+- Create: `src/calliodesmo/stores/visibility.py`（`visible_to(record, ctx)` 谓词）；`src/calliodesmo/providers/{in_memory_vector_store,in_memory_graph_store,in_memory_community_store}.py`；`src/calliodesmo/ecl/load.py`（`LoadService`）
 - Test: `tests/test_visibility.py`、`tests/test_in_memory_stores.py`、`tests/test_load.py`
 
-**可见性谓词（`stores/visibility.py`）：**
+**可见性谓词（`stores/visibility.py`）：** `visible_to(record, ctx)`：`ctx.clearance` 低于 access 拒见；按 `library_scope` 匹配 personal/project/team 归属（owner/project/team）。
+**接口签名：** `VectorStore`（`upsert_chunks`/`search(query_vector, top_k, access)`）；`GraphStore`（`upsert_graph`/`get_entity`/`neighbors`）；`CommunityStore`（`upsert_communities`/`list_communities`），均带 `access` 过滤；完整签名见 `src/calliodesmo/interfaces/`。
 
-```python
-def visible_to(record, ctx: AccessContext) -> bool:
-    if ctx.clearance < record.access_level:
-        return False
-    match record.library_scope:
-        case LibraryScope.PERSONAL:
-            return record.owner_id == ctx.user_id
-        case LibraryScope.PROJECT:
-            return record.project_id in ctx.project_ids
-        case LibraryScope.TEAM:
-            return record.team_id in ctx.team_ids
-    return False
-```
-
-**接口签名：**
-
-```python
-class VectorStore(ABC):
-    @abstractmethod
-    async def upsert_chunks(self, chunks: list[ChunkRecord]) -> None: ...
-    @abstractmethod
-    async def search(
-        self, query_vector: list[float], *, top_k: int, access: AccessContext
-    ) -> list[VectorHit]: ...
-
-
-class GraphStore(ABC):
-    @abstractmethod
-    async def upsert_graph(
-        self, entities: list[EntityRecord], relations: list[RelationRecord]
-    ) -> None: ...
-    @abstractmethod
-    async def get_entity(self, name: str, *, access: AccessContext) -> EntityRecord | None: ...
-    @abstractmethod
-    async def neighbors(
-        self, name: str, *, access: AccessContext
-    ) -> tuple[list[EntityRecord], list[RelationRecord]]: ...
-
-
-class CommunityStore(ABC):
-    @abstractmethod
-    async def upsert_communities(self, communities: list[CommunityRecord]) -> None: ...
-    @abstractmethod
-    async def list_communities(self, *, access: AccessContext) -> list[CommunityRecord]: ...
-```
-
-- [x] **Step 1:** `visible_to` 正反例（clearance 有序比较 + personal/project/team 三 scope 可见性 + 越权拒见）测试 -> 实现跑绿
-- [x] **Step 2:** `VectorStore` 接口 + `ChunkRecord`；`InMemoryVectorStore` upsert + 余弦相似 `search`（按 `visible_to` 过滤、`top_k` 截断、score 降序、确定性平局按 chunk_id 排序）测试 -> 实现跑绿
-- [x] **Step 3:** `GraphStore` 接口 + `EntityRecord`/`RelationRecord`（`EntityRecord` 镜像 `Entity` 含 `template_conforming`，供 P2 按模板内/外过滤）；`InMemoryGraphStore` upsert（同 name 覆盖）+ `get_entity`/`neighbors`（按 `visible_to` 过滤）测试 -> 实现跑绿
-- [x] **Step 4:** `CommunityStore` 接口 + `CommunityRecord`；`InMemoryCommunityStore` upsert + `list_communities`（按 `visible_to` 过滤、按 level/title 排序）测试 -> 实现跑绿
-- [x] **Step 5:** `LoadService`：`Chunk` 经 `EmbeddingProvider` 嵌入 -> `ChunkRecord` -> `VectorStore`；`ExtractionResult` -> `GraphStore`；`Community` -> `CommunityStore`；access 字段从 doc 继承，端到端断言三 store 有数据测试 -> 实现跑绿
-- [x] **Step 6:** 幂等 upsert（同 `chunk_id`/实体 name 二次写入覆盖而非重复）测试 -> 实现跑绿
+- [x] **Step 1:** `visible_to` 正反例（clearance 有序比较 + personal/project/team 三 scope 可见性 + 越权拒见）-> 实现跑绿
+- [x] **Step 2:** `InMemoryVectorStore` upsert + 余弦相似 `search`（按 `visible_to` 过滤、`top_k` 截断、score 降序、确定性平局按 chunk_id 排序）-> 实现跑绿
+- [x] **Step 3:** `InMemoryGraphStore` upsert（同 name 覆盖）+ `get_entity`/`neighbors`（按 `visible_to` 过滤；`EntityRecord` 含 `template_conforming` 供 P2 过滤）-> 实现跑绿
+- [x] **Step 4:** `InMemoryCommunityStore` upsert + `list_communities`（按 `visible_to` 过滤、按 level/title 排序）-> 实现跑绿
+- [x] **Step 5:** `LoadService`：Chunk 经 EmbeddingProvider 嵌入 -> `ChunkRecord`；`ExtractionResult` -> GraphStore；`Community` -> CommunityStore；access 字段继承，端到端断言三 store 有数据 -> 实现跑绿
+- [x] **Step 6:** 幂等 upsert（同 `chunk_id`/实体 name 二次写入覆盖而非重复）-> 实现跑绿
 
 **验收：**
-- 三 store 接口 + 内存默认实现齐全，余弦相似/图邻居/社区列表均按 `AccessContext` 过滤
-- `LoadService` 把 ECL 产物落个人库（personal scope + owner_id），access 字段贯通
+- 三 store 接口 + 内存默认实现齐全，余弦相似/图邻居/社区列表均按 `AccessContext` 过滤；`LoadService` 把 ECL 产物落个人库（personal scope + owner_id），access 字段贯通
 - 内存实现确定性可复现；pgvector/Neo4j 真后端列为 extra（不阻塞 P1 验收）
 
 ---
 
 ### Task 5: 文档社区自动派生（选项 A）
 
-**目标：** 选项 A 自动派生：在 Task 3 实体社区之上，按文档来源聚合一层"文档级"社区（level=1），便于按文档检索与导航。
-
+**目标：** 选项 A 自动派生：在 Task 3 实体社区之上，按文档来源聚合一层“文档级”社区（level=1），便于按文档检索与导航。
 **Files:**
-- Create: `src/calliodesmo/ecl/community_deriver.py`（`DocumentCommunityDeriver`）
-- Test: `tests/test_community_deriver.py`
+- Create: `src/calliodesmo/ecl/community_deriver.py`（`DocumentCommunityDeriver`）；Test: `tests/test_community_deriver.py`
 
-- [x] **Step 1:** 按 `doc_id` 聚合其 chunk 关联实体 -> LLM 生成文档级 `title`+`summary`（桩 litellm）测试 -> 实现跑绿
-- [x] **Step 2:** 派生社区写入 `CommunityStore`（`level=1`、`member_entity_names` 为该文档实体集合、access 字段继承）测试 -> 实现跑绿
-- [x] **Step 3:** 增量：新文档 ingest 只新增本档社区，不动已有文档社区测试 -> 实现跑绿
+- [x] **Step 1:** 按 `doc_id` 聚合其 chunk 关联实体 -> LLM 生成文档级 `title`+`summary`（桩 litellm）-> 实现跑绿
+- [x] **Step 2:** 派生社区写入 `CommunityStore`（`level=1`、`member_entity_names` 为该文档实体集合、access 字段继承）-> 实现跑绿
+- [x] **Step 3:** 增量：新文档 ingest 只新增本档社区，不动已有文档社区 -> 实现跑绿
 
 **验收：**
-- 文档社区自动派生，level 区分实体/文档两层
-- 增量安全，可重复 ingest 不重复派生
+- 文档社区自动派生，level 区分实体/文档两层；增量安全，可重复 ingest 不重复派生
 
 ---
 
 ### Task 6: IndexingEngine 与 `ingest` CLI（串联 Task 1-5）
 
-**目标：** 实现 `IndexingEngine` 抽象（六个接口之一）+ 默认 `ECLIndexingEngine` 串联 Load->Extract->Cognify->Load->社区派生；CLI `calliodesmo ingest <path>` 端到端建图落个人库并记审计。
-
+**目标：** 实现 `IndexingEngine` 抽象（六接口之一）+ 默认 `ECLIndexingEngine` 串联 Load->Extract->Cognify->Load->社区派生；CLI `calliodesmo ingest <path>` 端到端建图落个人库并记审计。
 **Files:**
-- Create: `src/calliodesmo/interfaces/indexing_engine.py`（`IndexingEngine` ABC）
-- Create: `src/calliodesmo/ecl/engine.py`（`ECLIndexingEngine`，依赖注入 loader/embedding/llm/chunker/extractor（含 ExtractionTemplateRegistry）/cognify/三 store/deriver）
-- Modify: `src/calliodesmo/cli.py`（新增 `ingest` 命令）
-- Modify: `src/calliodesmo/models.py`（如需 ORM 持久化补表；内存默认实现下可不改）
-- Test: `tests/test_indexing_engine.py`、`tests/test_ingest_cli.py`
+- Create: `src/calliodesmo/interfaces/indexing_engine.py`（`IndexingEngine` ABC + `IngestStats`）；Create: `src/calliodesmo/ecl/engine.py`（`ECLIndexingEngine`，依赖注入 loader/embedding/llm/chunker/extractor（含模板 registry）/cognify/三 store/deriver）
+- Modify: `src/calliodesmo/cli.py`（新增 `ingest` 命令）；`src/calliodesmo/models.py`（如需 ORM 持久化补表）；Test: `tests/test_{indexing_engine,ingest_cli}.py`
 
-**接口（`interfaces/indexing_engine.py`）：**
-
-```python
-@dataclass
-class IngestStats:
-    documents: int
-    chunks: int
-    entities: int
-    relations: int
-    communities: int
-
-
-class IndexingEngine(ABC):
-    @abstractmethod
-    async def ingest(
-        self,
-        source: str | Path,
-        *,
-        access: AccessContext,
-    ) -> IngestStats: ...
-```
-
-- [x] **Step 1:** `IndexingEngine` 接口 + `ECLIndexingEngine` 依赖注入构造（loader/embedding/llm/chunker/extractor（含 ExtractionTemplateRegistry）/cognify/三 store/deriver）测试 -> 实现跑绿
-- [x] **Step 2:** 端到端 ECL（桩 LLM + `HashEmbeddingProvider` + 内存三 store + `TextDocumentLoader`）跑通：doc->chunks->extraction（access 解析团队模板软引导，模板外实体打标不拒）->graph->communities->三 store 落库 + 返回 `IngestStats` 计数正确测试 -> 实现跑绿
-- [x] **Step 3:** `AccessContext` 限定 personal scope + `owner_id=ctx.user_id` 落库（断言 store 中记录 owner 匹配、越权不可见）测试 -> 实现跑绿
-- [x] **Step 4:** `ingest` CLI（Typer）：路径参数 + 构造默认引擎（内存 stores + `HashEmbeddingProvider` + `LiteLLMProvider`）+ 打印 `IngestStats`；`CliRunner` 断言退出码 0 与统计文本测试 -> 实现跑绿
-- [x] **Step 5:** 失败友好报错（路径不存在 -> 退出码非 0；loader 未注册 -> 提示安装 extra；LLM 缺 key -> 指引 `CALLIODESMO_LLM_API_KEY`）测试 -> 实现跑绿
-- [x] **Step 6:** 审计：ingest 动作经 `record_audit(action="ingest", resource_type="document", detail={stats}, source="cli")` 落 `AuditLog` 测试 -> 实现跑绿
+- [x] **Step 1:** `IndexingEngine` 接口 + `ECLIndexingEngine` 依赖注入构造（loader/embedding/llm/chunker/extractor/模板 registry/cognify/三 store/deriver）-> 实现跑绿
+- [x] **Step 2:** 端到端 ECL（桩 LLM + HashEmbedding + 内存三 store + TextDocumentLoader）：doc->chunks->extraction（模板软引导，模板外打标不拒）->graph->communities->三 store 落库 + `IngestStats` 计数正确 -> 实现跑绿
+- [x] **Step 3:** `AccessContext` 限定 personal scope + `owner_id=ctx.user_id` 落库（越权不可见断言）-> 实现跑绿
+- [x] **Step 4:** `ingest` CLI（Typer）：路径参数 + 默认引擎（内存 stores + HashEmbedding + LiteLLMProvider）+ 打印 `IngestStats`；`CliRunner` 断言退出码 0 与统计文本 -> 实现跑绿
+- [x] **Step 5:** 失败友好报错（路径不存在 -> 退出码非 0；loader 未注册 -> 提示安装 extra；LLM 缺 key -> 指引 `CALLIODESMO_LLM_API_KEY`）-> 实现跑绿
+- [x] **Step 6:** 审计：ingest 动作经 `record_audit(action="ingest", resource_type="document", detail={stats}, source="cli")` 落 `AuditLog` -> 实现跑绿
 
 **验收：**
-- `ECLIndexingEngine` 串联 Task 1-5，端到端离线跑通（桩 LLM + Hash 嵌入 + 内存 stores）
-- `calliodesmo ingest <path>` 一键建图落个人库，输出统计并记审计
-- 越权记录不可见（personal scope 隔离验证）
+- `ECLIndexingEngine` 串联 Task 1-5，端到端离线跑通（桩 LLM + Hash 嵌入 + 内存 stores）；`calliodesmo ingest <path>` 一键建图落个人库，输出统计并记审计；越权记录不可见（personal scope 隔离验证）
 
 ---
 
 ### Task 7: 实体档案卡自动生成（ProfileCard）
 
-**目标：** 在 Task 2/3 已抽取并消解的 `Entity` 基础上，从图邻居 + Covariate + Entity 确定性聚合出**结构化档案卡**（`ProfileCard`），作为用户侧展示单元。档案卡的**结构化字段**（别名/职务/组织/关联人/时间跨度/证据）是图与 Covariate 的确定性投影，可进入模型上下文增强 LLM 可读性与精度；**叙述字段**（narrative）为可选 LLM 生成概述，按"摘要不进模型"约束**不进入检索/rerank/生成链路**，仅供人阅读。P1 只做自动生成（确定性聚合为主 + 可选叙述），**用户编辑/版本/审核/推送归 P4**（与抽取模板 review-gated 同流程）；P1 数据模型预留来源标记与锁定标记字段，不实现编辑逻辑。
-
-> [!note] 与 Task 2 Step 4 的区别：Task 2/3 是"从 chunk 原文**抽取**实体并**消解**合并"（产出 `Entity`，description 为自由文本汇总）；Task 7 是"从已合并的 Entity + 图邻居 + Covariate **聚合**成结构化画像"（产出 `ProfileCard`，字段为结构化投影）。前者是 Extract/Cognify 阶段从无到有提取原料，后者是 Cognify 之后/Load 时的结构化成型，不重复抽取，只做二手聚合。
-
+**目标：** 从已消解的 `Entity` + 图邻居 + Covariate 确定性聚合出结构化档案卡（`ProfileCard`），作为用户侧展示单元。结构化字段（别名/职务/组织/关联人/时间跨度/证据）是图与 Covariate 的确定性投影，可进模型上下文增强可读性与精度；叙述字段 `narrative` 为可选 LLM 生成概述，按“摘要不进模型”约束不进检索/rerank 链路，仅供人读。P1 只做自动生成（用户编辑/版本/审核/推送归 P4）；数据模型预留 `provenance`/`locked` 标记字段，不实现编辑逻辑。
+> [!note] 与 Task 2 Step 4 的区别：Task 2/3 从 chunk 原文抽取实体并消解合并（产出 `Entity`）；Task 7 从已合并 Entity + 图邻居 + Covariate 聚合结构化画像（产出 `ProfileCard`），只做二手聚合，不重复抽取。
 **Files:**
-- Create: `src/calliodesmo/interfaces/profile_card.py`（`ProfileCard` dataclass + `ProfileCardDeriver` ABC + `FieldProvenance` 枚举）
-- Create: `src/calliodesmo/ecl/profile_card_deriver.py`（`DeterministicProfileCardDeriver`：从 GraphStore.neighbors + Covariate + Entity 聚合；可选 `narrative` 经 `LLMProvider` 生成但标记为非检索用）
-- Create: `src/calliodesmo/stores/profile_card_store.py`（`InMemoryProfileCardStore`，与三 store 同构，按 `visible_to` 过滤）
-- Modify: `src/calliodesmo/ecl/engine.py`（`ECLIndexingEngine` 可选串联档案卡生成：ingest 主链路完成后触发，不阻塞主流程；`IngestStats` 增 `profile_cards` 计数）
-- Test: `tests/test_profile_card.py`
+- Create: `src/calliodesmo/interfaces/profile_card.py`（`ProfileCard`/`ProfileField`/`FieldProvenance` + `ProfileCardDeriver` ABC）；`src/calliodesmo/ecl/profile_card_deriver.py`（`DeterministicProfileCardDeriver`：GraphStore.neighbors + Covariate + Entity 聚合；可选 `narrative` 经 LLM 生成但标记非检索用）
+- Create: `src/calliodesmo/stores/profile_card_store.py`（`InMemoryProfileCardStore`，与三 store 同构，按 `visible_to` 过滤）；Modify: `src/calliodesmo/ecl/engine.py`（可选串联档案卡生成，不阻塞主流程；`IngestStats` 增 `profile_cards`）；Test: `tests/test_profile_card.py`
 
-**共享类型（`interfaces/profile_card.py`）：**
-
-```python
-class FieldProvenance(enum.StrEnum):
-    AUTO = "auto"  # 自动聚合生成
-    USER = "user"  # 用户编辑（P4）
-    MERGED = "merged"  # 自动+用户合并（P4）
-
-
-@dataclass
-class ProfileField:
-    value: str
-    provenance: FieldProvenance = FieldProvenance.AUTO
-    locked: bool = False  # 用户编辑过的字段不被自动覆盖（P4 编辑生效；P1 恒 False）
-
-
-@dataclass
-class ProfileCard:
-    entity_name: str
-    entity_type: str | None
-    aliases: list[ProfileField]  # 来自 NameEntityResolver 别名合并
-    role: ProfileField | None  # 职务（Covariate 或 Relation 投影）
-    organization: ProfileField | None  # 所属组织（Relation target 投影）
-    associates: list[ProfileField]  # 关联人（图邻居 person 类型）
-    timespan: ProfileField | None  # 活动时间跨度（chunk 时间元数据）
-    description: str  # Entity.description 原文汇总（自由文本）
-    narrative: str | None = None  # 可选 LLM 叙述概述（不进检索链路，仅供人读）
-    evidence_chunk_ids: list[str] = field(default_factory=list)  # source_chunk_ids 溯源
-    access_level: ClearanceLevel = ClearanceLevel.INTERNAL
-    library_scope: LibraryScope = LibraryScope.PERSONAL
-    owner_id: uuid.UUID | None = None
-    project_id: uuid.UUID | None = None
-    team_id: uuid.UUID | None = None
-    version: int = 1  # P4 编辑版本，P1 恒 1
-```
-
-**接口（`interfaces/profile_card.py`）：**
-
-```python
-class ProfileCardDeriver(ABC):
-    @abstractmethod
-    async def derive(
-        self,
-        entity_name: str,
-        *,
-        graph: GraphStore,
-        covariates: list[Covariate],
-        entity: Entity,
-        access: AccessContext,
-    ) -> ProfileCard: ...
-```
-
-- [x] **Step 1:** `ProfileCard` / `ProfileField` / `FieldProvenance` 数据模型失败测试（字段齐全、默认值、access 字段继承）-> 实现跑绿
-- [x] **Step 2:** `DeterministicProfileCardDeriver` 纯确定性聚合：aliases 来自 Entity 消解别名、associates 来自 GraphStore.neighbors（person 类型邻居）、organization 来自 Relation（target 为组织类）、role/timespan 来自 Covariate 或 chunk 时间元数据；**不调 LLM**，全部为图/Covariate 的客观投影测试 -> 实现跑绿
-- [x] **Step 3:** 结构化字段可进入模型上下文（断言 `ProfileCard` 序列化为结构化文本后喂 LLM 可读性优于自由 description；narrative 字段为 None 时不进任何检索输入）测试 -> 实现跑绿
-- [x] **Step 4:** 可选 narrative：经 `LLMProvider` 生成叙述概述（桩 litellm），标记 `provenance=AUTO`；narrative **不进** VectorStore/GraphStore/rerank，仅随 ProfileCard 存于 ProfileCardStore 供展示测试 -> 实现跑绿
-- [x] **Step 5:** `InMemoryProfileCardStore`：upsert（同 entity_name 覆盖）+ 按 `visible_to` 过滤的 list/get；幂等测试 -> 实现跑绿
-- [x] **Step 6:** `ECLIndexingEngine` 可选串联：ingest 主链路（Task 1-6）完成后，对落库实体触发档案卡生成写入 ProfileCardStore；`IngestStats` 增 `profile_cards` 计数；串联为可选（开关默认开），关闭时不影响主链路测试 -> 实现跑绿
-- [x] **Step 7:** 来源标记预留：`ProfileField.provenance`/`locked` 字段存在且 P1 恒为 `AUTO`/`False`；断言自动聚合不覆盖已存在 `locked=True` 字段（P4 编辑场景的接口预留，P1 不触发）测试 -> 实现跑绿
+- [x] **Step 1:** `ProfileCard`/`ProfileField`/`FieldProvenance` 数据模型失败测试（字段齐全、默认值、access 继承）-> 实现跑绿
+- [x] **Step 2:** `DeterministicProfileCardDeriver` 纯确定性聚合：aliases（消解别名）/associates（person 类型邻居）/organization（组织类 Relation target）/role 与 timespan（Covariate 或 chunk 时间元数据）；**不调 LLM**，全为图/Covariate 客观投影 -> 实现跑绿
+- [x] **Step 3:** 结构化字段可进模型上下文（序列化后喂 LLM 可读性优于自由 description；narrative 为 None 时不进任何检索输入）-> 实现跑绿
+- [x] **Step 4:** 可选 narrative：经 `LLMProvider` 生成（桩 litellm），`provenance=AUTO`；不进 VectorStore/GraphStore/rerank，仅存 ProfileCardStore 供展示 -> 实现跑绿
+- [x] **Step 5:** `InMemoryProfileCardStore`：upsert（同 entity_name 覆盖）+ 按 `visible_to` 过滤的 list/get；幂等 -> 实现跑绿
+- [x] **Step 6:** `ECLIndexingEngine` 可选串联：ingest 完成后触发档案卡生成写入 store；`IngestStats` 增 `profile_cards`；开关默认开，关闭不影响主链路 -> 实现跑绿
+- [x] **Step 7:** 来源标记预留：`provenance`/`locked`/`version` 字段存在且 P1 恒 `AUTO`/`False`/`1`；断言不覆盖 `locked=True` 字段（P4 编辑接口预留）-> 实现跑绿
 
 **验收：**
-- `ProfileCard` 结构化字段（别名/职务/组织/关联人/时间跨度/证据）从图+Covariate 确定性聚合，零 LLM 调用（narrative 除外）
-- 结构化字段可进模型上下文增强可读性；narrative 叙述字段不进检索/rerank/生成链路，仅供人读
-- 与 Task 2 Step 4 不重复：Task 2/3 抽取消解产出 `Entity`，Task 7 聚合产出 `ProfileCard`，后者依赖前者
-- `ProfileField.provenance`/`locked`/`version` 预留用户编辑接口，P1 不实现编辑逻辑（归 P4 review-gated）
-- `InMemoryProfileCardStore` 按 `visible_to` 过滤，access 字段贯通
+- `ProfileCard` 结构化字段从图+Covariate 确定性聚合，零 LLM 调用（narrative 除外）；结构化字段可进模型上下文，narrative 不进检索/rerank/生成链路，仅供人读
+- 与 Task 2/3 不重复：后者抽取消解产出 `Entity`，本任务聚合产出 `ProfileCard`；`provenance`/`locked`/`version` 预留用户编辑接口（归 P4 review-gated）；Store 按 `visible_to` 过滤
 
 ---
 
 ## 精度策略与跨阶段改进（前瞻）
-
-> [!note] 记录 P1 设计评审中提出的精度担忧与改进方向；P1 落地其中"过门槛"部分，更重的留待对应阶段，全部经可插拔接口接入，不动核心。
-
+> [!note] P1 设计评审的精度担忧与改进方向；P1 落地“过门槛”部分，更重的留待对应阶段，全部经可插拔接口接入，不动核心。
 **精度投资优先级（ROI 排序，非按阶段）：**
-1. **评估 harness（贯穿项，最大缺口）**--没有尺子不知精度够不够。P1/P2 起建小型 golden Q&A 集 + 指标脚本（忠实度 / 上下文召回 / 答案相关性，RAGAS 式），每次改动跑回归。
-2. **检索精度（P2/P5，第一精度杠杆）**--`VectorStore` 旁加 `SparseIndex`(BM25) + `Reranker` 接口；查询走 稠密∪稀疏∪图 -> RRF 融合 -> 交叉编码器重排。
-3. **实体消解（P1 Task 3，第二杠杆）**--名归一化 + 别名合并 + 多 chunk 描述汇总（本计划已落地为一等公民）。
-4. **抽取质量（P1 Task 2）**--团队软引导模板（user 可编辑）+ prompt 工程 + 模型可切换（本计划已纳入）。
-5. **切分（中游杠杆）**--结构感知 + overlap 过门槛 + size 调参（本计划已落地，避免过度投入）；语义/分层切分推迟 P5。
-
-**GIGO 担忧的缓解（本阶段已做）：** 结构感知切分 + 实体消解把碎片实体拼回去 + 全程 `source_chunk_ids` 可溯源。
-
-**留待后续阶段（不阻塞 P1 验收）：**
-- 混合检索 + 重排：P2/P5。
-- 分层切分 + 上下文富化（Anthropic contextual retrieval）：P5 精化。
-- 跨 chunk 关系补抽 / 别名歧义精解：P8 证据验证硬化。
-- ANN 向量索引（HNSW/IVF）支撑 ≥50 万：P9（`VectorStore` 接口已为此预留）。
-- L0/L1 分层摘要（写时生成 chunk/社区超短摘要供向量粗筛与 rerank）：P2/P5。P1 仅在 Chunk.summary 预留可选字段，不写生成逻辑（参考 OpenViking L0/L1/L2 三层，但其为树形目录递归，本项目为图+社区，取其分层理念非目录递归）。
-
+1. **评估 harness（贯穿项，最大缺口）**——起建 golden Q&A 集 + 指标脚本（忠实度/上下文召回/答案相关性，RAGAS 式），每次改动跑回归。
+2. **检索精度（P2/P5，第一杠杆）**——`SparseIndex`(BM25) + `Reranker` 接口；稠密∪稀疏∪图 -> RRF 融合 -> 交叉编码器重排。
+3. **实体消解（P1 Task 3，第二杠杆）**——名归一化 + 别名合并 + 多 chunk 描述汇总（已落地为一等公民）。
+4. **抽取质量（P1 Task 2）**——团队软引导模板（user 可编辑）+ prompt 工程 + 模型可切换（已纳入）。
+5. **切分（中游杠杆）**——结构感知 + overlap 过门槛 + size 调参（已落地）；语义/分层切分推迟 P5。
+**GIGO 缓解与留待后续（本阶段已做 / 不阻塞 P1 验收）：** 结构感知切分 + 实体消解 + 全程 `source_chunk_ids` 溯源。留待：混合检索 + 重排（P2/P5）；分层切分 + 上下文富化（P5）；跨 chunk 关系补抽/别名歧义精解（P8 硬化）；ANN 索引支撑 ≥50 万（P9，接口已预留）；L0/L1 分层摘要（P2/P5，P1 仅预留 `Chunk.summary` 字段，参考 OpenViking 分层理念非目录递归）。
 **依赖与风险（P1 全量）：**
-- **文档解析重依赖**按 extra 分组（documents-pdf/office/opendocument/rich/email/notebooks）；CI 默认只装基础 + `sys.modules` 桩测接口；真机验证用 `uv sync --extra documents-pdf --extra documents-office ...` 组合。
-- **PDF 仅支持文本型**（可抽取文本）；扫描/图片型需 OCR，不在 P1 范围。
-- **旧二进制 Office**（`.doc`/`.ppt`/`.xls`）、Keynote `.key`、Visio 等专有格式需 LibreOffice(headless)/antiword，P1 不直接支持，列入后续精化；`pandoc` 作多格式转换兜底后端（可选）。
-- **三层存储**：`VectorStore`/`GraphStore`/`CommunityStore` 接口 + 确定性内存默认实现保证离线可测；pgvector/Neo4j 真后端列为 optional extra（容器验证，与 BGE-M3 同策略）。内存默认实现非持久（dev/test 重建即恢复），prod 持久化由真后端承担（与 P0 SQLite/Postgres 同构）。
-- **社区检测**默认 `ConnectedComponentsDetector`（零重依赖、确定性）；可选 networkx Louvain/Leiden 列 extra（`graph-analytics`），缺依赖友好报错。GraphRAG 库式集成列为可选 extra（自带 LLM 调用需 key），P1 默认用自建 Cognify，GraphRAG 仅作 prod-grade Leiden 替代。
-- **抽取/摘要 LLM** 真实运行需 API key；离线测试全用 `sys.modules` 桩隔离 litellm（沿用 P0 `test_llm_provider` 模式），零真实请求。
-- **团队抽取模板（软引导）**：`ExtractionTemplateRegistry` 从 YAML 配置（`CALLIODESMO_EXTRACTION_TEMPLATE_FILE`，默认 `config/extraction_templates.yaml`）按 team 唯一加载；模板为引导非白名单，模板外实体保留+打标（`template_conforming`/`discovered_types`），不 reject；新类型沉淀 review-gated 于 P4；PyYAML 已由 Task 1 引入。
-- **版本钉制**：litellm `>=1.85,<1.91`（>=1.93 无 Windows wheel）；引入 networkx/GraphRAG 时与之协调，避免传递依赖冲突。
-- **精度边界（如实声明）**：跨 chunk 关系抽取、别名/指代歧义在 P1 MVP 不完美；靠结构感知切分 + 实体消解 + `source_chunk_ids` 溯源缓解，P8 证据验证硬化。
-- **评估 harness（贯穿项）**：P1/P2 起建 golden 集 + 指标回归；P1 验证报告以功能测试 + 离线桩为主，质量评测自 P2 接入。
-- **混合检索+重排（P2/P5，接口预留）**：稠密（BGE-M3 三输出 dense+sparse+multi-vec 全用，不止 dense）+ 经典 BM25 + 图，RRF 融合 -> 交叉编码器重排（`bge-reranker-v2-m3` 同源）；经 `Retriever`/`Reranker`/`SparseIndex` 抽象接口，默认实现保证离线可测。
+- 文档解析重依赖按 extra 分组；CI 默认只装基础 + `sys.modules` 桩测接口，真机验证用 `uv sync --extra ...` 组合。PDF 仅支持文本型（扫描需 OCR 不在 P1 范围）；旧二进制 Office/Keynote/Visio 需 LibreOffice(headless)/antiword，`pandoc` 兜底。
+- 三层存储接口 + 确定性内存默认实现保证离线可测；pgvector/Neo4j 真后端列 extra（内存实现非持久，dev/test 重建即恢复，与 P0 SQLite/Postgres 同构）。社区检测默认 `ConnectedComponentsDetector`（零重依赖）；networkx Louvain/Leiden 列 extra（`graph-analytics`），缺依赖友好报错；GraphRAG 库式集成列 extra，P1 用自建 Cognify。
+- 抽取/摘要 LLM 真实运行需 API key；离线测试全用 `sys.modules` 桩，零真实请求。模板经 `CALLIODESMO_EXTRACTION_TEMPLATE_FILE` 按 team 唯一加载、软引导不拒模板外实体；新类型沉淀 review-gated 于 P4。版本钉制 litellm `>=1.85,<1.91`（>=1.93 无 Windows wheel）。
+- 精度边界（如实声明）：跨 chunk 关系抽取、别名/指代歧义在 P1 MVP 不完美；靠结构感知切分 + 实体消解 + `source_chunk_ids` 溯源缓解，P8 证据验证硬化。评估 harness 从 P1/P2 起建，P1 验证以功能测试 + 离线桩为主，质量评测自 P2 接入。
+
+> 精简于 2026-08（文档重构）：删除嵌入代码块，保留任务/勾选结构。

@@ -1,245 +1,41 @@
 ---
-title: 原生部署指南（测试 / 生产）
+title: 本地原生部署指南（生产）
 type: guide
 tags:
   - deploy
 created: 2026-07-26
 updated: 2026-08-13
 ---
-# 原生部署指南
+# 本地原生部署指南（生产，无 Docker）
 
-> [!warning] P4.5 起：不再有 SQLite 零依赖开发模式
-> 测试与运行一律连真实 **PG 16+ + pgvector + Neo4j**（`.env` 驱动，`uv sync --extra persistence`）。
-> 原"第二部分：SQLite 零依赖开发模式"已重写为"真后端 + 离线桩模型"（2026-08-13），SQLite 遗留均已清除。
-
-> [!info] 部署模式
-> - **测试 / 开发部署**：真实 PG+pgvector + Neo4j + 离线桩模型（`test/stub` + `hash` + `none`），用于跑测试套件与本地冒烟。
-> - **生产部署**：PostgreSQL+pgvector / Neo4j + 真实模型（云端或自建），按步骤完整部署。
->
-> 一键 Docker 全栈见根目录 `docker-compose.yml` + `Dockerfile`。关联：[[docs/plans/roadmap|年计划]]。
+> 自备 PostgreSQL 16+（pgvector）与 Neo4j，用 uv 跑应用。测试/开发环境见 [testing.md](testing.md)；Docker 全栈见 [docker.md](docker.md)。
 
 ## 0. 组件与选型
 
-| 组件 | 作用 | 测试/开发 | 生产 |
-| --- | --- | --- | --- |
-| 应用（FastAPI + CLI） | API / Web UI / CLI | uv + Python 3.12 | 同左 |
-| 情景层 DB | 文本块 + 向量 | PostgreSQL 16+ + pgvector | PostgreSQL 16+ + pgvector |
-| 语义层 | 实体关系图 | Neo4j Community | Neo4j Community |
-| 摘要层 | 社区摘要 | PostgreSQL | PostgreSQL |
-| LLM | 抽取 / 摘要 / 合成 | `test/stub` 离线桩 | 云端 / 本地 / 远端 HTTP |
-| 嵌入 | 向量化 | `hash` 桩 | 本地 BGE-M3 / 远端 HTTP |
-| 重排 | 交叉编码器重排 | `none` 保序降级 | 本地 BGE / 远端 HTTP |
-
-> 三层模型（LLM / 嵌入 / 重排）**独立配置**，可分别选本地或远端，互不耦合。
-
----
-
-# 第一部分　基础准备（两种模式共用）
-
-## 1. 安装 uv（Python 3.12）
-
-[uv](https://docs.astral.sh/uv/getting-started/installation/) 自动准备 Python 3.12，无需预装 Python。
-
-```bash
-# Linux / macOS
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# Windows (PowerShell)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-验证：`uv --version`。
-
-## 2. 获取代码与安装依赖
-
-```bash
-git clone <repo-url> calliodesmo && cd calliodesmo
-uv sync                       # 核心依赖（含 dev 组）
-```
-
-可选 extras（按需启用，缺时懒加载报错并提示安装命令）：
-
-| extra | 作用 | 命令 |
+| 组件 | 作用 | 生产 |
 | --- | --- | --- |
-| `embedding-local` | 本地 BGE-M3 嵌入 | `uv sync --extra embedding-local` |
-| `search-rerank` | 本地 bge-reranker-v2-m3 重排 | `uv sync --extra search-rerank` |
-| `documents-pdf` | PDF 加载（pypdf） | `uv sync --extra documents-pdf` |
-| `documents-office` | Word/Excel/PPT（python-docx…） | `uv sync --extra documents-office` |
-| `documents-opendocument` | ODF（odfpy） | `uv sync --extra documents-opendocument` |
-| `search-bm25` | BM25 稀疏库（默认用自建倒排） | `uv sync --extra search-bm25` |
+| 应用（FastAPI + CLI） | API / Web UI / CLI | uv + Python 3.12 |
+| 情景层 DB | 文本块 + 向量 | PostgreSQL 16+ + pgvector |
+| 语义层 | 实体关系图 | Neo4j Community |
+| 摘要层 | 社区摘要 | PostgreSQL |
+| LLM / 嵌入 / 重排 | 三层模型 | 云端 / 本地 / 远端 HTTP（见 §6） |
 
-> [!warning] litellm 钉版
-> `litellm>=1.85,<1.91`。≥1.93 无 Windows 预编译 wheel（需 Rust/MSVC 工具链）。升级前先确认 wheel 可用性。
-
-> [!note] 前端依赖隔离
-> 前端是独立 npm 工程（`frontend/`），与后端 Python 依赖隔离；仅在生产托管或前端开发时才需 Node（见第三部分 §11）。
-
----
-
-# 第二部分　测试 / 开发部署
-
-> [!tip] 目标
-> 分钟级拉起可测试实例：**真实 PG+pgvector + Neo4j**（本地或局域网自建均可）+ **离线桩模型**。
-> P4.5 起不再支持 SQLite；测试套件与本地冒烟都连真后端。
-
-## 3. 配置 .env（真后端连接串 + 离线桩模型）
+## 1. 安装 uv 与依赖
 
 ```bash
-cp .env.example .env          # Windows: copy .env.example .env
+curl -LsSf https://astral.sh/uv/install.sh | sh   # Windows: irm https://astral.sh/uv/install.ps1 | iex
+uv sync --extra persistence   # 核心依赖 + pgvector/neo4j（P4.5 起必需）
 ```
 
-真后端默认即 .env.example 的连接串（PG+Neo4j 由你自备，见下方 8.x 安装指引）；把模型三段设为离线桩：
+可选 extras（按需）：`embedding-local`（本地 BGE-M3）· `search-rerank`（本地重排）· `documents-pdf/office/opendocument`（多格式）· `search-bm25`。
 
-```dotenv
-# 数据库 / 图库：真实 PG + pgvector + Neo4j（P4.5 必需；无需改即本地默认）
-CALLIODESMO_DATABASE_URL=postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo
-CALLIODESMO_NEO4J_URI=bolt://localhost:7687
-CALLIODESMO_NEO4J_USER=neo4j
-CALLIODESMO_NEO4J_PASSWORD=calliodesmo
+> litellm 钉版 `>=1.85,<1.91`：≥1.93 无 Windows 预编译 wheel（需 Rust/MSVC）。
 
-# LLM：离线桩（无网络，返回固定响应，仅验证管线机制）
-CALLIODESMO_LLM_MODEL=test/stub
-CALLIODESMO_LLM_API_KEY=
-CALLIODESMO_LLM_API_BASE=
+## 2. 安装 PostgreSQL 16 + pgvector
 
-# 嵌入：哈希桩（确定性伪向量，离线）
-CALLIODESMO_EMBEDDING_PROVIDER=hash
-CALLIODESMO_EMBEDDING_DIMENSION=64
-
-# 重排：保序降级（不调用任何模型）
-CALLIODESMO_RERANKER_PROVIDER=none
-
-# 管理员（仅 db seed 用）
-CALLIODESMO_ADMIN_PASSWORD=admin-123456
-```
-
-> [!warning] 前置：PG+pgvector 与 Neo4j 必须已就绪
-> 测试与 `db init` 都会连真后端（`.env` 驱动）。PG 需已 `CREATE EXTENSION IF NOT EXISTS vector`；Neo4j 需可登录。自建实例步骤见第三部分 §8（PG 安装 §8.1，Neo4j §8.1，模型 §8.3）。局域网自建也可（把连接串 host 改为内网 IP）。
-
-> `test/stub` 对任意输入返回写死的抽取（如 `OpenAI -developed-> GPT-4`），**用于验证管线机制而非抽取质量**。真实抽取见第三部分模型配置。
-
-## 4. 初始化数据库
+Ubuntu / Debian：
 
 ```bash
-uv sync --extra persistence  # 装依赖（含 pgvector / neo4j，P4.5 必需）
-uv run calliodesmo db init   # 建表（幂等）
-uv run calliodesmo db seed   # 内置角色/权限 + 初始管理员 + 系统账户（幂等）
-```
-
-或一键引导（幂等，自动检查 uv → sync → 准备 .env → 建表 → 种子 → 冒烟，`.env` 驱动、无 SQLite 标志）：
-
-```powershell
-# Windows
-.\scripts\bootstrap.ps1
-```
-```bash
-# Linux / macOS
-scripts/bootstrap.sh
-```
-
-> 引导脚本不代装 PG/Neo4j；请先按第三部分 §8 自备并确保 `.env` 连接串可达（`db init` 会真实连库）。
-
-## 5. 测试套件
-
-### 5.1 后端（pytest，连真 PG+Neo4j）
-
-```bash
-uv sync --extra persistence   # pgvector / neo4j 为测试与运行必需
-uv run pytest -v             # 407 用例（全量连 .env 的 PG+Neo4j；`-m "not db"` 仅跑纯逻辑 251）
-uv run ruff check .          # 静态检查
-uv run ruff format --check . # 格式检查
-```
-
-隔离原理（全部连真实后端）：
-
-- **schema 隔离**：每用例在专用 PG schema `calliodesmo_test`（与生产 `public` 物理隔离）内每测 TRUNCATE；CLI 测试经 `cli_db` 夹具唯一 schema 隔离；Neo4j 经 `neo4j_session` 夹具每测清图。
-- **`sys.modules` 桩**：隔离 litellm / uvicorn 等外部依赖——离线可跑（仅模型桩，不抽真实 LLM）。
-- **契约优先**：接口测试断言输入映射与输出结构，保证可插拔。
-- **幂等**：种子与引导脚本均显式验证可重复执行。
-- **权限矩阵**：`/query` `/admin/*` `/library/*` 受限端点做参数化矩阵（3 角色 × 端点）。
-- **DB 标记**：依赖 PG/Neo4j 的用例自动打 `@pytest.mark.db`，CI 以 `-m "not db"` 跳过；全量回归靠本地 `.env`。
-
-### 5.2 前端（vitest）
-
-```bash
-cd frontend && npm ci
-npm test                    # vitest（API 客户端契约等）
-npm run lint                # tsc -b --noEmit 类型检查
-npm run build               # vite build（验证产物可构建）
-```
-
-### 5.3 CI（GitHub Actions）
-
-`.github/workflows/ci.yml` 在每次 push/PR 自动执行：
-
-- 后端 job：`uv sync` -> `ruff check` + `ruff format --check` -> `pytest -m "not db"`（纯逻辑）。
-- 前端 job：`npm ci` -> `npm run build` -> `vitest`。
-
-本地复现 CI：依次跑上述 5.1 + 5.2 命令（全量 DB 测试在本机跑）。
-
-## 6. 冒烟验证
-
-启动 API + 演示数据（连真后端，秒级）：
-
-```bash
-uv run calliodesmo serve --seed-demo   # 对 data/demo/ 跑桩 ECL 写入 PG/Neo4j，启动 SPA
-```
-
-```bash
-curl http://127.0.0.1:8000/healthz
-curl -X POST http://127.0.0.1:8000/auth/token -d "username=admin&password=admin-123456"
-# 用返回 token 调 /query（桩答案）/library/profile-cards（桩档案卡）
-```
-
-浏览器打开 `http://127.0.0.1:8000` 登录 `admin` / `admin-123456`，走问答 / 浏览 / 管理（验证 UI 与权限矩阵）。
-
-> [!note] 桩数据的局限
-> `test/stub` 抽取是写死的，与文档真实内容无关；冒烟仅验证"管线跑通 + UI 可用 + 权限正确"，**不验证抽取质量**。真实抽取需切到第三部分的真实模型。
-
-CLI 建图冒烟（导出抽取详情供检查）：
-
-```bash
-uv run calliodesmo ingest <path> --dump-json out.json --dump-html out.html
-```
-
-> `--seed-demo` 说明：演示数据走 serve 进程内自灌（对 `data/demo/` 跑 ECL），产物落盘 `data/demo/seed-cache.json`，二次启动命中缓存跳过 LLM；指向自定义语料可设 `CALLIODESMO_DEMO_DIR`。
-
-## 7. 能力边界（真后端基线）
-
-| 可用 | 边界 |
-| --- | --- |
-| 认证 / 权限 / 审计 / CLI / API / Web UI 全功能 | — |
-| 三层存储真后端持久化（pgvector 向量检索 / Neo4j 语义层 / PG 摘要） | — |
-| 重启不丢（P4 合并落库、增量索引、双写一致性） | 跨 store 三轨原子性 v1，两阶段留 P9 |
-| 完整测试套件（连真实 PG+Neo4j） | 需 `.env` 指向可达的 PG+Neo4j；CI 仅纯逻辑（`-m "not db"`） |
-
-> 演示/开发期可只装离线桩模型（`test/stub` + `hash` + `none`），但**数据引擎必须真后端**——这是 P4.5 起的最低基线。
-
----
-
-# 第三部分　生产部署（按步骤）
-
-> [!tip] 目标
-> 完整生产实例：PostgreSQL+pgvector / Neo4j 持久化 + 真实模型（云端或自建）。
-
-## 8. 配置 .env（生产）
-
-### 8.1 数据库
-
-保留 Postgres 连接串，按下方安装 PostgreSQL 16 + pgvector 与 Neo4j。
-
-```dotenv
-CALLIODESMO_DATABASE_URL=postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo
-```
-
-#### PostgreSQL 16 + pgvector
-
-Ubuntu / Debian（推荐）：
-
-```bash
-sudo apt install wget ca-certificates
-wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/pgdg.asc
-echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-sudo apt update
 sudo apt install postgresql-16 postgresql-16-pgvector
 sudo systemctl enable --now postgresql
 sudo -u postgres psql -c "CREATE USER calliodesmo WITH PASSWORD 'calliodesmo';"
@@ -247,98 +43,80 @@ sudo -u postgres psql -c "CREATE DATABASE calliodesmo OWNER calliodesmo;"
 sudo -u postgres psql -d calliodesmo -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
-macOS：
+macOS：`brew install postgresql@16 pgvector`。Windows：EDB 图形安装器 + 从源码编译 pgvector（无官方预编译包）；**嫌麻烦直接用 Docker 全栈或局域网自建 PG/Neo4j**。
+
+## 3. 安装 Neo4j Community
+
+前置：Java 17+。下载 community 解压后 `bin/neo4j console`（前台）或 `bin/neo4j start`。首次访问 `http://localhost:7474`，初始 `neo4j/neo4j` 强制改密，新密码写进 `.env`。
+
+## 4. 配置 .env（生产）
 
 ```bash
-brew install postgresql@16 pgvector
-brew services start postgresql@16
-createuser calliodesmo -P
-createdb calliodesmo -O calliodesmo
-psql -d calliodesmo -c "CREATE EXTENSION IF NOT EXISTS vector;"
+cp .env.example .env
 ```
 
-Windows：EDB 图形安装器或 `winget install PostgreSQL.PostgreSQL.16`；pgvector **无官方 Windows 预编译包**，需 Visual Studio Build Tools（C++）从源码编译：
-
-```powershell
-# x64 Native Tools 命令行（需 pg_config 在 PATH）
-git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
-cd pgvector
-nmake /F Makefile.win
-nmake /F Makefile.win install
-psql -d calliodesmo -c "CREATE EXTENSION IF NOT EXISTS vector;"
-```
-
-> [!tip] Windows 门槛高？
-> 用**局域网自建** PG/Neo4j 跑第二部分的测试/开发部署（改 `.env` 连接串 host 为内网 IP，应用层无感）；或用 Docker 全栈（根目录 `docker-compose.yml`）一键起库。两路都不用在本机编译 pgvector。
-
-#### Neo4j Community
-
-前置：**Java 17+**（`winget install EclipseAdoptium.Temurin.21.JRE` / `brew install temurin` / `sudo apt install temurin-21-jre`）。
-
-```powershell
-# Windows：下载 community zip 解压后
-bin\neo4j.bat console                 # 前台（开发推荐）
-bin\neo4j.bat windows-service install # 注册为服务
-```
-```bash
-# Linux / macOS：下载 community tar 解压后
-bin/neo4j console     # 前台
-bin/neo4j start       # 后台
-```
-
-首次访问 `http://localhost:7474`，初始账号 `neo4j` / `neo4j` 强制改密；新密码写进 `.env`：
+核心项：
 
 ```dotenv
+CALLIODESMO_DATABASE_URL=postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo
 CALLIODESMO_NEO4J_URI=bolt://localhost:7687
 CALLIODESMO_NEO4J_USER=neo4j
 CALLIODESMO_NEO4J_PASSWORD=<改后的密码>
+
+CALLIODESMO_JWT_SECRET_KEY=<≥32 字节随机串>   # 生产必改（python -c "import secrets;print(secrets.token_urlsafe(32))"）
+CALLIODESMO_ADMIN_PASSWORD=<初始管理员密码>    # 仅 db seed 用
+CALLIODESMO_ALLOW_SELF_REGISTER=false
 ```
 
-### 8.2 密钥与管理员
+## 5. 初始化与启动
 
-```dotenv
-CALLIODESMO_JWT_SECRET_KEY=<≥32 字节随机串>   # 生产必改
-CALLIODESMO_ADMIN_USERNAME=admin
-CALLIODESMO_ADMIN_PASSWORD=<初始管理员密码>    # 仅 db seed 创建管理员时用
-CALLIODESMO_ALLOW_SELF_REGISTER=false          # 自注册默认关
+```bash
+uv run calliodesmo db init      # 建表（幂等）
+uv run calliodesmo db seed      # 角色/权限 + 初始管理员（幂等）
+uv run calliodesmo serve        # API + SPA：http://127.0.0.1:8000
 ```
 
-生成密钥：`python -c "import secrets;print(secrets.token_urlsafe(32))"`。
+建图：`uv run calliodesmo ingest <path>`（文件或目录）；演示数据：`uv run calliodesmo serve --seed-demo`。
 
-### 8.3 模型配置（三层，独立可切换）
+前端：生产无需单独部署——`serve` 托管 `frontend/dist`（需先 `cd frontend && npm ci && npm run build`）。
 
-#### LLM（经 LiteLLM，`<provider>/<model>`）
+## 6. 模型配置（三层独立可切）
+
+### LLM（LiteLLM，`<provider>/<model>`）
 
 | 场景 | `LLM_MODEL` | `LLM_API_KEY` | `LLM_API_BASE` |
 | --- | --- | --- | --- |
-| 云端 OpenAI | `openai/gpt-4o-mini` | `sk-...` | （留空） |
-| 云端 Qwen | `openai/qwen-plus` | `sk-...` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| 云端 DeepSeek | `deepseek/deepseek-chat` | `sk-...` | （留空） |
-| 本地 Ollama | `ollama/qwen2.5` | （留空） | `http://localhost:11434` |
-| 本地 LM Studio | `openai/local-model` | 任意非空占位 | `http://localhost:1234/v1` |
-| 本地/远端 llama.cpp | `openai/local-model` | 任意非空占位 | `http://<host>:<port>/v1` |
-| 离线桩（无网络） | `test/stub` | （留空） | （留空） |
+| OpenAI | `openai/gpt-4o-mini` | `sk-...` | （留空） |
+| DeepSeek | `deepseek/deepseek-chat` | `sk-...` | （留空） |
+| Qwen（DashScope 兼容） | `openai/qwen-plus` | `sk-...` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| Ollama（本地） | `ollama/qwen2.5` | （留空） | `http://localhost:11434` |
+| llama.cpp（本地/远端） | `openai/local-model` | 任意非空占位 | `http://<host>:<port>/v1` |
 
-> [!tip] 本地豁免
-> 当 `LLM_API_BASE` 指向 `localhost` / `127.0.0.1` / `0.0.0.0` / `::1`，或 `LLM_MODEL` 以 `ollama/` / `lm-studio/` 开头时，自动豁免 API key 校验。指向**非 localhost 自建服务**（如局域网 llama.cpp）时，填任意非空 `LLM_API_KEY` 即可。
+> 本地豁免：`LLM_API_BASE` 指向 `localhost` / `127.0.0.1` / `0.0.0.0`，或 `LLM_MODEL` 以 `ollama/` / `lm-studio/` 开头时，自动豁免 API key 校验；指向非 localhost 自建服务填任意非空 key 即可。
 
-#### 嵌入
+### 嵌入
 
-| 场景 | `EMBEDDING_PROVIDER` | 其他项 |
+| 场景 | `EMBEDDING_PROVIDER` | 其他 |
 | --- | --- | --- |
-| 离线桩 | `hash` | `DIMENSION=64` |
-| 本地 BGE-M3 | `bge-m3` | 需 `--extra embedding-local`；`MODEL=BAAI/bge-m3`；`DIMENSION=1024` |
-| 远端 HTTP | `remote` | `API_BASE=http://<host>:8082`（无需带 `/v1`）；`MODEL=bge-m3`；`DIMENSION=1024` |
+| 本地 BGE-M3 | `bge-m3` | 需 `uv sync --extra embedding-local`；`MODEL=BAAI/bge-m3`；`DIMENSION=1024` |
+| 远端 HTTP | `remote` | `API_BASE=http://<host>:8082`（无需 `/v1`）；`MODEL=bge-m3`；`DIMENSION=1024` |
+| 离线桩 | `hash` | `DIMENSION=64`（仅测试环境） |
 
-#### 重排
+### 重排
 
-| 场景 | `RERANKER_PROVIDER` | 其他项 |
+| 场景 | `RERANKER_PROVIDER` | 其他 |
 | --- | --- | --- |
-| 保序降级（默认） | `none` | 无（不重排） |
-| 本地 BGE | `local` | 需 `--extra search-rerank`；`MODEL=BAAI/bge-reranker-v2-m3` |
-| 远端 HTTP | `remote` | `API_BASE=http://<host>:8083`；`MODEL=BAAI/bge-reranker-v2-m3`；`API_KEY=` |
+| 保序降级（默认） | `none` | 无 |
+| 本地 BGE | `local` | 需 `uv sync --extra search-rerank`；`MODEL=BAAI/bge-reranker-v2-m3` |
+| 远端 HTTP | `remote` | `API_BASE=http://<host>:8083`；`MODEL=BAAI/bge-reranker-v2-m3` |
 
-#### 远端三服务示例（自建 llama.cpp）
+### 自建三服务（llama.cpp，示例）
+
+```bash
+./llama-server -m qwen.gguf --port 8081 --host 0.0.0.0               # LLM
+./llama-server --embeddings -m bge-m3.gguf --port 8082 --host 0.0.0.0  # 嵌入
+./llama-server --rerank -m bge-reranker-v2-m3.gguf --port 8083 --host 0.0.0.0  # 重排
+```
 
 ```dotenv
 CALLIODESMO_LLM_MODEL=openai/local-model
@@ -351,132 +129,33 @@ CALLIODESMO_EMBEDDING_DIMENSION=1024
 CALLIODESMO_RERANKER_PROVIDER=remote
 CALLIODESMO_RERANKER_API_BASE=http://<rerank-host>:8083
 CALLIODESMO_RERANKER_MODEL=BAAI/bge-reranker-v2-m3
-CALLIODESMO_RERANKER_API_KEY=
 ```
 
-## 9. 初始化数据库
-
-```bash
-uv run calliodesmo db init   # 建表（幂等）
-uv run calliodesmo db seed   # 内置角色/权限 + 初始管理员（幂等；需 ADMIN_PASSWORD）
-```
-
-## 10. （可选）自建模型服务
-
-若用 llama.cpp 自建 LLM / 嵌入 / 重排（OpenAI 兼容）：
-
-```bash
-./llama-server -m qwen.gguf --port 8081 --host 0.0.0.0              # LLM
-./llama-server --embeddings -m bge-m3.gguf --port 8082 --host 0.0.0.0 # 嵌入
-./llama-server --rerank -m bge-reranker-v2-m3.gguf --port 8083 --host 0.0.0.0  # 重排
-```
-
-连通性验证：
-
-```bash
-curl http://<host>:8081/v1/models
-curl http://<host>:8082/v1/models
-curl -X POST http://<host>:8083/rerank -H 'Content-Type: application/json' \
-  -d '{"query":"测试","documents":["文档一","文档二"]}'
-```
-
-## 11. 前端
-
-```bash
-cd frontend && npm ci
-npm run build      # 产出 dist/，由 FastAPI StaticFiles 同源托管
-```
-
-> 生产无需单独部署前端：`serve` 托管 `frontend/dist`（SPA）。仅开发期才用 `npm run dev`（5173，/api proxy 转 8000）。
-
-## 12. 启动后端
-
-```bash
-uv run calliodesmo serve                    # API + SPA：http://127.0.0.1:8000
-uv run calliodesmo serve --seed-demo        # 同上 + 启动前灌 data/demo/ 演示数据
-uv run calliodesmo serve --host 0.0.0.0 --port 8000   # 监听所有网卡
-```
-
-> [!note] `--seed-demo` 说明
-> 内存 stores 模式下 CLI `ingest`（独立进程）灌的数据 serve 进程不可见，故演示数据走 serve 进程内自灌：对 `data/demo/` 跑 ECL（首次含 LLM 调用，较慢），产物落盘 `data/demo/seed-cache.json`，二次启动命中缓存跳过 LLM。指向自定义语料可设 `CALLIODESMO_DEMO_DIR`。重复运行崩溃已修复（`selectinload`）。
-
-建图（写入个人库，CLI）：
-
-```bash
-uv run calliodesmo ingest <path>           # 文件或目录
-uv run calliodesmo ingest <path> --dump-json out.json --dump-html out.html
-```
-
-## 13. 验证
+## 7. 验证
 
 ```bash
 curl http://127.0.0.1:8000/healthz
 curl -X POST http://127.0.0.1:8000/auth/token -d "username=admin&password=<密码>"
-curl http://127.0.0.1:8000/auth/me -H "Authorization: Bearer <token>"
 ```
 
-浏览器 `http://127.0.0.1:8000` 登录，问答 / 浏览 / 管理。API 文档 `/docs`。
+浏览器登录后走问答 / 浏览 / 管理；API 文档 `/docs`。
 
-验证清单：
+## 8. 生产加固
 
-- [ ] `db init` + `db seed` 成功（管理员已创建）
-- [ ] `serve` 后 `/healthz` 返回 ok
-- [ ] `/auth/token` 拿到 JWT，`/auth/me` 返回 AccessContext
-- [ ] `POST /query` 返回带来源标注的答案；`GET /library/profile-cards` 返回档案卡（需先 `ingest` 或 `serve --seed-demo`）
-- [ ] 浏览器可登录并问答/浏览（Web UI）
-- [ ] Postgres `SELECT * FROM roles;` 有 analyst/reviewer/admin；`audit_logs` 有 login
-- [ ] Neo4j 浏览器可登录
-
-## 14. 生产加固
-
-- **进程管理**：Linux systemd 托管；Windows NSSM / 任务计划。
+- **进程管理**：Linux 用 systemd 托管 `uv run calliodesmo serve --host 127.0.0.1 --port 8000`；Windows 用 NSSM / 任务计划。
 - **反向代理**：Nginx/Caddy 终结 TLS，转发 127.0.0.1:8000。
 - **密钥**：`JWT_SECRET_KEY` ≥32 字节随机；`.env` 权限 600，不入库（`.gitignore` 已覆盖）。
-- **会话**：JWT 经 httpOnly + SameSite=Lax cookie（防 XSS 读 token）；无 refresh token，过期 401 重登。
+- **会话**：JWT 经 httpOnly + SameSite=Lax cookie；无 refresh token，过期 401 重登。
 - **备份**：`pg_dump`（Postgres）+ `neo4j-admin database dump`（Neo4j）。
-- **升级**：`uv sync --upgrade-package <pkg>` 后跑 `uv run pytest` 回归。
+- **升级**：`git pull && uv sync` 后重启 + `uv run pytest` 回归。
 
-systemd 单元：
+## 9. 故障排查
 
-```ini
-[Unit]
-Description=Calliodesmo API
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/calliodesmo
-ExecStart=/usr/local/bin/uv run calliodesmo serve --host 127.0.0.1 --port 8000
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Nginx 片段：
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name calliodesmo.example;
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-## 15. 故障排查
-
-| 现象 | 原因 / 解决 |
+| 现象 | 解决 |
 | --- | --- |
-| `LLM 缺 API key` | 非 localhost 服务需填 `LLM_API_KEY`（任意非空）或改指向 localhost |
-| litellm 安装失败（Windows） | 钉版 `<1.91`；`≥1.93` 无预编译 wheel，需 Rust/MSVC |
+| `LLM 缺 API key` | 非 localhost 服务填非空 key 或改指向 localhost |
+| litellm 安装失败（Windows） | 钉版 `<1.91`；≥1.93 无预编译 wheel |
 | PDF / Word 加载报错 | `uv sync --extra documents-pdf` / `documents-office` |
-| pgvector Windows 编译难 | 用 Docker 全栈（`docker-compose.yml`）或局域网自建 PG/Neo4j（第二部分测试/开发部署），无需本机编译 |
-| `serve --seed-demo` 重复运行崩溃 | 已修复（`selectinload`）；拉取最新代码 |
-| 查询无结果 | 检查用户 clearance/scope；演示数据需 `serve --seed-demo`；非 admin 看不到他人个人库 |
-| LiteLLM `CERTIFICATE_VERIFY_FAILED` 警告 | 仅模型价格表拉取失败，已回退本地备份，不影响推理 |
-| 自建模型服务 `Connection refused` | 确认 `--host 0.0.0.0`、端口与 `.env` 一致、防火墙放行 |
-| `test_ingest_llm_missing_key` 本地失败 | 本地 `.env` 设了 `LLM_API_KEY` 导致；CI 无 `.env` 不受影响 |
+| pgvector Windows 编译难 | 用 Docker 全栈或局域网自建 PG/Neo4j |
+| 查询无结果 | 检查用户 clearance/scope；演示数据需 `serve --seed-demo` |
+| 自建模型服务 `Connection refused` | 服务需 `--host 0.0.0.0`；端口 / 防火墙对 |

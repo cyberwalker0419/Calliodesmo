@@ -30,7 +30,7 @@ from calliodesmo.auth.models import LibraryScope, Permission
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.models_job import Job, JobStatus
 from calliodesmo.db.session import get_session
-from calliodesmo.ecl.demo_seed import _DemoAccessLoader
+from calliodesmo.ecl.demo_seed import DEMO_FILE_LEVELS, _DemoAccessLoader
 from calliodesmo.ecl.engine import build_default_indexing_engine
 from calliodesmo.ecl.job_worker import run_ingest_job
 
@@ -88,7 +88,15 @@ async def ingest_file(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
         ) from exc
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+    # 密级前缀保留进临时文件名：_DemoAccessLoader 从 doc_id 前缀解析 access_level，
+    # 临时文件名丢失前缀会全部回落 INTERNAL，public/confidential 语义失效
+    tmp_prefix = ""
+    if "__" in Path(filename).stem:
+        candidate = Path(filename).stem.split("__", 1)[0].lower()
+        if candidate in DEMO_FILE_LEVELS:
+            tmp_prefix = f"{candidate}__"
+
+    with tempfile.NamedTemporaryFile(delete=False, prefix=tmp_prefix, suffix=suffix) as tmp:
         tmp.write(await file.read())
         tmp_path = Path(tmp.name)
 

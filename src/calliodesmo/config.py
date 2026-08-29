@@ -99,6 +99,22 @@ class Settings(BaseSettings):
     global_top_communities: int = 10
     default_search_mode: str = "native_rag"
     chunk_summary_enabled: bool = False
+    # P5 检索质量精化：MultiQuery 查询改写开关（默认关，开启时 native 路经
+    # MultiQueryRetriever 多视角子查询 -> RRF 融合）
+    multi_query_enabled: bool = False
+    # contextual retrieval：块级摘要向量混搜开关（默认关，开启时 native 路经
+    # ContextEnrichedRetriever 两路召回；需 chunk_summary_enabled 供料摘要）
+    contextual_retrieval_enabled: bool = False
+    # context 路向量缩放占比（0=纯 native 召回，越大越偏上下文摘要通道）
+    contextual_context_weight: float = 0.5
+    # CRAG 检索自知开关（默认关，开启时引擎被 CorrectiveRagEngine 包装：来源不足重写重查 1 轮）
+    crag_enabled: bool = False
+    # CRAG 置信阈值（来源 chunk 数/3，低于则触发重写重查）
+    crag_threshold: float = 0.5
+    # SelfCheck 答案一致性自检开关（默认关，开启时答案产出后 LLM judge 低分重答 1 轮）
+    selfcheck_enabled: bool = False
+    # SelfCheck judge 一致性阈值（低于则重答）
+    selfcheck_threshold: float = 0.5
     eval_golden_file: str = "config/golden_qa.yaml"
 
 

@@ -188,6 +188,26 @@ def build_default_search_engine(
     native = HybridRetriever(
         vector_store=vector_store, embedding_provider=embedding, sparse_index=sparse_index
     )
+    # P5 Task 2：multi_query_enabled 时 native 路经 MultiQueryRetriever（多视角子查询 -> RRF 融合）
+    if getattr(settings, "multi_query_enabled", False):
+        from calliodesmo.retrieval.multi_query_retriever import MultiQueryRetriever
+        from calliodesmo.retrieval.rewrite import MultiQueryGenerator, RewriteRouter
+
+        native = MultiQueryRetriever(
+            inner=native,
+            router=RewriteRouter(MultiQueryGenerator(llm), enabled=True),
+        )
+    # P5 Task 3：contextual_retrieval_enabled 时 native 路再包 ContextEnrichedRetriever
+    # （正常召回 dense+sparse + 混摘要权重向量召回 -> RRF 融合）
+    if getattr(settings, "contextual_retrieval_enabled", False):
+        from calliodesmo.retrieval.context_enriched_retriever import ContextEnrichedRetriever
+
+        native = ContextEnrichedRetriever(
+            inner=native,
+            vector_store=vector_store,
+            embedding=embedding,
+            context_weight=getattr(settings, "contextual_context_weight", 0.5),
+        )
     local = LocalSearchRetriever(
         seed_extractor=seed,
         graph_store=graph_store,
@@ -201,10 +221,25 @@ def build_default_search_engine(
         embedding_provider=embedding,
         top_communities=settings.global_top_communities,
     )
-    return DefaultSearchEngine(
+    engine = DefaultSearchEngine(
         native_retriever=native,
         local_retriever=local,
         global_retriever=glob,
         reranker=reranker or IdentityReranker(),
         synthesizer=AnswerSynthesizer(llm),
     )
+    # P5 Task 4：crag_enabled 时整体包 CorrectiveRagEngine（低置信重写重查 1 轮）
+    if getattr(settings, "crag_enabled", False):
+        from calliodesmo.retrieval.corrective_rag import CorrectiveRagEngine
+
+        engine = CorrectiveRagEngine(
+            inner=engine, threshold=getattr(settings, "crag_threshold", 0.5)
+        )
+    # P5 Task 5：selfcheck_enabled 时最外层包 SelfCheckEngine（answer 一致性重答 1 轮）
+    if getattr(settings, "selfcheck_enabled", False):
+        from calliodesmo.retrieval.selfcheck import SelfCheckEngine
+
+        engine = SelfCheckEngine(
+            inner=engine, judge=llm, threshold=getattr(settings, "selfcheck_threshold", 0.5)
+        )
+    return engine

@@ -1,0 +1,39 @@
+# Golden Q&A 集（P5 检索质量回归，data/demo 语料，chunk_id 为真实 id）
+# 模式：native_rag（情景层）/ local（语义层）/ global（摘要层）
+cases:
+  - question: "稀土市场本月主要供应商有哪些？"
+    expected_answer: "北方稀土与盛和资源"
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    mode: "native_rag"
+  - question: "镨钕氧化物有什么用途？"
+    expected_answer: "用于制造钕铁硼永磁材料"
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    mode: "native_rag"
+  - question: "北方稀土总部位于哪里？"
+    expected_answer: "内蒙古包头"
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    mode: "global"
+  - question: "APT28 擅长什么攻击手段？"
+    expected_answer: "鱼叉钓鱼与零日漏洞利用"
+    relevant_chunk_ids: ["internal__apt28-tracking.md#0"]
+    mode: "native_rag"
+  - question: "Fancy Bear 与 APT28 是什么关系？"
+    expected_answer: "同一威胁组织"
+    relevant_chunk_ids: ["internal__apt28-tracking.md#0"]
+    mode: "local"
+  - question: "APT28 近期观察到什么新型工具？"
+    expected_answer: "新型后门 Zebrocy 的变种，经 Go 语言重写"
+    relevant_chunk_ids: ["internal__apt28-tracking.md#0"]
+    mode: "global"
+  - question: "夜莺组织活跃于哪些地区？"
+    expected_answer: "东南亚地区"
+    relevant_chunk_ids: ["confidential__nightingale-assessment.md#0"]
+    mode: "native_rag"
+  - question: "张三在夜莺组织中担任什么角色？"
+    expected_answer: "技术骨干，负责漏洞武器化"
+    relevant_chunk_ids: ["confidential__nightingale-assessment.md#0"]
+    mode: "local"
+  - question: "夜莺组织有哪些关键关联人？"
+    expected_answer: "张三与李四"
+    relevant_chunk_ids: ["confidential__nightingale-assessment.md#0"]
+    mode: "global"

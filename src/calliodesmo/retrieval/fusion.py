@@ -54,3 +54,53 @@ def rrf(
     for i, c in enumerate(result, 1):
         c.rank = i
     return result
+
+
+def rag_fusion(lanes: dict[str, list[Candidate]], *, k: int = 60, top_k: int) -> list[Candidate]:
+    """RAGFusion：多子查询多路结果按 RRF 融合（lane 名即子查询视角）。
+
+    P5 Task 2：与 ``rrf`` 同构（基于秩而非原始分数），供 MultiQueryRetriever
+    对多视角子查询的召回结果融合；既有多路（vector/sparse）融合仍走 ``rrf``。
+    """
+    return rrf(lanes, k=k, top_k=top_k)
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    na = sum(x * x for x in a) ** 0.5 or 1.0
+    nb = sum(y * y for y in b) ** 0.5 or 1.0
+    return dot / (na * nb)
+
+
+def mmr_dedup(
+    candidates: list[Candidate],
+    *,
+    query_vec: list[float],
+    vectors: dict[str, list[float]],
+    top_k: int,
+    lam: float = 0.7,
+) -> list[Candidate]:
+    """MMR：相关性与多样性平衡选择（lam 越大越重相关性）。
+
+    P5 Task 2：消除 RRF 融合后语义重复候选抱团（同一主题多次命中）。
+    贪心每次选相关性高且与已选多样性大的候选。
+    """
+    selected: list[Candidate] = []
+    remaining = list(candidates)
+    while remaining and len(selected) < top_k:
+
+        def _score(c: Candidate) -> float:
+            rel = _cosine(query_vec, vectors.get(c.chunk_id, []))
+            div = max(
+                (
+                    _cosine(vectors.get(c.chunk_id, []), vectors.get(s.chunk_id, []))
+                    for s in selected
+                ),
+                default=0.0,
+            )
+            return lam * rel - (1 - lam) * div
+
+        best = max(remaining, key=_score)
+        selected.append(best)
+        remaining.remove(best)
+    return selected

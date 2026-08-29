@@ -8,9 +8,13 @@
 
 from __future__ import annotations
 
+import logging
+
 import httpx
 
 from calliodesmo.interfaces.retriever import Candidate, Reranker
+
+logger = logging.getLogger(__name__)
 
 
 class HttpReranker(Reranker):
@@ -47,12 +51,20 @@ class HttpReranker(Reranker):
         headers: dict[str, str] = {}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
-        async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
-            resp = await client.post(
-                f"{self._api_base}{self._endpoint}", json=payload, headers=headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, transport=self._transport
+            ) as client:
+                resp = await client.post(
+                    f"{self._api_base}{self._endpoint}", json=payload, headers=headers
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            # 上游 500/超时/连接失败/响应非法 -> 降级保序（原召回顺序截断），不击穿查询
+            # （P5 真实语料权限测试发现：8083 对大语料内容偶发 500）
+            logger.warning("远端重排失败，降级保序：%s", exc)
+            return self._fallback_order(candidates, top_k)
         results = data.get("results", [])
 
         def _score(r: dict) -> float:
@@ -72,6 +84,24 @@ class HttpReranker(Reranker):
                     doc_id=c.doc_id,
                     content=c.content,
                     score=round(_score(r), 6),
+                    rank=rank,
+                    metadata=dict(c.metadata),
+                    source=c.source,
+                )
+            )
+        return out
+
+    @staticmethod
+    def _fallback_order(candidates: list[Candidate], top_k: int) -> list[Candidate]:
+        """降级：保持原召回顺序，截断 top_k 并重排 rank（1-based）。"""
+        out: list[Candidate] = []
+        for rank, c in enumerate(candidates[:top_k], 1):
+            out.append(
+                Candidate(
+                    chunk_id=c.chunk_id,
+                    doc_id=c.doc_id,
+                    content=c.content,
+                    score=c.score,
                     rank=rank,
                     metadata=dict(c.metadata),
                     source=c.source,
