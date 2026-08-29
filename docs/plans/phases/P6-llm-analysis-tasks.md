@@ -51,7 +51,7 @@ created: 2026-08-29
 
 | # | Task | 承诺 | 状态 |
 |---|---|---|---|
-| 1 | 前置批：闭环 `collab/service.py:18` 时区 TODO + `api/deps.py:89` 锚点顺延 P9 | ✅ 必做 | 未开始 |
+| 1 | 前置批：闭环 `collab/service.py:18` 时区 TODO + `api/deps.py:89` 锚点顺延 P9 | ✅ 必做 | ✅ 完成 |
 | 2 | `Permission.ANALYZE` 全链路 + `seed_default_roles` 回填修复 + 幂等测试 + 前端常量 | ✅ 必做 | 未开始 |
 | 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | 未开始 |
 | 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | 未开始 |
@@ -100,14 +100,14 @@ created: 2026-08-29
 
 ## 前置条件（开工前确认）
 
-- [ ] [[docs/plans/phases/P4.5-persistence-production|P4.5]] 与 [[docs/plans/phases/P5-advanced-rag|P5]] 已并入 main，后端真实 PG+pgvector+Neo4j 回归基线绿（记录当前用例数作回归参照）。
-- [ ] 本地 `.env` 的真实 PG+pgvector+Neo4j 可用；`uv sync --extra persistence` 已装（neo4j>=5.14、pgvector>=0.3，DB 测试必需）。
-- [ ] litellm 钉版 `>=1.85,<1.91` 保持不变（≥1.93 无 Windows 预编译 wheel），本阶段**不升级**。
-- [ ] [[docs/model-selection|模型选型]] 预留的「P6 九类分析：质量优先」模型至少一路可用（gpt-4o / claude-3-5-sonnet / qwen-max 任一 API，或本地 `ollama/qwen2.5:72b`）；离线测试走 `test/*` 桩（经 `retrieval/factory.build_llm_provider` 路由）。
-- [ ] P5 golden 基线数字存档在手：ctx_recall 0.4444 / faithfulness 0.4444 / answer_relevance 1.0000（9 例小语料，离线桩）——作为 P6 评估对照锚点。
-- [ ] 前端三件套基线绿：`npm run lint && npm run test && npm run build`。
-- [ ] 两处逾期 TODO 处置已明确（Task 1 执行）：`collab/service.py:18` 时区本阶段闭环；`api/deps.py:89` ProfileCard/BM25 改 PG 顺延 P9（锚点 2026-W49）。
-- [ ] `data/demo/*.md` 语料文件在本机就位（Task 16 golden 与 `scripts/eval_p6.py` 灌库依赖；`data/` 不入库，缺失时从既有备份恢复或重新准备同 9 例语料，chunk_id 前缀约定不变）。
+- [x] [[docs/plans/phases/P4.5-persistence-production|P4.5]] 与 [[docs/plans/phases/P5-advanced-rag|P5]] 已并入 main，后端真实 PG+pgvector+Neo4j 回归基线绿（记录当前用例数作回归参照）。
+- [x] 本地 `.env` 的真实 PG+pgvector+Neo4j 可用；`uv sync --extra persistence` 已装（neo4j>=5.14、pgvector>=0.3，DB 测试必需）。
+- [x] litellm 钉版 `>=1.85,<1.91` 保持不变（≥1.93 无 Windows 预编译 wheel），本阶段**不升级**。
+- [x] [[docs/model-selection|模型选型]] 预留的「P6 九类分析：质量优先」模型至少一路可用（gpt-4o / claude-3-5-sonnet / qwen-max 任一 API，或本地 `ollama/qwen2.5:72b`）；离线测试走 `test/*` 桩（经 `retrieval/factory.build_llm_provider` 路由）。
+- [x] P5 golden 基线数字存档在手：ctx_recall 0.4444 / faithfulness 0.4444 / answer_relevance 1.0000（9 例小语料，离线桩）——作为 P6 评估对照锚点。
+- [x] 前端三件套基线绿：`npm run lint && npm run test && npm run build`。
+- [x] 两处逾期 TODO 处置已明确（Task 1 执行）：`collab/service.py:18` 时区本阶段闭环；`api/deps.py:89` ProfileCard/BM25 改 PG 顺延 P9（锚点 2026-W49）。
+- [x] `data/demo/*.md` 语料文件在本机就位（Task 16 golden 与 `scripts/eval_p6.py` 灌库依赖；`data/` 不入库，缺失时从既有备份恢复或重新准备同 9 例语料，chunk_id 前缀约定不变）。
 
 ## 架构
 
@@ -147,51 +147,56 @@ frontend/src/features/analysis/   # AnalysisPage / ReportViewer / ReportsHistory
 
 ```python
 class AnalysisType(enum.StrEnum):
-    SUMMARY = "summary"                        # 摘要
-    KEY_INFORMATION = "key_information"        # 关键信息
-    TIMELINE = "timeline"                      # 时间线
+    SUMMARY = "summary"  # 摘要
+    KEY_INFORMATION = "key_information"  # 关键信息
+    TIMELINE = "timeline"  # 时间线
     ENTITY_RECOGNITION = "entity_recognition"  # 实体识别
-    RELATION_MAPPING = "relation_mapping"      # 关系映射
-    TASKS = "tasks"                            # 任务（报告模型名 ActionItemReport，避免与 Job 混淆）
-    CONCEPTS = "concepts"                      # 概念
-    QA = "qa"                                  # 问答
-    CUSTOM = "custom"                          # 自定义
+    RELATION_MAPPING = "relation_mapping"  # 关系映射
+    TASKS = "tasks"  # 任务（报告模型名 ActionItemReport，避免与 Job 混淆）
+    CONCEPTS = "concepts"  # 概念
+    QA = "qa"  # 问答
+    CUSTOM = "custom"  # 自定义
+
 
 @dataclass(frozen=True)
 class AnalysisMaterial:
     chunk_id: str
     doc_id: str
-    source_label: str               # 文档标题/来源（展示用）
+    source_label: str  # 文档标题/来源（展示用）
     text: str
-    access_level: ClearanceLevel    # 继承自源材料（密级继承计算的输入）
+    access_level: ClearanceLevel  # 继承自源材料（密级继承计算的输入）
     library_scope: LibraryScope
     owner_id: uuid.UUID | None
+
 
 @dataclass(frozen=True)
 class AnalysisSpec:
     task_type: AnalysisType
     doc_ids: tuple[str, ...] | None  # None = 全可见范围；仅作成员筛选，不豁免可见性校验
-    question: str = ""               # qa 必填
-    custom_instruction: str = ""     # custom 必填
+    question: str = ""  # qa 必填
+    custom_instruction: str = ""  # custom 必填
     custom_schema: dict | None = None
-    top_k: int = 10                  # qa 用
+    top_k: int = 10  # qa 用
     model_override: str | None = None
+
 
 @dataclass(frozen=True)
 class EvidenceRef:
     chunk_id: str
-    quote: str                       # 必填；缺失/失配 → 置信封顶 + warning
+    quote: str  # 必填；缺失/失配 → 置信封顶 + warning
+
 
 @dataclass(frozen=True)
 class AnalysisReport:
     task_type: AnalysisType
-    status: str                      # ok | partial（契约枚举另含 failed；落库规则见「报告落库口径」）
-    payload: dict                    # 对应类型 pydantic 模型 model_dump()
+    status: str  # ok | partial（契约枚举另含 failed；落库规则见「报告落库口径」）
+    payload: dict  # 对应类型 pydantic 模型 model_dump()
     model: str
     prompt_version: str
     usage: dict[str, int]
     warnings: list[str]
     source_chunk_ids: list[str]
+
 
 class AnalysisEngine(ABC):
     @abstractmethod
@@ -210,10 +215,10 @@ class AnalysisEngine(ABC):
 @dataclass(frozen=True)
 class AnalysisTaskSpec:
     type: AnalysisType
-    output_cls: type[BaseModel]      # 对应报告模型
-    template_name: str               # config/analysis_prompts/<name>.txt
-    stub_marker: str                 # StubLLM 分发标记（契约测试锁定）
-    max_retries: int | None = None   # None = 用全局 analysis_parse_retries
+    output_cls: type[BaseModel]  # 对应报告模型
+    template_name: str  # config/analysis_prompts/<name>.txt
+    stub_marker: str  # StubLLM 分发标记（契约测试锁定）
+    max_retries: int | None = None  # None = 用全局 analysis_parse_retries
 ```
 
 - 内置注册表 `BUILTIN_ANALYSIS_SPECS: dict[AnalysisType, AnalysisTaskSpec]`：第一批 5 条（Task 5/6），第二批 +3 条（Task 21），`custom` 经 `build_custom_spec` 动态构造（Task 22）。`get_spec(task_type)` 未注册抛 `KeyError`（API 层转 400）——**未交付类型天然不可提交**，无需额外开关。
@@ -264,7 +269,9 @@ worker（analysis/job_worker.py）：
 `db/models_job.py` 追加两列（`filename` / `result` 语义不动，ingest 链路零回归）：
 
 ```python
-task_type: Mapped[str] = mapped_column(String(16), default="ingest", server_default="ingest", index=True)
+task_type: Mapped[str] = mapped_column(
+    String(16), default="ingest", server_default="ingest", index=True
+)
 task_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 ```
 
@@ -381,12 +388,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/collab/models.py` / `collab/service.py`（时间列 `timezone=True`）· 改 `src/calliodesmo/api/deps.py`（:89 TODO 锚点与去向注释）· 测试 `tests/test_collab*.py` 扩展。
 
-- [ ] **Step 1:** 写失败测试：collab 时间字段带时区往返断言（存入 tz-aware、读出不丢时区信息）。
-- [ ] **Step 2:** 跑确认失败（`uv run pytest -v` 相关用例红）。
-- [ ] **Step 3:** 实现：collab ORM 时间列（`collab/models.py` reviewed_at/merged_at 等）补 `timezone=True`，移除 :18 TODO 标记；`deps.py:89` 锚点改 2026-W49 并注明「与 store list 谓词下推同批（P9）」。**既有库迁移**：`create_all` 不改既有表列型，既有库（含 dev 库）需 `ALTER COLUMN reviewed_at/merged_at TYPE TIMESTAMPTZ USING <col> AT TIME ZONE 'UTC'`——工具实现由 Task 11 `db/migrate.py` 列型回填承接，落地后在 dev 库冒烟一次 approve/merge；窗口期（本 Task → Task 11）内**先跑迁移再合并代码**，否则既有库 contributions 表写 aware datetime 即报错。
-- [ ] **Step 4:** 跑绿：`uv run ruff format . && uv run ruff check . && uv run pytest -v` 全量回归不红。
-- [ ] **留痕:** 测试走 `create_all` 全新表（直出 TIMESTAMPTZ）不受影响；既有库迁移缺口由 Task 11 `db/migrate.py` 列型回填（含 `@pytest.mark.db` 测试）与本步 dev 库冒烟承接，不留模糊「评估」。
-- [ ] **Step 5:** 提交：`fix(db): 闭环协作时区逾期 TODO 并顺延 ProfileCard/BM25 锚点至 P9`。
+- [x] **Step 1:** 写失败测试：collab 时间字段带时区往返断言（存入 tz-aware、读出不丢时区信息）。
+- [x] **Step 2:** 跑确认失败（`uv run pytest -v` 相关用例红）。
+- [x] **Step 3:** 实现：collab ORM 时间列（`collab/models.py` reviewed_at/merged_at 等）补 `timezone=True`，移除 :18 TODO 标记；`deps.py:89` 锚点改 2026-W49 并注明「与 store list 谓词下推同批（P9）」。**既有库迁移**：`create_all` 不改既有表列型，既有库（含 dev 库）需 `ALTER COLUMN reviewed_at/merged_at TYPE TIMESTAMPTZ USING <col> AT TIME ZONE 'UTC'`——工具实现由 Task 11 `db/migrate.py` 列型回填承接，落地后在 dev 库冒烟一次 approve/merge；窗口期（本 Task → Task 11）内**先跑迁移再合并代码**，否则既有库 contributions 表写 aware datetime 即报错。
+- [x] **Step 4:** 跑绿：`uv run ruff format . && uv run ruff check . && uv run pytest -v` 全量回归不红。
+- [x] **留痕:** 测试走 `create_all` 全新表（直出 TIMESTAMPTZ）不受影响；既有库迁移缺口由 Task 11 `db/migrate.py` 列型回填（含 `@pytest.mark.db` 测试）与本步 dev 库冒烟承接，不留模糊「评估」。
+- [x] **Step 5:** 提交：`fix(db): 闭环协作时区逾期 TODO 并顺延 ProfileCard/BM25 锚点至 P9`。
 
 ---
 
