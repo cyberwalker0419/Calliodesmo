@@ -57,7 +57,7 @@ created: 2026-08-29
 | 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | ✅ 完成 |
 | 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | ✅ 完成 |
 | 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | ✅ 完成 |
-| 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | 未开始 |
+| 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | ✅ 完成 |
 | 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | 未开始 |
 | 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | 未开始 |
 | 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | 未开始 |
@@ -474,11 +474,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/analysis/parser.py` · 改 `pyproject.toml`（新 extra `analysis`：轻量 json-repair 小库）· 测试 `tests/test_analysis_parser.py`。
 
-- [ ] **Step 1:** 写失败测试：围栏剥离；散文夹 JSON 提取；非法 JSON 抛 `AnalysisParseError` 带 200 字片段（仿 `_parse_json` 惯例）；无 extra 时降级正则花括号抢救且友好报错；pydantic 失败时回喂消息含错误定位 + 原输出截断片段；重试预算耗尽 → 部分抢救可校验字段（partial）/ 抢救不出（失败信号）；预算可经配置降 0。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 `parser.py`；`pyproject.toml` 挂 extra（运行时懒加载，缺依赖回退不报硬错）。
-- [ ] **Step 4:** 跑绿（含不装 extra 的降级路径）。
-- [ ] **Step 5:** 提交：`feat(analysis): 结构化解析链与回喂重试机制`。
+- [x] **Step 1:** 写失败测试：围栏剥离；散文夹 JSON 提取；非法 JSON 抛 `AnalysisParseError` 带 200 字片段（仿 `_parse_json` 惯例）；无 extra 时降级正则花括号抢救且友好报错；pydantic 失败时回喂消息含错误定位 + 原输出截断片段；重试预算耗尽 → 部分抢救可校验字段（partial）/ 抢救不出（失败信号）；预算可经配置降 0。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 `parser.py`；`pyproject.toml` 挂 extra（运行时懒加载，缺依赖回退不报硬错）。
+- [x] **Step 4:** 跑绿（含不装 extra 的降级路径）。
+- [x] **Step 5:** 提交：`feat(analysis): 结构化解析链与回喂重试机制`。
 
 ---
 
