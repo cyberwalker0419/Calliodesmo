@@ -59,7 +59,7 @@ created: 2026-08-29
 | 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | ✅ 完成 |
 | 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | ✅ 完成 |
 | 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | ✅ 完成 |
-| 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | 未开始 |
+| 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | ✅ 完成 |
 | 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | 未开始 |
 | 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | 未开始 |
 | 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | 未开始 |
@@ -502,12 +502,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/analysis/materials.py` · `src/calliodesmo/analysis/access.py` · 测试 `tests/test_analysis_materials.py`（`@pytest.mark.db`）。
 
-- [ ] **Step 1:** 写失败测试：全量拉取 + `visible_to` 过滤（`stores/visibility.py` 谓词）；**越权红线**——`doc_ids` 仅作成员筛选且逐条复核可见性，不可见 ID 静默剔除（防枚举探测），断言材料集合；双闸截断；返回 `chunk_id → 源文` 映射供证据校验；实体 / 关系类附带 `graph_store` 相关实体与关系（经 `visible_to`，不重新抽取）；断言不触碰内存态 `sparse_index`；`compute_report_access_level` 边界（全 public 材料 → INTERNAL；含 secret 材料 → SECRET）。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 `gather_materials` + `compute_report_access_level`（纯函数）。
-- [ ] **留痕:** 三 store list 无谓词下推，大规模优化 → P9（2026-W49）。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(analysis): 材料采集器（可见性红线 + 截断 + 图谱复用 + 密级继承纯函数）`。
+- [x] **Step 1:** 写失败测试：全量拉取 + `visible_to` 过滤（`stores/visibility.py` 谓词）；**越权红线**——`doc_ids` 仅作成员筛选且逐条复核可见性，不可见 ID 静默剔除（防枚举探测），断言材料集合；双闸截断；返回 `chunk_id → 源文` 映射供证据校验；实体 / 关系类附带 `graph_store` 相关实体与关系（经 `visible_to`，不重新抽取）；断言不触碰内存态 `sparse_index`；`compute_report_access_level` 边界（全 public 材料 → INTERNAL；含 secret 材料 → SECRET）。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 `gather_materials` + `compute_report_access_level`（纯函数）。
+- [x] **留痕:** 三 store list 无谓词下推，大规模优化 → P9（2026-W49）。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(analysis): 材料采集器（可见性红线 + 截断 + 图谱复用 + 密级继承纯函数）`。
 
 ---
 
