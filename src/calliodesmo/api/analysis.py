@@ -1,4 +1,4 @@
-"""/analysis 端点：分析任务提交 202 + 报告历史 / 详情 + 可见文档清单（P6 Task 14）。
+"""/analysis 端点：分析任务提交 202 + 报告历史 / 详情 + 导出 + 可见文档清单（P6 Task 14/15）。
 
 提交侧 1:1 复刻 ingest 范式（``api/ingest.py``）：
 
@@ -17,24 +17,34 @@ resource_type="job") → commit → BackgroundTasks.add_task(run_analysis_job) �
 - 报告历史 / 详情经 ``AnalysisReportStore`` + ``visible_to`` 三维过滤：
   报告固定 personal scope（owner=提交者，决策 2/4）——他人不可见（含 admin）；
   低 clearance 连本人报告也不可见（密级不洗白）；不可见 / 不存在一律 404（不泄漏存在性）；
+- 报告导出（Task 15）**首次消费 ``export`` 权限**（守卫仅 EXPORT，不复用 analyze）：
+  默认 json 附件（全量信封直出）；``?format=md`` 按信封 JSON 分节渲染
+  （``render_report_markdown`` 纯函数：结构化映射，不重写为大段自由文本，
+  证据列表渲染为 ``[chunk_id] 「引文」（置信 x.xx）`` 引用标注）；审计 ``report_export``；
+  文件名 ASCII 稳定（``analysis_report_<task_type>_<report_id>.<ext>``，
+  不落中文文件名，免 RFC 5987 ``filename*`` 转义）；
 - ``GET /analysis/documents`` 为 Task 19 MaterialPicker 数据源：``list_chunks`` +
   ``visible_to`` 按 ``doc_id`` 聚合（红线一：逐条复核可见性，不凭客户端 ID 直取）。
 
-错误码一览（计划「API 契约」）：401 未认证；403 缺 ``analyze``；400 未注册
-task_type / qa 缺 question / custom 缺 instruction / doc_ids 含不可见项；
-422 请求体 pydantic 校验失败；503 模型缺 key（``RuntimeError``）；404 报告不可见或不存在。
+错误码一览（计划「API 契约」）：401 未认证；403 缺 ``analyze``（导出缺 ``export``）；
+400 未注册 task_type / qa 缺 question / custom 缺 instruction / doc_ids 含不可见项；
+422 请求体 pydantic 校验失败（含导出 ``format`` 越出 json / md）；
+503 模型缺 key（``RuntimeError``）；404 报告不可见或不存在。
 
 审计点：``analyze_submit``（本模块，提交侧，``resource_type="job"``）；``analyze``
-（worker 终态，``analysis/job_worker.py``）；``report_export`` 留 Task 15。
+（worker 终态，``analysis/job_worker.py``）；``report_export``（本模块，导出侧，
+``resource_type="analysis_report"``）。
 
 **回滚方式**：摘除 ``create_app`` 中本 router 挂载即整体下线，零数据影响。
 """
 
 from __future__ import annotations
 
+import json
 import uuid
+from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.analysis.factory import build_analysis_engine
@@ -211,6 +221,58 @@ async def get_report(
     return AnalysisEnvelope.model_validate(report.payload)
 
 
+@router.get("/reports/{report_id}/export")
+async def export_report(
+    report_id: uuid.UUID,
+    format: Literal["json", "md"] = Query(
+        default="json", description="导出格式：json（默认，全量信封）/ md（按 JSON 分节渲染）"
+    ),
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """报告导出（附件下载）：``export`` 权限首次消费（守卫仅 EXPORT）。
+
+    可见性与详情同口径：不可见 / 不存在一律 404（不泄漏存在性）。先审计
+    ``report_export``（``resource_type="analysis_report"``，detail 含 format /
+    task_type）再落响应。默认 json 附件直出全量信封；``format=md`` 经
+    ``render_report_markdown`` 按信封 JSON 分节渲染（不返回大段自由文本，
+    含证据引用标注）。文件名 ASCII 稳定：
+    ``analysis_report_<task_type>_<report_id>.<ext>``。
+    """
+    require_permission(ctx, Permission.EXPORT)
+    report = await AnalysisReportStore().get(session, report_id, access=ctx)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"报告不存在或不可见: {report_id}"
+        )
+    # 提交前先取字段（避免 commit 后属性过期的隐式刷新）
+    report_task_type = report.task_type
+    subject_label = report.subject_label
+    payload = report.payload
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="report_export",
+        resource_type="analysis_report",
+        resource_id=str(report_id),
+        detail={"format": format, "task_type": report_task_type},
+        source="api",
+    )
+    await session.commit()
+    filename = f"analysis_report_{report_task_type}_{report_id}.{format}"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    if format == "md":
+        body = render_report_markdown(
+            report_id=report_id, subject_label=subject_label, envelope=payload
+        )
+        return Response(content=body, media_type="text/markdown; charset=utf-8", headers=headers)
+    return Response(
+        content=json.dumps(payload, ensure_ascii=False, indent=2),
+        media_type="application/json",
+        headers=headers,
+    )
+
+
 @router.get("/documents", response_model=list[AnalysisDocumentOut])
 async def list_documents(
     ctx: AccessContext = Depends(get_current_context),
@@ -236,6 +298,160 @@ async def list_documents(
         )
         for doc_id in sorted(by_doc)
     ]
+
+
+# ---------------------------------------------------------------------------
+# Markdown 导出渲染（Task 15）：按信封 JSON 分节的纯函数
+# ---------------------------------------------------------------------------
+
+#: 报告信息节中无值占位（与证据缺失占位区分：后者为「无证据引用」）
+_EXPORT_EMPTY = "（无）"
+
+
+def render_report_markdown(*, report_id: uuid.UUID, subject_label: str, envelope: dict) -> str:
+    """按信封 JSON 分节渲染 Markdown（导出 ``?format=md`` 用，纯函数离线可测）。
+
+    纪律：**结构化映射，不重写为大段自由文本**——报告信息取信封元字段为列表项，
+    报告内容按 ``payload`` 顶层键逐节展开（``### <键名>``）；证据列表（键名
+    ``evidence``）渲染为引用标注 ``[chunk_id] 「引文」（置信 x.xx）``。
+
+    参数:
+        report_id: 报告行 ID（写入报告信息节与调用方文件名一致）。
+        subject_label: 分析对象描述（报告行 ``subject_label``）。
+        envelope: 完整信封 dict（报告行 ``payload`` 列，json_safe 形态）。
+    """
+    payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else {}
+    lines: list[str] = [
+        f"# 分析报告（{envelope.get('task_type', '未知类型')}）",
+        "",
+        "## 报告信息",
+        "",
+        f"- 报告 ID：{report_id}",
+        f"- 分析对象：{subject_label}",
+        f"- 报告状态：{envelope.get('status', '未知')}",
+        f"- 生成时间：{envelope.get('generated_at', _EXPORT_EMPTY)}",
+        f"- 模型：{envelope.get('model', _EXPORT_EMPTY)}",
+        f"- 提示词版本：{envelope.get('prompt_version', _EXPORT_EMPTY)}",
+        f"- Token 用量：{_usage_text(envelope.get('usage'))}",
+        f"- 告警：{_list_join(envelope.get('warnings'))}",
+        f"- 材料块：{_list_join(envelope.get('source_chunk_ids'))}",
+        "",
+        "## 报告内容",
+        "",
+    ]
+    if not payload:
+        lines.append(_EXPORT_EMPTY)
+    for key, value in payload.items():
+        lines.append(f"### {key}")
+        lines.append("")
+        if key == "evidence":
+            lines.extend(_render_evidence(value))
+        else:
+            lines.extend(_render_value(value))
+        lines.append("")
+    while lines and lines[-1] == "":
+        lines.pop()
+    return "\n".join(lines) + "\n"
+
+
+def _usage_text(usage: Any) -> str:
+    """token 用量 dict -> ``k=v`` 空格串；空 / 非 dict 占位。"""
+    if not isinstance(usage, dict) or not usage:
+        return _EXPORT_EMPTY
+    return " ".join(f"{key}={value}" for key, value in usage.items())
+
+
+def _list_join(values: Any) -> str:
+    """列表 -> ``；`` 串接；空 / 非列表占位。"""
+    if not isinstance(values, list) or not values:
+        return _EXPORT_EMPTY
+    return "；".join(str(value) for value in values)
+
+
+def _is_scalar(value: Any) -> bool:
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def _scalar_text(value: Any) -> str:
+    """标量 -> 展示文本（None 占位 / bool 中文化 / 其余 str）。"""
+    if value is None:
+        return _EXPORT_EMPTY
+    if isinstance(value, bool):
+        return "是" if value else "否"
+    return str(value)
+
+
+def _confidence_text(value: Any) -> str:
+    """置信度 -> 两位小数文本；非数值原样转串（容错，不崩渲染）。"""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"{value:.2f}"
+    return str(value)
+
+
+def _evidence_entry_text(entry: Any) -> str:
+    """单条证据 -> 引用标注 ``[chunk_id] 「引文」（置信 x.xx）``；异形条目转 JSON。"""
+    if isinstance(entry, dict) and entry.get("chunk_id"):
+        confidence = _confidence_text(entry.get("confidence", 1.0))
+        return f"[{entry['chunk_id']}] 「{entry.get('quote', '')}」（置信 {confidence}）"
+    return json.dumps(entry, ensure_ascii=False)
+
+
+def _render_evidence(value: Any) -> list[str]:
+    """证据节（顶层 ``### evidence``）：编号引用标注列表；空 -> 「无证据引用」。"""
+    if not isinstance(value, list) or not value:
+        return ["（无证据引用）"]
+    return [f"{index}. {_evidence_entry_text(entry)}" for index, entry in enumerate(value, 1)]
+
+
+def _render_value(value: Any) -> list[str]:
+    """payload 值 -> 分节行（非证据键通用路径）。
+
+    - 标量：直接文本；
+    - 标量列表：``- 项`` 要点行；
+    - 条目列表（dict）：``#### 条目 N`` 逐条展开（字段 ``- k: v``，
+      条目内 ``evidence`` 内联为引用标注）；
+    - dict：``- k: v`` 字段行（嵌套非标量值内联 JSON，保确定性）。
+    """
+    if _is_scalar(value):
+        return [_scalar_text(value)]
+    if isinstance(value, list):
+        if not value:
+            return [_EXPORT_EMPTY]
+        if all(_is_scalar(item) for item in value):
+            return [f"- {_scalar_text(item)}" for item in value]
+        lines: list[str] = []
+        for index, item in enumerate(value, 1):
+            lines.extend([f"#### 条目 {index}", ""])
+            if isinstance(item, dict):
+                lines.extend(_render_entry(item))
+            else:
+                lines.append(json.dumps(item, ensure_ascii=False))
+            lines.append("")
+        while lines and lines[-1] == "":
+            lines.pop()
+        return lines
+    if isinstance(value, dict):
+        if not value:
+            return [_EXPORT_EMPTY]
+        return _render_entry(value)
+    return [json.dumps(value, ensure_ascii=False)]
+
+
+def _render_entry(entry: dict) -> list[str]:
+    """dict 条目 -> ``- k: v`` 字段行；``evidence`` 内联引用标注；嵌套非标量内联 JSON。"""
+    lines: list[str] = []
+    for key, value in entry.items():
+        if key == "evidence":
+            if isinstance(value, list) and value:
+                joined = "；".join(_evidence_entry_text(item) for item in value)
+            else:
+                joined = "（无证据引用）"
+            lines.append(f"- evidence: {joined}")
+        elif _is_scalar(value):
+            lines.append(f"- {key}: {_scalar_text(value)}")
+        else:
+            lines.append(f"- {key}: {json.dumps(value, ensure_ascii=False)}")
+    return lines
 
 
 def _report_item(report: AnalysisReportORM) -> AnalysisReportListItem:

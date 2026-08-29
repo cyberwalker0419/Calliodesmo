@@ -65,7 +65,7 @@ created: 2026-08-29
 | 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | ✅ 完成 |
 | 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | ✅ 完成 |
 | 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | ✅ 完成 |
-| 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | 未开始 |
+| 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | ✅ 完成 |
 | 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | 未开始 |
 | 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | 未开始 |
 | 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | 未开始 |
@@ -590,11 +590,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/api/analysis.py` · 测试 `tests/test_analysis_api.py`（扩展）。
 
-- [ ] **Step 1:** 写失败测试：无 export 权限 → 403；不可见报告 → 404；200 时 Content-Disposition 带文件名、内容与报告一致（md 分节含证据引用标注）；审计 `report_export`。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现端点。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(api): 报告导出端点（export 权限首次消费）`。
+- [x] **Step 1:** 写失败测试：无 export 权限 → 403；不可见报告 → 404；200 时 Content-Disposition 带文件名、内容与报告一致（md 分节含证据引用标注）；审计 `report_export`。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现端点。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(api): 报告导出端点（export 权限首次消费）`。
 
 ---
 

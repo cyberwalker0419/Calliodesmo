@@ -1,4 +1,4 @@
-"""分析 API 测试（P6 Task 14）：提交 202 + 历史 / 详情 + 可见文档清单 + 双挂。
+"""分析 API 测试（P6 Task 14/15）：提交 202 + 历史 / 详情 + 导出 + 可见文档清单 + 双挂。
 
 仿 ``tests/test_ingest_job_api.py`` 范式：``_test_settings()`` 离线配置（test/stub
 LLM + hash 嵌入，零网络）+ ``dependency_overrides[get_job_session_factory]`` 指向
@@ -19,6 +19,9 @@ LLM + hash 嵌入，零网络）+ ``dependency_overrides[get_job_session_factory
   （模板类 + QA 类各一；QA 经 dependency_overrides[get_search_engine] 注桩）；
 - 三角色提交 / 读取矩阵：analyst / reviewer / admin 均可提交（决策 1），
   报告 personal 隔离（含 admin 亦不可读他人报告）；
+- 导出端点（Task 15）：无 export 权限 -> 403（守卫仅 EXPORT）；不可见 / 不存在 -> 404；
+  200 时 Content-Disposition 附件文件名（json 默认 / md）+ 内容与报告一致 +
+  md 按 JSON 分节含证据引用标注 + 审计 ``report_export``；渲染纯函数离线可测；
 - 根 + /api 前缀双挂。
 
 桩对生成质量零区分度：本文件只承诺状态机 / 契约 / 权限 / 审计结构，不承诺分析质量。
@@ -38,6 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.analysis.report_store import AnalysisReportStore
 from calliodesmo.analysis.schemas import AnalysisEnvelope
+from calliodesmo.api.analysis import render_report_markdown
 from calliodesmo.api.deps import get_app_stores, reset_app_stores
 from calliodesmo.audit.models import AuditLog
 from calliodesmo.auth.models import (
@@ -55,6 +59,7 @@ from calliodesmo.db.models_analysis import AnalysisReportORM
 from calliodesmo.db.session import get_session
 from calliodesmo.interfaces.retriever import Answer
 from calliodesmo.interfaces.vector_store import ChunkRecord
+from calliodesmo.utils.json import json_safe
 
 _DIM = get_settings().embedding_dimension
 
@@ -182,8 +187,11 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _envelope_payload(task_type: str = "summary") -> dict:
-    """构造合法信封 dict（报告行直建用例用；与 worker 落库形态一致）。"""
+def _envelope_payload(task_type: str = "summary", evidence: list[dict] | None = None) -> dict:
+    """构造合法信封 dict（报告行直建用例用；与 worker 落库形态一致）。
+
+    ``evidence`` 供导出 md 分节渲染用例注入证据条目（默认空证据列表）。
+    """
     return AnalysisEnvelope(
         task_type=task_type,
         status="ok",
@@ -193,7 +201,12 @@ def _envelope_payload(task_type: str = "summary") -> dict:
         usage={"total_tokens": 3},
         warnings=[],
         source_chunk_ids=["alpha.md#0"],
-        payload={"summary": "桩摘要", "key_points": [], "confidence": 1.0, "evidence": []},
+        payload={
+            "summary": "桩摘要",
+            "key_points": ["要点甲"],
+            "confidence": 1.0,
+            "evidence": evidence or [],
+        },
     ).model_dump()
 
 
@@ -204,8 +217,9 @@ async def _create_report_row(
     task_type: str = "summary",
     access_level=ClearanceLevel.INTERNAL,
     subject_label: str = "Alpha 文档",
+    evidence: list[dict] | None = None,
 ) -> AnalysisReportORM:
-    """经 AnalysisReportStore 直建报告行（读取矩阵 / 分页 / 密级用例用）。"""
+    """经 AnalysisReportStore 直建报告行（读取矩阵 / 分页 / 密级 / 导出用例用）。"""
     report = await AnalysisReportStore().create(
         session,
         job_id=None,
@@ -213,7 +227,7 @@ async def _create_report_row(
         task_type=task_type,
         status="ok",
         subject_label=subject_label,
-        payload=_envelope_payload(task_type),
+        payload=_envelope_payload(task_type, evidence=evidence),
         source_doc_ids=["alpha.md"],
         source_chunk_count=1,
         access_level=access_level,
@@ -659,6 +673,209 @@ async def test_admin_cannot_read_others_personal_reports(session):
         assert (
             await c.get(f"/analysis/reports/{report.id}", headers=_auth(token_a))
         ).status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 报告导出：EXPORT 权限首次消费（P6 Task 15）
+# ---------------------------------------------------------------------------
+
+
+async def test_export_requires_auth_and_export_permission(session):
+    """导出守卫：无 token -> 401；有 analyze 无 export -> 403；守卫仅 EXPORT。"""
+    user_a, token_a = await _seed_actor(session, "export-analyze", {Permission.ANALYZE})
+    report_a = await _create_report_row(session, user_id=user_a.id)
+    user_e, token_e = await _seed_actor(session, "export-only", {Permission.EXPORT})
+    report_e = await _create_report_row(session, user_id=user_e.id)
+    async with _make_client(session) as c:
+        assert (await c.get(f"/analysis/reports/{report_a.id}/export")).status_code == 401
+        # 缺 export：即使报告本人可见亦 403（权限门控先于可见性）
+        assert (
+            await c.get(f"/analysis/reports/{report_a.id}/export", headers=_auth(token_a))
+        ).status_code == 403
+        # 无 analyze 但持 export：守卫仅 EXPORT，可见报告可导出
+        assert (
+            await c.get(f"/analysis/reports/{report_e.id}/export", headers=_auth(token_e))
+        ).status_code == 200
+
+
+async def test_export_invisible_or_missing_404(session):
+    """不可见 / 不存在 -> 404（不泄漏存在性）：他人报告 / 随机 UUID / 低 clearance 本人报告。"""
+    user_a, _ = await _seed_actor(session, "exportA", {Permission.ANALYZE, Permission.EXPORT})
+    _, token_b = await _seed_actor(session, "exportB", {Permission.ANALYZE, Permission.EXPORT})
+    report = await _create_report_row(session, user_id=user_a.id)
+    async with _make_client(session) as c:
+        assert (
+            await c.get(f"/analysis/reports/{report.id}/export", headers=_auth(token_b))
+        ).status_code == 404
+        assert (
+            await c.get(f"/analysis/reports/{uuid.uuid4()}/export", headers=_auth(token_b))
+        ).status_code == 404
+    # 低 clearance 连本人报告也不可导出（密级不洗白）
+    row = await session.get(User, user_a.id)
+    row.clearance = ClearanceLevel.PUBLIC
+    await session.commit()
+    async with _make_client(session) as c:
+        assert (
+            await c.get(f"/analysis/reports/{report.id}/export", headers=_auth(_token(user_a)))
+        ).status_code == 404
+
+
+async def test_export_json_default_attachment_and_audit(session):
+    """默认 json：200 + Content-Disposition 附件文件名 + 内容与落库信封一致 + 审计。"""
+    user, token = await _seed_actor(session, "export-json", {Permission.ANALYZE, Permission.EXPORT})
+    report = await _create_report_row(session, user_id=user.id)
+    report_id = report.id
+    async with _make_client(session) as c:
+        resp = await c.get(f"/analysis/reports/{report_id}/export", headers=_auth(token))
+    assert resp.status_code == 200, resp.text
+    disposition = resp.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert f'filename="analysis_report_summary_{report_id}.json"' in disposition
+    assert resp.headers["content-type"].startswith("application/json")
+    # 内容与落库信封一致（全量信封直出）
+    stored = (
+        (await session.execute(select(AnalysisReportORM).where(AnalysisReportORM.id == report_id)))
+        .scalars()
+        .one()
+    )
+    assert resp.json() == stored.payload
+    # 审计：report_export（resource_type=analysis_report，detail 含 format / task_type）
+    logs = (
+        (await session.execute(select(AuditLog).where(AuditLog.action == "report_export")))
+        .scalars()
+        .all()
+    )
+    assert len(logs) == 1
+    log = logs[0]
+    assert log.resource_type == "analysis_report"
+    assert log.resource_id == str(report_id)
+    assert log.user_id == user.id
+    assert log.detail["format"] == "json"
+    assert log.detail["task_type"] == "summary"
+
+
+async def test_export_md_sectioned_with_evidence(session):
+    """format=md：200 附件 .md；按 JSON 分节渲染（不返回大段自由文本）+ 证据引用标注 + 审计。"""
+    user, token = await _seed_actor(session, "export-md", {Permission.ANALYZE, Permission.EXPORT})
+    report = await _create_report_row(
+        session,
+        user_id=user.id,
+        evidence=[{"chunk_id": "alpha.md#0", "quote": "阿尔法文档第一块。", "confidence": 0.9}],
+    )
+    report_id = report.id
+    async with _make_client(session) as c:
+        resp = await c.get(f"/analysis/reports/{report_id}/export?format=md", headers=_auth(token))
+    assert resp.status_code == 200, resp.text
+    disposition = resp.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert f'filename="analysis_report_summary_{report_id}.md"' in disposition
+    assert resp.headers["content-type"].startswith("text/markdown")
+    text = resp.text
+    # 报告信息元数据节
+    assert "# 分析报告（summary）" in text
+    assert "## 报告信息" in text
+    assert "- 分析对象：Alpha 文档" in text
+    assert "- 报告状态：ok" in text
+    assert "- 材料块：alpha.md#0" in text
+    # 报告内容按 payload 顶层键分节（结构化映射，不重写为自由文本）
+    assert "## 报告内容" in text
+    assert "### summary" in text
+    assert "桩摘要" in text
+    assert "### key_points" in text
+    assert "- 要点甲" in text
+    # 证据引用标注（chunk_id + 原文引文 + 置信）
+    assert "### evidence" in text
+    assert "1. [alpha.md#0] 「阿尔法文档第一块。」（置信 0.90）" in text
+    # 审计记 md 格式
+    logs = (
+        (await session.execute(select(AuditLog).where(AuditLog.action == "report_export")))
+        .scalars()
+        .all()
+    )
+    assert len(logs) == 1
+    assert logs[0].detail["format"] == "md"
+
+
+async def test_export_invalid_format_422(session):
+    """format 越出 json / md -> 422（查询参数 Literal 校验）。"""
+    user, token = await _seed_actor(session, "export-fmt", {Permission.EXPORT})
+    report = await _create_report_row(session, user_id=user.id)
+    async with _make_client(session) as c:
+        resp = await c.get(
+            f"/analysis/reports/{report.id}/export?format=docx", headers=_auth(token)
+        )
+    assert resp.status_code == 422, resp.text
+
+
+def test_render_report_markdown_sections_and_evidence():
+    """渲染纯函数（无 db 夹具，CI 可跑）：元信息节 + payload 分节 + 证据引用标注 + 条目内联标注。"""
+    report_id = uuid.uuid4()
+    envelope = json_safe(
+        AnalysisEnvelope(
+            task_type="summary",
+            status="partial",
+            generated_at=datetime.now(UTC),
+            model="test/stub",
+            prompt_version="summary.v1",
+            usage={"total_tokens": 3},
+            warnings=["证据失配占比超阈值"],
+            source_chunk_ids=["alpha.md#0", "alpha.md#1"],
+            payload={
+                "summary": "桩摘要",
+                "key_points": ["要点甲", "要点乙"],
+                "confidence": 0.3,
+                "evidence": [
+                    {"chunk_id": "alpha.md#0", "quote": "阿尔法文档第一块。", "confidence": 0.9}
+                ],
+            },
+        ).model_dump()
+    )
+    md = render_report_markdown(report_id=report_id, subject_label="Alpha 文档", envelope=envelope)
+    assert md.startswith("# 分析报告（summary）")
+    assert f"- 报告 ID：{report_id}" in md
+    assert "- 分析对象：Alpha 文档" in md
+    assert "- 报告状态：partial" in md
+    assert "- Token 用量：total_tokens=3" in md
+    assert "- 告警：证据失配占比超阈值" in md
+    assert "- 材料块：alpha.md#0；alpha.md#1" in md
+    assert "## 报告内容" in md
+    assert "### summary" in md
+    assert "桩摘要" in md
+    assert "### key_points" in md
+    assert "- 要点甲" in md and "- 要点乙" in md
+    assert "1. [alpha.md#0] 「阿尔法文档第一块。」（置信 0.90）" in md
+
+    # 条目形态（key_information）：逐条 #### 分节 + 证据内联标注；空证据 -> 「（无证据引用）」
+    envelope_items = json_safe(
+        AnalysisEnvelope(
+            task_type="key_information",
+            status="ok",
+            generated_at=datetime.now(UTC),
+            model="test/stub",
+            prompt_version="key_information.v1",
+            usage={},
+            warnings=[],
+            source_chunk_ids=[],
+            payload={
+                "items": [
+                    {
+                        "label": "时间",
+                        "value": "2026年8月29日",
+                        "confidence": 0.8,
+                        "evidence": [{"chunk_id": "a.md#0", "quote": "引文", "confidence": 1.0}],
+                    },
+                    {"label": "地点", "value": "北京", "confidence": 0.2, "evidence": []},
+                ]
+            },
+        ).model_dump()
+    )
+    md2 = render_report_markdown(report_id=uuid.uuid4(), subject_label="X", envelope=envelope_items)
+    assert "#### 条目 1" in md2 and "#### 条目 2" in md2
+    assert "- label: 时间" in md2
+    assert "- evidence: [a.md#0] 「引文」（置信 1.00）" in md2
+    assert "- evidence: （无证据引用）" in md2
+    assert "- Token 用量：（无）" in md2
+    assert "- 材料块：（无）" in md2
 
 
 # ---------------------------------------------------------------------------
