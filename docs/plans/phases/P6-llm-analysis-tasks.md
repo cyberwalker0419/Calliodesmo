@@ -535,7 +535,7 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 - [x] **Step 2:** 跑确认失败。
 - [x] **Step 3:** 实现扩列 + `db/migrate.py`（补列 + 列型回填）+ `cli db init` 装配（`create_all` 之后）+ `api/jobs.py` 两字段透传；落地后对既有 dev 库重跑一次 `calliodesmo db init`（serve 不自动触发）。
 - [x] **Step 4:** 跑绿（ingest job API 全回归零红）。
-- [x] **回滚方式:** 新列均可空，回滚后旧代码忽略新列，ingest 主链路不受影响。
+- [x] **回滚方式:** 新列中 `task_payload` 可空；`task_type` 为 NOT NULL + server_default `'ingest'`（存量行经默认值回填，旧代码不读不写新列，回滚后 INSERT 亦不受约束影响），ingest 主链路不受影响。
 - [x] **Step 5:** 提交：`refactor(jobs): Job 表泛化支持 analyze 任务类型与幂等补列`。
 
 ---
