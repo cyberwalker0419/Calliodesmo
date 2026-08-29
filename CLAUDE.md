@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P4.5-persistence-production**（持久化与生产化：承诺批次 Task 1-4、Task 5 摄入 UI、Task 6 三段式对齐+复核 UI 均已完成；P4 Git-like 协作推送已完成）。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P6-llm-analysis-tasks**（LLM 分析任务：9 类分析结构化报告；计划已定稿，2026-09 W36 起滚动开工。P0-P4.5（Task 1-7）与 P5 高级 RAG 均已完成并合入 main，后端 431 passed）。
 
 ## 当前阶段
 
@@ -19,7 +19,9 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
 - **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地）
-- **P4.5** 持久化与生产化 ✅ Task 1-4（承诺批次）✅ Task 5（摄入 UI + 异步 job）✅ Task 6（三段式实体对齐 + 复核 UI）完成（详见 [docs/plans/phases/P4.5-persistence-production.md](docs/plans/phases/P4.5-persistence-production.md)）
+- **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 [docs/plans/phases/P4.5-persistence-production.md](docs/plans/phases/P4.5-persistence-production.md)）
+- **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 [docs/plans/phases/P5-advanced-rag.md](docs/plans/phases/P5-advanced-rag.md)）
+- **P6** LLM 分析任务 📋 计划已定稿（2026-08-29）：9 类分析（摘要/关键信息/时间线/实体识别/关系映射/任务/概念/问答/自定义）结构化报告，2026-09 W36 起滚动开工（详见 [docs/plans/phases/P6-llm-analysis-tasks.md](docs/plans/phases/P6-llm-analysis-tasks.md)）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -54,7 +56,7 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 | LLM / 嵌入 | LiteLLM（多后端可切换）· BGE-M3（本地，可选 extra） |
 | 检索 / Agent | LlamaIndex + LangGraph（P2+）· GraphRAG（P1，库形式集成） |
 | 质量 | pytest + pytest-asyncio · Ruff · GitHub Actions |
-| 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· react-force-graph-2d · lucide-react |
+| 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· cytoscape + cytoscape-fcose · lucide-react |
 
 ## 项目结构
 
@@ -77,10 +79,10 @@ frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；�
 docs/
 ├── deploy/               部署文档（native.md：非 Docker 原生部署）
 ├── plans/                Obsidian vault：roadmap / monthly/<YYYY-MM> / weekly/<YYYY-Www> / phases/P<n>-<slug>
-│   ├── phases/           阶段任务计划（P0-P3 已有，checkbox 跟踪）
+│   ├── phases/           阶段任务计划（P0-P6 已有，checkbox 跟踪）
 │   ├── monthly/          月计划
 │   └── weekly/           周计划（含日计划表）
-├── verification/         各阶段验证报告（README 索引 + P0/P1/P2 验证报告 + pytest 输出/证据）
+├── verification/         各阶段验证报告（README 索引 + P0-P5 / OCR 识图 / 全链路仿真报告 + pytest 输出/证据）
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
 config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml（评估 golden 集）
@@ -157,7 +159,7 @@ uv run calliodesmo ingest <path> # 端到端建图
 > **底线**：任何前端改动都要过三件套（`lint` / `test` / `build`）。
 > **之上**：有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）**必须走此交互验证闭环**；纯逻辑 / 类型改动（无视觉表现）三件套即可，不用 `preview_*`。判不准时默认走三件套。
 
-前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 **8200**（见 `frontend/vite.config.ts`），同源 cookie 全程可用；后端联调启 `uv run calliodesmo serve --port 8200`。生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `cytoscape` + `cytoscape-fcose`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 **8200**（见 `frontend/vite.config.ts`），同源 cookie 全程可用；后端联调启 `uv run calliodesmo serve --port 8200`。生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
 
 ### 工具说明
 
@@ -245,7 +247,7 @@ npm run e2e          # Playwright e2e（@playwright/test，桌面 + 移动视口
 - **本文件为当前项目（Calliodesmo）的权威指令**，与全局 `~/.claude/CLAUDE.md` 冲突时以本文件为准。
 - **dev server 用 `preview_start`（`frontend-dev`）启动，不用 Bash**；Bash 仅用于后端 `uv` 命令与一次性脚本。
 - `preview_*` 仅验证有视觉表现的改动；纯逻辑走三件套。
-- 新增 `frontend/dependencies` 前说明理由（`react-force-graph-2d` 已锁定）。
+- 新增 `frontend/dependencies` 前说明理由（图谱库 `cytoscape` + `cytoscape-fcose` 已锁定）。
 
 ## 计划文档体系（docs/plans/）
 

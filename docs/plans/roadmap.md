@@ -64,7 +64,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）；L
 - **P4 Git-like 协作推送 ✅**：个人/项目/团队库、MR 状态机、图谱合并（去重/并集/打标）、模板 review-gated 沉淀、文档社区选项 B（聚类+版本/回滚）。
 - **P4.5 持久化与生产化 ✅**：store 真后端持久化（pgvector/Neo4j/PG）+ 增量索引 MVP + P4 合并落库贯通 + 双写一致性 + 前端 ingest UI + 异步 job + 三段式实体对齐 + 多模态 OCR/识图（详见 [[docs/plans/phases/P4.5-persistence-production|P4.5 计划]]）。
 - **P5 高级 RAG 与智能检索 ✅**：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval 完成，golden 回归基线 ctx_recall 0.4444（语义切分按证据跳过，见 [[docs/verification/P5-verification|P5 验证]]）。
-- **P6 LLM 分析任务**：9 类分析（摘要/关键信息/时间线/实体识别/关系映射/任务/概念/问答/自定义）结构化报告。
+- **P6 LLM 分析任务**：9 类分析（摘要/关键信息/时间线/实体识别/关系映射/任务/概念/问答/自定义）结构化报告（计划已定稿，详见 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]]，2026-09 W36 起滚动）。
 - **P7 Agent 模式**：ReAct / ReWOO / PlanExecute（LangGraph）+ 工具定义，权限内行动。
 - **P8 证据验证与幻觉检测**：答案-证据映射、接地度评分、低接地声明标记。
 - **P9 动态更新与规模化**：VectorStore 置换验证（Qdrant/Milvus）、Celery+Redis 异步批处理、审计硬化/合规/压测、社区规模化增量（增量索引 MVP 已剥离到 P4.5）。
@@ -83,7 +83,7 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）；L
 | P6-P9 | 2026-09 起滚动 |
 
 > [!note] 进度注记
-> P0-P4 与 P4.5（含 Task 5-7）、P5 均已完成（2026-08-19，431 passed）；当前按节奏滚动更新月/周计划。
+> P0-P4 与 P4.5（含 Task 5-7）、P5 均已完成（2026-08-19，431 passed）；P6 计划已定稿（2026-08-29，[[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]]），2026-09 W36 起滚动开工；月/周计划按节奏滚动更新。
 
 ## 后续精化（v2）
 

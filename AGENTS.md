@@ -15,7 +15,9 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P2** 基础检索与 RAG ✅ 完成
 - **P3** Web UI ✅ 完成--管理/浏览后端补全 + React SPA（登录/问答/浏览/管理/文档社区手动管理）+ 权限矩阵回归
 - **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地）
-- **P4.5** 持久化与生产化 ✅ Task 1-4（承诺批次：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性修复）完成（后端 407 passed / 1 skipped）；Task 5 摄入 UI + 异步 job、Task 6 三段式实体对齐 + 复核 UI 待接续（详见 `docs/plans/phases/P4.5-persistence-production.md`）
+- **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 `docs/plans/phases/P4.5-persistence-production.md`）
+- **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 `docs/plans/phases/P5-advanced-rag.md`）
+- **P6** LLM 分析任务 📋 计划已定稿（2026-08-29）：9 类分析（摘要/关键信息/时间线/实体识别/关系映射/任务/概念/问答/自定义）结构化报告，2026-09 W36 起滚动开工（详见 `docs/plans/phases/P6-llm-analysis-tasks.md`）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -50,7 +52,7 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 | LLM / 嵌入 | LiteLLM（多后端可切换）· BGE-M3（本地，可选 extra） |
 | 检索 / Agent | LlamaIndex + LangGraph（P2+）· GraphRAG（P1，库形式集成） |
 | 质量 | pytest + pytest-asyncio · Ruff · GitHub Actions |
-| 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· react-force-graph-2d · lucide-react |
+| 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· cytoscape + cytoscape-fcose · lucide-react |
 
 ## 项目结构
 ```
@@ -72,10 +74,10 @@ frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；�
 docs/
 ├── deploy/               部署文档（native.md：非 Docker 原生部署）
 ├── plans/                Obsidian vault：roadmap / monthly/<YYYY-MM> / weekly/<YYYY-Www> / phases/P<n>-<slug>
-│   ├── phases/           阶段任务计划（P0-P3 已有，checkbox 跟踪）
+│   ├── phases/           阶段任务计划（P0-P6 已有，checkbox 跟踪）
 │   ├── monthly/          月计划
 │   └── weekly/           周计划（含日计划表）
-├── verification/         各阶段验证报告（README 索引 + P0/P1/P2 验证报告 + pytest 输出/证据）
+├── verification/         各阶段验证报告（README 索引 + P0-P5 / OCR 识图 / 全链路仿真报告 + pytest 输出/证据）
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
 config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml（评估 golden 集）
@@ -140,7 +142,7 @@ uv run calliodesmo ingest <path> # 端到端建图
 
 ## 前端开发与验证闭环
 
-前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `react-force-graph-2d`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 8200（见 `frontend/vite.config.ts`），后端联调启 `uv run calliodesmo serve --port 8200`，同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `cytoscape` + `cytoscape-fcose`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 8200（见 `frontend/vite.config.ts`），后端联调启 `uv run calliodesmo serve --port 8200`，同源 cookie 全程可用；生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
 
 ### 前端命令（在 `frontend/` 执行）
 
