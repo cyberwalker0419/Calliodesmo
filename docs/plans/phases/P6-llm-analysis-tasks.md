@@ -63,7 +63,7 @@ created: 2026-08-29
 | 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | ✅ 完成 |
 | 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | ✅ 完成 |
 | 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | ✅ 完成 |
-| 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | 未开始 |
+| 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | ✅ 完成 |
 | 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | 未开始 |
 | 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | 未开始 |
 | 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | 未开始 |
@@ -561,11 +561,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/analysis/job_worker.py` · 测试 `tests/test_analysis_job_worker.py`（`@pytest.mark.db`，barrier 同步等待）。
 
-- [ ] **Step 1:** 写失败测试：状态机 pending→running→succeeded/failed；进度分段 gather 10 / prompt 25 / llm 60 / verify 80 / persist 95 / done 100（带 `progress_stage`）；成功路径断言：AnalysisReport 落库（密级继承正确、scope=personal、owner=提交者）+ `Job.result={report_id, status}` + 终态审计 `analyze`（detail 含 status / model / prompt_version）；partial 路径：报告如实落库 + job succeeded；失败路径：`Job.error` 可读 + 审计 failed + 不落空报告；空材料 → failed("无可见材料")。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 `run_analysis_job(job_id, *, engine, session_factory, barrier=None)`（对齐 `run_ingest_job` 注入范式：用注入的 `session_factory` 自建会话，spec 自 `Job.task_payload` 读取；测试直接以 `_pg_engine` 构造的 `async_sessionmaker` 传入，或经端点依赖覆盖走 Task 14 范式）。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(analysis): worker 分析执行路径（进度 / 落库 / 审计）`。
+- [x] **Step 1:** 写失败测试：状态机 pending→running→succeeded/failed；进度分段 gather 10 / prompt 25 / llm 60 / verify 80 / persist 95 / done 100（带 `progress_stage`）；成功路径断言：AnalysisReport 落库（密级继承正确、scope=personal、owner=提交者）+ `Job.result={report_id, status}` + 终态审计 `analyze`（detail 含 status / model / prompt_version）；partial 路径：报告如实落库 + job succeeded；失败路径：`Job.error` 可读 + 审计 failed + 不落空报告；空材料 → failed("无可见材料")。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 `run_analysis_job(job_id, *, engine, session_factory, barrier=None)`（对齐 `run_ingest_job` 注入范式：用注入的 `session_factory` 自建会话，spec 自 `Job.task_payload` 读取；测试直接以 `_pg_engine` 构造的 `async_sessionmaker` 传入，或经端点依赖覆盖走 Task 14 范式）。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(analysis): worker 分析执行路径（进度 / 落库 / 审计）`。
 
 ---
 
