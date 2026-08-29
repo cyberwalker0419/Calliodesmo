@@ -61,7 +61,7 @@ created: 2026-08-29
 | 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | ✅ 完成 |
 | 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | ✅ 完成 |
 | 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | ✅ 完成 |
-| 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | 未开始 |
+| 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | ✅ 完成 |
 | 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | 未开始 |
 | 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | 未开始 |
 | 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | 未开始 |
@@ -531,12 +531,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/db/models_job.py`（`task_type` / `task_payload`）· 新 `src/calliodesmo/db/migrate.py`（幂等补列 + 列型回填）· 改 `src/calliodesmo/cli.py`（`db init` 挂补齐）· 改 `src/calliodesmo/api/schemas.py`（`JobOut` 扩 `task_type` / `report_id` 带默认值）· 改 `src/calliodesmo/api/jobs.py`（`get_job` 透传 `task_type`，analyze 任务自 `Job.result` 指针解析 `report_id`）· 测试 `tests/test_db_migrate.py`（`@pytest.mark.db`）+ `tests/test_ingest_job_api.py` 全回归。
 
-- [ ] **Step 1:** 写失败测试：Job 携带 `task_type`（默认 `ingest`）+ `task_payload` JSON（写入前过 `json_safe`）；补列工具——建旧结构表 → `ensure_missing_columns` → 断言新列存在，全新库直出无需补齐；**列型回填**——建 contributions 旧型时间列（TIMESTAMP WITHOUT TZ）→ 补齐 → 断言 TIMESTAMPTZ（承接 Task 1 留痕的既有库迁移）；`GET /jobs/{id}` 对 analyze 返回 `task_type` 与自 result 指针解析的 `report_id`，对 ingest 恒 `task_type="ingest"` 且 `report_id=null`（防透传破坏旧消费方）；`reset_stale_running_jobs()` 对 analyze 任务同样生效（按状态不分类型）；`JobOut` 默认值保旧响应消费方不破坏。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现扩列 + `db/migrate.py`（补列 + 列型回填）+ `cli db init` 装配（`create_all` 之后）+ `api/jobs.py` 两字段透传；落地后对既有 dev 库重跑一次 `calliodesmo db init`（serve 不自动触发）。
-- [ ] **Step 4:** 跑绿（ingest job API 全回归零红）。
-- [ ] **回滚方式:** 新列均可空，回滚后旧代码忽略新列，ingest 主链路不受影响。
-- [ ] **Step 5:** 提交：`refactor(jobs): Job 表泛化支持 analyze 任务类型与幂等补列`。
+- [x] **Step 1:** 写失败测试：Job 携带 `task_type`（默认 `ingest`）+ `task_payload` JSON（写入前过 `json_safe`）；补列工具——建旧结构表 → `ensure_missing_columns` → 断言新列存在，全新库直出无需补齐；**列型回填**——建 contributions 旧型时间列（TIMESTAMP WITHOUT TZ）→ 补齐 → 断言 TIMESTAMPTZ（承接 Task 1 留痕的既有库迁移）；`GET /jobs/{id}` 对 analyze 返回 `task_type` 与自 result 指针解析的 `report_id`，对 ingest 恒 `task_type="ingest"` 且 `report_id=null`（防透传破坏旧消费方）；`reset_stale_running_jobs()` 对 analyze 任务同样生效（按状态不分类型）；`JobOut` 默认值保旧响应消费方不破坏。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现扩列 + `db/migrate.py`（补列 + 列型回填）+ `cli db init` 装配（`create_all` 之后）+ `api/jobs.py` 两字段透传；落地后对既有 dev 库重跑一次 `calliodesmo db init`（serve 不自动触发）。
+- [x] **Step 4:** 跑绿（ingest job API 全回归零红）。
+- [x] **回滚方式:** 新列均可空，回滚后旧代码忽略新列，ingest 主链路不受影响。
+- [x] **Step 5:** 提交：`refactor(jobs): Job 表泛化支持 analyze 任务类型与幂等补列`。
 
 ---
 

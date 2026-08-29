@@ -379,7 +379,12 @@ class IngestAcceptedOut(BaseModel):
 
 
 class JobOut(BaseModel):
-    """GET /jobs/{id}：摄入任务状态 + 进度 + 结果统计 / 错误。"""
+    """GET /jobs/{id}：异步任务状态 + 进度 + 结果统计 / 错误。
+
+    P6 Task 11 泛化兼容扩展：``task_type``（ingest / analyze，默认 ingest）与
+    ``report_id``（analyze 任务指向报告行，ingest 恒 None）均带默认值，
+    旧响应消费方（前端 useIngest.ts）不破坏。
+    """
 
     id: uuid.UUID
     filename: str
@@ -391,3 +396,5 @@ class JobOut(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    task_type: str = "ingest"
+    report_id: uuid.UUID | None = None

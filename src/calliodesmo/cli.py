@@ -51,12 +51,17 @@ async def _create_all(database_url: str) -> None:
     engine = create_async_engine(database_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # P6 Task 11：create_all 不给既有表加列 / 改列型 -> 幂等补齐（jobs 补列 +
+    # contributions 时间列型回填）；全新库直出完整结构，此路径纯 no-op。
+    from calliodesmo.db.migrate import ensure_missing_columns
+
+    await ensure_missing_columns(engine)
     await engine.dispose()
 
 
 @db_app.command("init")
 def db_init() -> None:
-    """按 Base.metadata 建表（幂等；未来迁移到 Alembic）。"""
+    """按 Base.metadata 建表 + 幂等补齐既有库结构（未来迁移到 Alembic）。"""
     settings = get_settings()
     asyncio.run(_create_all(settings.database_url))
     typer.echo("数据库表已创建。")
