@@ -88,6 +88,9 @@ class AlignmentReviewService:
             )
         pair["review_status"] = resolve
         pair["reviewed_by"] = str(user_id)
+        # TODO(P6 Task 1 审查留痕, 2026-W49)：JSON manifest 内时间串为 naive UTC（无时区后缀）。
+        # ORM 时间列已统一 tz-aware（P6 Task 1），此处字符串是否补 +00:00 后缀需与前端
+        # 消费格式（ContributionDetail 时间显示）对齐后动，随 P9 收尾批评估；全库仅此 1 处。
         pair["reviewed_at"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
         # JSON 列不做嵌套可变跟踪，且 setter 按值比较（deepcopy 结构相等不触发 dirty）
         from sqlalchemy.orm.attributes import flag_modified
