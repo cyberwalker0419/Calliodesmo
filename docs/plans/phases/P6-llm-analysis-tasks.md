@@ -62,7 +62,7 @@ created: 2026-08-29
 | 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | ✅ 完成 |
 | 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | ✅ 完成 |
 | 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | ✅ 完成 |
-| 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | 未开始 |
+| 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | ✅ 完成 |
 | 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | 未开始 |
 | 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | 未开始 |
 | 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | 未开始 |
@@ -546,12 +546,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/db/models_analysis.py` · 改 `src/calliodesmo/models.py`（集中导入注册）· 新 `src/calliodesmo/analysis/report_store.py` · 测试 `tests/test_analysis_report_store.py`（`@pytest.mark.db`）。
 
-- [ ] **Step 1:** 写失败测试：ORM 建表 + 五字段默认值 + `visible_to` 谓词联动（personal 报告他人不可见、低 `clearance` 看不到高密报告）+ `json_safe` 写入往返；ReportStore create / get / `list_visible`（clearance + scope + owner 三维过滤，分页 limit/offset）；`import calliodesmo.models` 覆盖新表（漏注册即红）。
-- [ ] **Step 2:** 跑确认失败（表不存在）。
-- [ ] **Step 3:** 实现 ORM（表结构见架构节 + 复合索引）+ `models.py` 注册 + ReportStore（PG 单后端）。
-- [ ] **Step 4:** 跑绿（真实 PG，`calliodesmo_test` schema 每测 TRUNCATE）。
-- [ ] **回滚方式:** 新表独立，drop 即退。
-- [ ] **Step 5:** 提交：`feat(analysis): 报告 ORM 与可见性存储（密级继承）`。
+- [x] **Step 1:** 写失败测试：ORM 建表 + 五字段默认值 + `visible_to` 谓词联动（personal 报告他人不可见、低 `clearance` 看不到高密报告）+ `json_safe` 写入往返；ReportStore create / get / `list_visible`（clearance + scope + owner 三维过滤，分页 limit/offset）；`import calliodesmo.models` 覆盖新表（漏注册即红）。
+- [x] **Step 2:** 跑确认失败（表不存在）。
+- [x] **Step 3:** 实现 ORM（表结构见架构节 + 复合索引）+ `models.py` 注册 + ReportStore（PG 单后端）。
+- [x] **Step 4:** 跑绿（真实 PG，`calliodesmo_test` schema 每测 TRUNCATE）。
+- [x] **回滚方式:** 新表独立，drop 即退。
+- [x] **Step 5:** 提交：`feat(analysis): 报告 ORM 与可见性存储（密级继承）`。
 
 ---
 
