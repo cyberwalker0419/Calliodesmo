@@ -117,6 +117,22 @@ class Settings(BaseSettings):
     selfcheck_threshold: float = 0.5
     eval_golden_file: str = "config/golden_qa.yaml"
 
+    # --- P6 LLM 分析任务 ---
+    # 分析专用模型（质量优先选型见 docs/model-selection.md）；空 = 回退 llm_model
+    analysis_model: str = ""
+    # 材料块数截断上限（与 analysis_max_input_chars 双闸截断）
+    analysis_max_chunks: int = 40
+    # 材料文本总字符预算（结构化输出 token 约 2-3x 的成本闸）
+    analysis_max_input_chars: int = 24000
+    # 解析 / 校验回喂重试预算（可降 0 退化单次解析）
+    analysis_parse_retries: int = 2
+    # 自定义分析 schema 序列化字节上限
+    analysis_custom_schema_max_bytes: int = 4096
+    # 分析采样温度
+    analysis_temperature: float = 0.2
+    # 分析 golden 集路径
+    eval_analysis_golden_file: str = "config/golden_analysis.yaml"
+
 
 @lru_cache
 def get_settings() -> Settings:

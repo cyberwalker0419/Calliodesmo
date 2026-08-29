@@ -53,7 +53,7 @@ created: 2026-08-29
 |---|---|---|---|
 | 1 | 前置批：闭环 `collab/service.py:18` 时区 TODO + `api/deps.py:89` 锚点顺延 P9 | ✅ 必做 | ✅ 完成 |
 | 2 | `Permission.ANALYZE` 全链路 + `seed_default_roles` 回填修复 + 幂等测试 + 前端常量 | ✅ 必做 | ✅ 完成 |
-| 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | 未开始 |
+| 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | ✅ 完成 |
 | 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | 未开始 |
 | 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | 未开始 |
 | 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | 未开始 |
@@ -418,11 +418,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/config.py` · 改 `.env.example` · 测试 config 用例扩展。
 
-- [ ] **Step 1:** 写失败测试：7 字段（`analysis_model` / `analysis_max_chunks` / `analysis_max_input_chars` / `analysis_parse_retries` / `analysis_custom_schema_max_bytes` / `analysis_temperature` / `eval_analysis_golden_file`）的前缀加载与默认值。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 7 字段；逐项对账 `Settings` 全部字段补进 `.env.example`（含既有欠账 12 项：vector_store_backend / graph_store_backend / community_store_backend / llm_disable_thinking / ocr_image_max_bytes / vision_image_max_bytes / embedding_api_base / extraction_template_file / chunk_size / chunk_overlap / doc_community_clustering / doc_cluster_threshold，注释说明取值，不改变任何默认值；完成口径 = `Settings.model_fields` 与 `.env.example` 键集合 diff 为空）。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(config): 分析配置项进 Settings 并补齐 .env.example 对账`。
+- [x] **Step 1:** 写失败测试：7 字段（`analysis_model` / `analysis_max_chunks` / `analysis_max_input_chars` / `analysis_parse_retries` / `analysis_custom_schema_max_bytes` / `analysis_temperature` / `eval_analysis_golden_file`）的前缀加载与默认值。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 7 字段；逐项对账 `Settings` 全部字段补进 `.env.example`（含既有欠账 12 项：vector_store_backend / graph_store_backend / community_store_backend / llm_disable_thinking / ocr_image_max_bytes / vision_image_max_bytes / embedding_api_base / extraction_template_file / chunk_size / chunk_overlap / doc_community_clustering / doc_cluster_threshold，注释说明取值，不改变任何默认值；完成口径 = `Settings.model_fields` 与 `.env.example` 键集合 diff 为空）。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(config): 分析配置项进 Settings 并补齐 .env.example 对账`。
 
 ---
 
