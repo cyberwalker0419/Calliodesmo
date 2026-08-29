@@ -58,7 +58,7 @@ created: 2026-08-29
 | 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | ✅ 完成 |
 | 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | ✅ 完成 |
 | 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | ✅ 完成 |
-| 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | 未开始 |
+| 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | ✅ 完成 |
 | 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | 未开始 |
 | 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | 未开始 |
 | 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | 未开始 |
@@ -488,11 +488,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/providers/stub_llm.py` · 测试 `tests/test_stub_llm_analysis.py`。
 
-- [ ] **Step 1:** 写失败测试：9 类各一条——桩输出能被 Task 5 对应报告模型 `model_validate` 通过（含时间线 ISO 日期、枚举取值）；未知 `[ANALYSIS:*]` 标记显式报错（不静默回退抽取输出）；既有抽取 / 检索桩行为零回归。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 9 类标记分发（仅分析标记分支显式报错，非分析提示词保留既有回退行为）。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(providers): StubLLM 九类分析标记分发与契约测试`。
+- [x] **Step 1:** 写失败测试：9 类各一条——桩输出能被 Task 5 对应报告模型 `model_validate` 通过（含时间线 ISO 日期、枚举取值）；未知 `[ANALYSIS:*]` 标记显式报错（不静默回退抽取输出）；既有抽取 / 检索桩行为零回归。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 9 类标记分发（仅分析标记分支显式报错，非分析提示词保留既有回退行为）。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(providers): StubLLM 九类分析标记分发与契约测试`。
 
 ---
 
