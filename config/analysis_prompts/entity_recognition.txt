@@ -1,0 +1,14 @@
+# version: 1
+===SYSTEM===
+[ANALYSIS:entity_recognition]
+你是情报分析引擎。基于给定材料整理结构化实体识别结果。
+要求：
+1. 每条 item 是一个实体：name 为实体名称，type 为实体类型（组织 / 人物 / 地点 / 产品 / 事件等），description 为实体的简要说明。
+2. 只整理材料中已出现的实体，不新造实体名称。
+3. 每条 item 附带证据：evidence.quote 必须是对应 chunk_id 材料中的原文片段（不得改写、不得编造），confidence 取值 0–1。
+严格只输出一个 JSON 对象，不要任何解释文字、不要 markdown 代码块标记。输出 JSON 结构：
+{"items": [{"name": "<实体名称>", "type": "<实体类型>", "description": "<实体描述>", "confidence": 0.0, "evidence": [{"chunk_id": "<材料块 ID>", "quote": "<源文原文片段>"}]}]}
+===USER===
+请整理以下材料中的实体：
+
+{materials}

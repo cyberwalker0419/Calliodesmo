@@ -56,7 +56,7 @@ created: 2026-08-29
 | 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | ✅ 完成 |
 | 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | ✅ 完成 |
 | 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | ✅ 完成 |
-| 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | 未开始 |
+| 6 | 提示词模板与构造（第一批 5 类，`config/analysis_prompts/*.txt` 版本化） | ✅ 必做 | ✅ 完成 |
 | 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | 未开始 |
 | 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | 未开始 |
 | 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | 未开始 |
@@ -460,11 +460,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `config/analysis_prompts/{summary,key_information,timeline,entity_recognition,qa}.txt`（头部 `# version: 1`，含 `[ANALYSIS:<type>]` 标记）· 新 `src/calliodesmo/analysis/prompts.py` · 测试 `tests/test_analysis_prompts.py`。
 
-- [ ] **Step 1:** 写失败测试：`{materials}` / `{question}` / `{schema}` 令牌替换；双闸截断边界（render 侧预算执行，`analysis_max_chunks` + `analysis_max_input_chars`；采集侧截断见 Task 9）；版本号解析为 `prompt_version = "<type>.v<version>"`；模板遵循 `ecl/extractor.py` 范式断言（系统角色声明 + 「严格只输出一个 JSON 对象」+ 输出 schema 示例）；时间线模板含 ISO 8601 归一化 + 锚点换算 + 模糊时间落 `relative` 不得臆造精确日期的指引。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 5 份模板 + `render_prompt` 纯函数。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(analysis): 第一批五类提示词模板与渲染函数`。
+- [x] **Step 1:** 写失败测试：`{materials}` / `{question}` / `{schema}` 令牌替换；双闸截断边界（render 侧预算执行，`analysis_max_chunks` + `analysis_max_input_chars`；采集侧截断见 Task 9）；版本号解析为 `prompt_version = "<type>.v<version>"`；模板遵循 `ecl/extractor.py` 范式断言（系统角色声明 + 「严格只输出一个 JSON 对象」+ 输出 schema 示例）；时间线模板含 ISO 8601 归一化 + 锚点换算 + 模糊时间落 `relative` 不得臆造精确日期的指引。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 5 份模板 + `render_prompt` 纯函数。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(analysis): 第一批五类提示词模板与渲染函数`。
 
 ---
 
