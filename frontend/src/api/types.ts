@@ -246,6 +246,7 @@ export const PERMISSIONS = {
   EXPORT: "export",
   PUSH: "push",
   APPROVE: "approve",
+  ANALYZE: "analyze", // P6：提交 LLM 分析任务（与后端 Permission.ANALYZE 对齐）
   MANAGE_USERS: "manage_users",
   MANAGE_COMMUNITY: "manage_community",
 } as const;

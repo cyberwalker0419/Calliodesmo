@@ -284,3 +284,7 @@ async def test_role_permissions_match_default_matrix():
     assert Permission.MANAGE_USERS in DEFAULT_ROLE_PERMISSIONS["admin"]
     assert Permission.MANAGE_COMMUNITY in DEFAULT_ROLE_PERMISSIONS["admin"]
     assert Permission.MANAGE_COMMUNITY not in DEFAULT_ROLE_PERMISSIONS["analyst"]
+    # P6 Task 2（决策 1）：analyze 授予 analyst / reviewer / admin 三角色
+    assert Permission.ANALYZE in DEFAULT_ROLE_PERMISSIONS["analyst"]
+    assert Permission.ANALYZE in DEFAULT_ROLE_PERMISSIONS["reviewer"]
+    assert Permission.ANALYZE in DEFAULT_ROLE_PERMISSIONS["admin"]

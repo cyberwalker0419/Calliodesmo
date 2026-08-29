@@ -49,14 +49,27 @@ class Permission(enum.StrEnum):
     EXPORT = "export"
     PUSH = "push"
     APPROVE = "approve"
+    ANALYZE = "analyze"  # P6：提交 LLM 分析任务（高 token 成本派生生产动作，独立于 query）
     MANAGE_USERS = "manage_users"
     MANAGE_COMMUNITY = "manage_community"
 
 
-#: 内置角色 -> 细粒度权限
+#: 内置角色 -> 细粒度权限（P6 决策 1：analyze 授予 analyst / reviewer / admin 三角色）
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[Permission]] = {
-    "analyst": {Permission.INGEST, Permission.QUERY, Permission.EXPORT, Permission.PUSH},
-    "reviewer": {Permission.QUERY, Permission.EXPORT, Permission.PUSH, Permission.APPROVE},
+    "analyst": {
+        Permission.INGEST,
+        Permission.QUERY,
+        Permission.EXPORT,
+        Permission.PUSH,
+        Permission.ANALYZE,
+    },
+    "reviewer": {
+        Permission.QUERY,
+        Permission.EXPORT,
+        Permission.PUSH,
+        Permission.APPROVE,
+        Permission.ANALYZE,
+    },
     "admin": set(Permission),
 }
 

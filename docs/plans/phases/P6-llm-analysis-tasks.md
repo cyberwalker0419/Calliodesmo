@@ -52,7 +52,7 @@ created: 2026-08-29
 | # | Task | 承诺 | 状态 |
 |---|---|---|---|
 | 1 | 前置批：闭环 `collab/service.py:18` 时区 TODO + `api/deps.py:89` 锚点顺延 P9 | ✅ 必做 | ✅ 完成 |
-| 2 | `Permission.ANALYZE` 全链路 + `seed_default_roles` 回填修复 + 幂等测试 + 前端常量 | ✅ 必做 | 未开始 |
+| 2 | `Permission.ANALYZE` 全链路 + `seed_default_roles` 回填修复 + 幂等测试 + 前端常量 | ✅ 必做 | ✅ 完成 |
 | 3 | `Settings` 分析配置项 + `.env.example` 全量对账补齐 | ✅ 必做 | 未开始 |
 | 4 | 报告契约 I：公共信封 + Evidence + quote 子串校验（纯函数） | ✅ 必做 | 未开始 |
 | 5 | 报告契约 II：9 类报告 pydantic 模型 + `AnalysisTaskSpec` 注册表 | ✅ 必做 | 未开始 |
@@ -403,12 +403,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `src/calliodesmo/auth/models.py`（`Permission.ANALYZE` + `DEFAULT_ROLE_PERMISSIONS`）· 改 `src/calliodesmo/auth/service.py`（`seed_default_roles` 差集回填）· 改 `frontend/src/api/types.ts`（`PERMISSIONS.ANALYZE` 常量）· 改 `frontend/src/auth/useAccess.ts`（如需 `canAnalyze` 便捷方法）· 测试 `tests/test_seed_roles_backfill.py`（新）+ 既有权限矩阵测试扩展。**注意**：本 Task **不**加导航项——`/app/analysis` 路由 Task 19 才落，提前挂导航会出现死链；导航门控与 Task 19 路由注册同批。
 
-- [ ] **Step 1:** 写失败测试：回填幂等——先以旧权限集合建角色（无 analyze），重跑种子后权限**并集**含 analyze、不丢旧权限、不重复；二次 seed 权限集不变；三角色权限集合断言。
-- [ ] **Step 2:** 跑确认失败（现实现 `continue`，必红）。
-- [ ] **Step 3:** 实现：枚举加 `ANALYZE = "analyze"`、角色映射更新、`seed_default_roles` 改「已存在角色比对 `DEFAULT_ROLE_PERMISSIONS` 补缺失 `RolePermission` 行」；前端常量（导航门控归 Task 19）。
-- [ ] **Step 4:** 跑绿：后端种子幂等 / 权限矩阵回归 + 前端三件套（含 `analyze` 常量与 `canAnalyze` 单测断言；导航渲染断言归 Task 19）。
-- [ ] **回滚纪律:** 只 revert 代码，**不回滚已写入数据库的权限数据**（回收权限会把既有部署锁死在 403）；回填逻辑有幂等测试，重复执行安全。
-- [ ] **Step 5:** 提交：`feat(auth): 新增 analyze 权限并修复种子角色权限回填`。
+- [x] **Step 1:** 写失败测试：回填幂等——先以旧权限集合建角色（无 analyze），重跑种子后权限**并集**含 analyze、不丢旧权限、不重复；二次 seed 权限集不变；三角色权限集合断言。
+- [x] **Step 2:** 跑确认失败（现实现 `continue`，必红）。
+- [x] **Step 3:** 实现：枚举加 `ANALYZE = "analyze"`、角色映射更新、`seed_default_roles` 改「已存在角色比对 `DEFAULT_ROLE_PERMISSIONS` 补缺失 `RolePermission` 行」；前端常量（导航门控归 Task 19）。
+- [x] **Step 4:** 跑绿：后端种子幂等 / 权限矩阵回归 + 前端三件套（含 `analyze` 常量与 `canAnalyze` 单测断言；导航渲染断言归 Task 19）。
+- [x] **回滚纪律:** 只 revert 代码，**不回滚已写入数据库的权限数据**（回收权限会把既有部署锁死在 403）；回填逻辑有幂等测试，重复执行安全。
+- [x] **Step 5:** 提交：`feat(auth): 新增 analyze 权限并修复种子角色权限回填`。
 
 ---
 
