@@ -66,7 +66,7 @@ created: 2026-08-29
 | 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | ✅ 完成 |
 | 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | ✅ 完成 |
 | 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | ✅ 完成 |
-| 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | 未开始 |
+| 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | ✅ 完成 |
 | 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | 未开始 |
 | 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | 未开始 |
 | 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | 未开始 |
@@ -604,11 +604,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `config/golden_analysis.yaml` · 新 `src/calliodesmo/eval/golden_analysis.py` · `src/calliodesmo/eval/metrics_analysis.py` · 测试 `tests/test_eval_analysis_metrics.py`。
 
-- [ ] **Step 1:** 写失败测试：golden 加载（第一批 5 类 × 每类 2 例小金标，复用既有 9 例小语料同源材料；QA 类含 `expected_answer`）；`field_f1`（条目级关键字段匹配）与 `tuple_f1`（实体/关系 (类型, 头, 尾) 元组对齐，双向匹配）的 P/R/F1 手算样例（空预测 / 全命中 / 部分命中边界）；`expected_answer` 为空跳过该指标。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现加载器 + 两指标（纯函数）；QA 类 `expected_answer` 参与字段比对。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(eval): 分析 golden 集与字段/元组级 F1`。
+- [x] **Step 1:** 写失败测试：golden 加载（第一批 5 类 × 每类 2 例小金标，复用既有 9 例小语料同源材料；QA 类含 `expected_answer`）；`field_f1`（条目级关键字段匹配）与 `tuple_f1`（实体/关系 (类型, 头, 尾) 元组对齐，双向匹配）的 P/R/F1 手算样例（空预测 / 全命中 / 部分命中边界）；`expected_answer` 为空跳过该指标。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现加载器 + 两指标（纯函数）；QA 类 `expected_answer` 参与字段比对。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(eval): 分析 golden 集与字段/元组级 F1`。
 
 ---
 

@@ -1,0 +1,88 @@
+# 分析 golden 集（P6 评估回归，第一批 5 类 × 每类 2 例小金标）
+# 复用 data/demo 三件语料同源材料；chunk_id 前缀约定与 config/golden_qa.yaml 一致。
+# task_type：summary / key_information / timeline / entity_recognition / qa（第一批）；
+#   第二批（关系映射 / 任务 / 概念）金标随 Task 21 接线补入。
+# expected_fields：条目级关键字段（field_f1 消费）——可为 dict 条目或标量条目（摘要要点）。
+# expected_tuples：(类型, 头[, 尾]) 元组（tuple_f1 消费）。
+# qa 类含 expected_answer（GoldenCase.expected_answer 自 P2 以来首次被指标消费；
+#   为空跳过该指标，见 eval/metrics_analysis.answer_field_pair）。
+# 口径说明：金标为参考分而非硬门槛，质量证据由 scripts/eval_p6.py --real 承担（2026-W45）。
+cases:
+  # --- summary 摘要 ---
+  - case_id: "summary-rare-earth"
+    task_type: "summary"
+    doc_ids: ["public__rare-earth-brief.md"]
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    expected_fields:
+      - "镨钕氧化物报价小幅上行"
+      - "北方稀土与盛和资源是主要供应商"
+  - case_id: "summary-nightingale"
+    task_type: "summary"
+    doc_ids: ["confidential__nightingale-assessment.md"]
+    relevant_chunk_ids: ["confidential__nightingale-assessment.md#0"]
+    expected_fields:
+      - "夜莺组织 2023 至 2025 年间活跃于东南亚地区"
+      - "威胁等级高，建议持续监控其基础设施与人员动向"
+  # --- key_information 关键信息 ---
+  - case_id: "key-information-rare-earth"
+    task_type: "key_information"
+    doc_ids: ["public__rare-earth-brief.md"]
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    expected_fields:
+      - label: "主要供应商"
+        value: "北方稀土与盛和资源"
+      - label: "镨钕氧化物用途"
+        value: "制造钕铁硼永磁材料"
+  - case_id: "key-information-apt28"
+    task_type: "key_information"
+    doc_ids: ["internal__apt28-tracking.md"]
+    relevant_chunk_ids: ["internal__apt28-tracking.md#0"]
+    expected_fields:
+      - label: "攻击手段"
+        value: "鱼叉钓鱼与零日漏洞利用"
+      - label: "新型后门"
+        value: "Zebrocy 变种（经 Go 语言重写）"
+  # --- timeline 时间线 ---
+  - case_id: "timeline-nightingale"
+    task_type: "timeline"
+    doc_ids: ["confidential__nightingale-assessment.md"]
+    relevant_chunk_ids: ["confidential__nightingale-assessment.md#0"]
+    expected_fields:
+      - date_normalized: "2023"
+        description: "夜莺组织于 2023 至 2025 年间活跃于东南亚地区"
+  - case_id: "timeline-apt28"
+    task_type: "timeline"
+    doc_ids: ["internal__apt28-tracking.md"]
+    relevant_chunk_ids: ["internal__apt28-tracking.md#0"]
+    expected_fields:
+      - description: "近期观察到其使用新型后门 Zebrocy 的变种"
+  # --- entity_recognition 实体识别 ---
+  - case_id: "entity-recognition-rare-earth"
+    task_type: "entity_recognition"
+    doc_ids: ["public__rare-earth-brief.md"]
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    expected_tuples:
+      - ["组织", "北方稀土"]
+      - ["组织", "盛和资源"]
+      - ["人物", "张明"]
+  - case_id: "entity-recognition-nightingale"
+    task_type: "entity_recognition"
+    doc_ids: ["confidential__nightingale-assessment.md"]
+    relevant_chunk_ids: ["confidential__nightingale-assessment.md#0"]
+    expected_tuples:
+      - ["组织", "夜莺"]
+      - ["人物", "张三"]
+      - ["人物", "李四"]
+  # --- qa 问答（expected_answer 落地） ---
+  - case_id: "qa-rare-earth"
+    task_type: "qa"
+    doc_ids: ["public__rare-earth-brief.md"]
+    relevant_chunk_ids: ["public__rare-earth-brief.md#0"]
+    question: "北方稀土总部位于哪里？"
+    expected_answer: "内蒙古包头"
+  - case_id: "qa-apt28"
+    task_type: "qa"
+    doc_ids: ["internal__apt28-tracking.md"]
+    relevant_chunk_ids: ["internal__apt28-tracking.md#0"]
+    question: "APT28 擅长什么攻击手段？"
+    expected_answer: "鱼叉钓鱼与零日漏洞利用"
