@@ -398,3 +398,94 @@ class JobOut(BaseModel):
     finished_at: datetime | None
     task_type: str = "ingest"
     report_id: uuid.UUID | None = None
+
+
+# ---- /analysis 分析任务（P6 Task 14）----
+
+
+class AnalysisCustomRequest(BaseModel):
+    """自定义分析请求体（custom 类型专用）：``instruction`` 必填，``schema`` 可选。
+
+    ``instruction`` 只进 user 消息（与 system 隔离，收敛注入面）；``schema`` 的
+    sanitize（拒 $ref / 递归 / 超深 / 超大）与 JSON Schema 安全子集裁剪留 Task 22
+    （2026-W44）——此前 custom 类型在请求边界即 400（未交付）。
+    """
+
+    instruction: str = Field(
+        default="", description="自定义分析指令（custom 类型必填，非空白；缺失边界 400）"
+    )
+    schema_: dict[str, Any] | None = Field(
+        default=None,
+        alias="schema",
+        description="可选输出 schema（JSON Schema 子集，Task 22 sanitize）",
+    )
+
+
+class AnalysisJobRequest(BaseModel):
+    """POST /analysis/tasks 请求体（与前端 AnalysisJobRequest 逐字段对齐）。
+
+    - ``task_type``：分析类型字符串；未注册 / 未交付类型在请求边界 400
+      （非法值经枚举转换拦截，合法但未注册经 ``get_spec`` KeyError 拦截）；
+    - ``doc_ids``：成员筛选集合（默认空 = 全可见范围）；含不可见项 -> 400，
+      仅作成员筛选不豁免可见性校验（红线一，见 ``analysis/materials.py``）；
+    - ``question``：qa 必填（非空白）；``custom``：custom 必填（见上）；
+    - ``top_k``：qa 检索候选数（同 QueryRequest 口径 ge=1）。
+    """
+
+    task_type: str = Field(description="分析类型（九类之一；未注册类型 400）")
+    doc_ids: list[str] = Field(default_factory=list, description="文档成员筛选（空 = 全可见范围）")
+    question: str | None = Field(default=None, description="qa 类问题（qa 必填）")
+    custom: AnalysisCustomRequest | None = Field(
+        default=None, description="custom 类指令与可选 schema"
+    )
+    top_k: int = Field(default=10, ge=1, description="qa 检索候选数")
+
+
+class AnalysisAcceptedOut(BaseModel):
+    """POST /analysis/tasks 202 响应：异步 analyze job 已受理，轮询 /jobs/{job_id}。
+
+    ``task_type`` 回显提交的分析类型（如 summary / qa），与请求字段同义；
+    Job 行内部的 ``task_type`` 恒为 "analyze"（Job 泛化口径，见 db/models_job.py）。
+    """
+
+    job_id: uuid.UUID
+    status: str
+    task_type: str
+
+
+class AnalysisReportListItem(BaseModel):
+    """报告历史列表项（与前端 ReportListItem 逐字段对齐）。"""
+
+    id: uuid.UUID
+    task_type: str
+    status: str
+    subject_label: str
+    access_level: str  # ClearanceLevel.name（如 INTERNAL / SECRET）
+    library_scope: str
+    model: str
+    created_at: datetime
+    source_chunk_count: int
+
+
+class AnalysisReportListOut(BaseModel):
+    """GET /analysis/reports：可见报告历史（三维过滤 + 分页）。
+
+    ``total`` 为过滤后全部可见行数（供前端分页器），``items`` 为当前页切片。
+    """
+
+    items: list[AnalysisReportListItem]
+    total: int
+
+
+class AnalysisDocumentOut(BaseModel):
+    """GET /analysis/documents：可见文档聚合项（Task 19 MaterialPicker 数据源）。
+
+    按 ``doc_id`` 聚合 ``list_chunks`` + ``visible_to`` 结果：``label`` 取 metadata
+    标题或回退 doc_id（与 ``analysis/materials._source_label`` 约定一致）；
+    ``access_level`` 取该文档全部可见块的密级最大值（ClearanceLevel.name）。
+    """
+
+    doc_id: str
+    label: str
+    access_level: str
+    chunk_count: int

@@ -64,7 +64,7 @@ created: 2026-08-29
 | 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | ✅ 完成 |
 | 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | ✅ 完成 |
 | 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | ✅ 完成 |
-| 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | 未开始 |
+| 14 | 分析 API：提交 202 + 历史 / 详情 + 可见文档清单 + 审计 + 双挂 | ✅ 必做 | ✅ 完成 |
 | 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | 未开始 |
 | 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | 未开始 |
 | 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | 未开始 |
@@ -575,12 +575,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/api/analysis.py` · 改 `src/calliodesmo/api/app.py`（根 + `/api` 前缀双挂）· 改 `src/calliodesmo/api/schemas.py`（`AnalysisJobRequest` / `AnalysisAcceptedOut` / 报告出参）· 测试 `tests/test_analysis_api.py`（仿 `tests/test_ingest_job_api.py` 范式：`_test_settings()` 离线配置 + `get_job_session_factory` dependency_overrides + `_seed_actor` 自定义角色）。
 
-- [ ] **Step 1:** 写失败测试：`POST /analysis/tasks` 无 analyze 权限 → 403；合法提交 → 202 + job_id + 审计 `analyze_submit`；未注册 task_type / qa 缺 question / doc_ids 含不可见项 → 400（不泄漏不可见文档存在性细节）；模型缺 key → 503（请求边界建引擎 RuntimeError→503 / ValueError→400 惯例）；`GET /analysis/reports` 三维过滤 + 分页；`GET /analysis/reports/{id}` 他人不可见 / 低 clearance → 404（不暴露存在性）；`GET /analysis/documents` 聚合可见文档（list_chunks + visible_to 按 doc_id 聚合，出参 `{doc_id, label, access_level, chunk_count}`，label 取 metadata 标题或回退 doc_id；三维可见性断言——这是 Task 19 MaterialPicker 的数据源）；端到端：POST → worker(barrier) → `GET /jobs/{id}` 见 `task_type`/`report_id` → 报告详情可见。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现路由 + 双挂。
-- [ ] **回滚方式:** 摘除 `create_app` 中 router 挂载即整体下线，零数据影响。
-- [ ] **Step 4:** 跑绿（三角色提交 / 读取矩阵断言全绿）。
-- [ ] **Step 5:** 提交：`feat(api): 分析任务提交与报告查询端点`。
+- [x] **Step 1:** 写失败测试：`POST /analysis/tasks` 无 analyze 权限 → 403；合法提交 → 202 + job_id + 审计 `analyze_submit`；未注册 task_type / qa 缺 question / doc_ids 含不可见项 → 400（不泄漏不可见文档存在性细节）；模型缺 key → 503（请求边界建引擎 RuntimeError→503 / ValueError→400 惯例）；`GET /analysis/reports` 三维过滤 + 分页；`GET /analysis/reports/{id}` 他人不可见 / 低 clearance → 404（不暴露存在性）；`GET /analysis/documents` 聚合可见文档（list_chunks + visible_to 按 doc_id 聚合，出参 `{doc_id, label, access_level, chunk_count}`，label 取 metadata 标题或回退 doc_id；三维可见性断言——这是 Task 19 MaterialPicker 的数据源）；端到端：POST → worker(barrier) → `GET /jobs/{id}` 见 `task_type`/`report_id` → 报告详情可见。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现路由 + 双挂。
+- [x] **回滚方式:** 摘除 `create_app` 中 router 挂载即整体下线，零数据影响。
+- [x] **Step 4:** 跑绿（三角色提交 / 读取矩阵断言全绿）。
+- [x] **Step 5:** 提交：`feat(api): 分析任务提交与报告查询端点`。
 
 ---
 
