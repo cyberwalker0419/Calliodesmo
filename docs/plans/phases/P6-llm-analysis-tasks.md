@@ -60,7 +60,7 @@ created: 2026-08-29
 | 7 | 解析回退链 + 回喂重试 + 降级（extra `analysis`：json-repair 懒加载） | ✅ 必做 | ✅ 完成 |
 | 8 | StubLLM 9 类分析标记分发 + 逐类型契约测试 | ✅ 必做 | ✅ 完成 |
 | 9 | 材料采集器：`visible_to` 红线 + 截断 + 图谱复用读取 | ✅ 必做 | ✅ 完成 |
-| 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | 未开始 |
+| 10 | `AnalysisEngine` + `interfaces/analysis.py` 抽象 + factory（第一批接线） | ✅ 必做 | ✅ 完成 |
 | 11 | Job 表泛化扩列 + `db/migrate.py` 幂等补列（含 collab 列型回填）+ `JobOut` 扩展与 `api/jobs.py` 透传 | ✅ 必做 | 未开始 |
 | 12 | `AnalysisReportORM` + `AnalysisReportStore` + 密级继承落库 | ✅ 必做 | 未开始 |
 | 13 | Worker 分析执行路径：进度分段 / 报告落库 / 终态审计 | ✅ 必做 | 未开始 |
@@ -517,11 +517,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/interfaces/analysis.py` · `src/calliodesmo/analysis/engine.py` · `src/calliodesmo/analysis/factory.py` · 测试 `tests/test_analysis_engine.py`。
 
-- [ ] **Step 1:** 写失败测试：`build_analysis_engine` 复用 `retrieval/factory.build_llm_provider` 路由规则（`test/*` → 桩；localhost / `ollama/` / `lm-studio/` 豁免 key；缺 key `RuntimeError` 带配置指引）；5 类各一条离线端到端（材料 → prompt → 桩 → 解析 → 证据自验 → 信封 status=ok 且 prompt_version/usage 落位）；问答类经构造注入的 `SearchEngine`（离线用例注入内存 stores + test/stub 装配的实例，**不经 `api/deps.get_search_engine()`**）`.query` 包成 `QAReport`（来源标注沿用 `[chunk_id]` 约定）；回喂重试回路（注入假 provider 首次坏 JSON、二次正常）；预算耗尽 → 失败信号可读。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现接口（dataclass 全 frozen）+ `DefaultAnalysisEngine` + factory。
-- [ ] **Step 4:** 跑绿。
-- [ ] **Step 5:** 提交：`feat(analysis): 分析引擎与 factory（第一批五类接线）`。
+- [x] **Step 1:** 写失败测试：`build_analysis_engine` 复用 `retrieval/factory.build_llm_provider` 路由规则（`test/*` → 桩；localhost / `ollama/` / `lm-studio/` 豁免 key；缺 key `RuntimeError` 带配置指引）；5 类各一条离线端到端（材料 → prompt → 桩 → 解析 → 证据自验 → 信封 status=ok 且 prompt_version/usage 落位）；问答类经构造注入的 `SearchEngine`（离线用例注入内存 stores + test/stub 装配的实例，**不经 `api/deps.get_search_engine()`**）`.query` 包成 `QAReport`（来源标注沿用 `[chunk_id]` 约定）；回喂重试回路（注入假 provider 首次坏 JSON、二次正常）；预算耗尽 → 失败信号可读。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现接口（dataclass 全 frozen）+ `DefaultAnalysisEngine` + factory。
+- [x] **Step 4:** 跑绿。
+- [x] **Step 5:** 提交：`feat(analysis): 分析引擎与 factory（第一批五类接线）`。
 
 ---
 

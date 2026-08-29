@@ -87,10 +87,10 @@ class Evidence(BaseModel):
     def to_ref(self) -> Any:
         """转为引擎侧 ``EvidenceRef``（dataclass，引擎内部流转）。
 
-        ``interfaces/analysis.py`` 由 Task 10（2026-W39）冻结，此处运行时懒加载；
-        落地前调用抛 ``ModuleNotFoundError``（测试中显式留痕，落地后翻为互转断言）。
+        ``interfaces/analysis.py`` 已于 P6 Task 10（2026-W39）冻结；此处运行时懒加载，
+        避免契约层对可插拔抽象层的顶层依赖。
         """
-        from calliodesmo.interfaces.analysis import EvidenceRef  # 懒加载：interfaces 尚未落地
+        from calliodesmo.interfaces.analysis import EvidenceRef  # 懒加载：契约层不顶层依赖接口层
 
         return EvidenceRef(chunk_id=self.chunk_id, quote=self.quote)
 

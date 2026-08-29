@@ -141,14 +141,19 @@ class TestEvidence:
         ev = Evidence.from_ref(_Ref(chunk_id="c9", quote="引文"))
         assert (ev.chunk_id, ev.quote, ev.confidence) == ("c9", "引文", 1.0)
 
-    def test_to_ref_reserved_until_interfaces_lands(self):
-        """to_ref 依赖 interfaces/analysis.py（Task 10 冻结，2026-W39）。
+    def test_to_ref_roundtrip_with_evidence_ref(self):
+        """to_ref / from_ref 与 interfaces ``EvidenceRef`` 一一对应互转（P6 Task 10 落地）。
 
-        落地前调用抛 ModuleNotFoundError；Task 10 落地后本用例翻为真身互转断言。
+        ``confidence`` 不参与互转：转 ``EvidenceRef`` 时舍弃，自 ``EvidenceRef`` 转入默认 1.0。
         """
-        ev = Evidence(chunk_id="c1", quote="q")
-        with pytest.raises(ModuleNotFoundError, match="analysis"):
-            ev.to_ref()
+        from calliodesmo.interfaces.analysis import EvidenceRef
+
+        ev = Evidence(chunk_id="c1", quote="q", confidence=0.8)
+        ref = ev.to_ref()
+        assert isinstance(ref, EvidenceRef)
+        assert (ref.chunk_id, ref.quote) == ("c1", "q")
+        back = Evidence.from_ref(ref)
+        assert (back.chunk_id, back.quote, back.confidence) == ("c1", "q", 1.0)
 
 
 class TestAnalysisEnvelope:
