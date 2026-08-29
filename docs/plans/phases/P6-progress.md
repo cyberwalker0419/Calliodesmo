@@ -7,12 +7,12 @@ created: 2026-08-30
 ---
 # P6 进度快照与新会话交接
 
-> 快照时间：2026-08-30（2026-W35，Task 17 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
+> 快照时间：2026-08-30（2026-W35，Task 18 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
 
-## 总进度：17/23 必做 Task 完成
+## 总进度：18/23 必做 Task 完成
 
 - 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
-- 测试基线：**933 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）
+- 测试基线：**933 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）；前端 vitest **24 passed**（Task 18 新增 9 例；开工前 15）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
 | 批次 | 范围 | 状态 |
@@ -21,7 +21,8 @@ created: 2026-08-30
 | Task 4–10 | 信封 / 九类模型+注册表 / 模板 / 解析链 / 桩 / 材料 / 引擎 | ✅ `8be6f2f`…`87b8c1c` |
 | Task 11–15 | Job 泛化 + migrate / 报告 ORM / worker / 分析 API / 导出 | ✅ `ee47783`…`88aa23c` |
 | Task 16–17 | 评估两件套 + 离线基线（**第二批门槛之一已达成**） | ✅ `07272de` `17acae4` |
-| Task 18–20 | 前端第一批（preview_* 闭环 + 三角色矩阵） | 🔄 进行中 |
+| Task 18 | 前端数据层（types / API 客户端 / `useAnalysis` hook + vitest） | ✅（SHA 随下次交接刷新补齐） |
+| Task 19–20 | 前端提交页 + 报告渲染（preview_* 闭环 + 三角色矩阵） | 🔄 进行中 |
 | Task 21–22 | 第二批接线 + 自定义分析 | ⏭️ 未开始（门槛：#17 基线绿 ✅ + #20 矩阵过） |
 | Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ⏭️ 未开始 |
 | Task 24（可选） | `analyze` CLI | ⏭️ 视工时 |

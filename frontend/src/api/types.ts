@@ -1,5 +1,17 @@
 /** 后端 API 响应类型（与 src/calliodesmo/api/schemas.py 对齐）。 */
 
+import {
+  CalendarRange,
+  FileText,
+  KeyRound,
+  Lightbulb,
+  ListTodo,
+  MessageCircleQuestion,
+  Network,
+  ScanSearch,
+  Settings2,
+} from "lucide-react";
+
 export interface MeResponse {
   user_id: string;
   username: string;
@@ -229,6 +241,103 @@ export interface JobOut {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  // P6 Task 11 泛化兼容扩展（后端带默认值，旧响应不破坏）：
+  // task_type 为 "ingest" | "analyze"（默认 ingest）；
+  // report_id 仅 analyze 终态成功时指向报告行（ingest 恒 null）。
+  task_type?: string;
+  report_id?: string | null;
+}
+
+// ---- P6 分析域（与 src/calliodesmo/api/schemas.py · analysis/schemas.py 逐字段对齐）----
+
+/** 9 类分析任务类型（第一批 5 类可提交；第二批 4 类待 Task 21-22 接线）。 */
+export type AnalysisTaskType =
+  | "summary"
+  | "key_information"
+  | "timeline"
+  | "entity_recognition"
+  | "relation_mapping"
+  | "tasks"
+  | "concepts"
+  | "qa"
+  | "custom";
+
+/**
+ * 9 类分析元数据（选择器数据源，克隆 AskPanel MODES 范式）：
+ * batch=1 为第一批 5 类（可提交）；batch=2 为第二批 4 类，
+ * Task 19 依此灰显「即将上线」（后端未注册类型提交即 400）。
+ */
+export const ANALYSIS_TASK_TYPES: {
+  value: AnalysisTaskType;
+  label: string;
+  icon: typeof FileText;
+  batch: 1 | 2;
+}[] = [
+  { value: "summary", label: "摘要", icon: FileText, batch: 1 },
+  { value: "key_information", label: "关键信息", icon: KeyRound, batch: 1 },
+  { value: "timeline", label: "时间线", icon: CalendarRange, batch: 1 },
+  { value: "entity_recognition", label: "实体识别", icon: ScanSearch, batch: 1 },
+  { value: "qa", label: "问答", icon: MessageCircleQuestion, batch: 1 },
+  { value: "relation_mapping", label: "关系映射", icon: Network, batch: 2 },
+  { value: "tasks", label: "任务", icon: ListTodo, batch: 2 },
+  { value: "concepts", label: "概念", icon: Lightbulb, batch: 2 },
+  { value: "custom", label: "自定义", icon: Settings2, batch: 2 },
+];
+
+/** POST /analysis/tasks 请求体（doc_ids 空 = 全可见范围；qa 需 question）。 */
+export interface AnalysisJobRequest {
+  task_type: AnalysisTaskType;
+  doc_ids?: string[];
+  question?: string | null;
+  custom?: { instruction: string; schema?: Record<string, unknown> } | null;
+  top_k?: number;
+}
+
+/** POST /analysis/tasks 202 响应（task_type 回显提交的分析类型）。 */
+export interface AnalysisAccepted {
+  job_id: string;
+  status: string;
+  task_type: string;
+}
+
+/** 报告公共信封（九字段；payload 按 task_type 判别，逐类对齐 analysis/schemas.py）。 */
+export interface AnalysisEnvelope {
+  task_type: AnalysisTaskType;
+  status: "ok" | "partial" | "failed";
+  generated_at: string;
+  model: string;
+  prompt_version: string;
+  usage: Record<string, number>;
+  warnings: string[];
+  source_chunk_ids: string[];
+  payload: Record<string, unknown>;
+}
+
+/** 报告历史列表项（GET /analysis/reports 的 items 元素）。 */
+export interface ReportListItem {
+  id: string;
+  task_type: AnalysisTaskType;
+  status: string;
+  subject_label: string;
+  access_level: string;
+  library_scope: string;
+  model: string;
+  created_at: string;
+  source_chunk_count: number;
+}
+
+/** GET /analysis/reports 响应（total 为过滤后可见总行数，供分页器）。 */
+export interface ReportListOut {
+  items: ReportListItem[];
+  total: number;
+}
+
+/** GET /analysis/documents 可见文档聚合项（Task 19 MaterialPicker 数据源）。 */
+export interface AnalysisDocumentOut {
+  doc_id: string;
+  label: string;
+  access_level: string;
+  chunk_count: number;
 }
 
 export type SearchMode = "native_rag" | "local" | "global";

@@ -68,7 +68,7 @@ created: 2026-08-29
 | 15 | 报告导出端点（首次消费 `export` 权限） | ✅ 必做 | ✅ 完成 |
 | 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | ✅ 完成 |
 | 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | ✅ 完成 |
-| 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | 未开始 |
+| 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | ✅ 完成 |
 | 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | 未开始 |
 | 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | 未开始 |
 | 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | 未开始 |
@@ -633,11 +633,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `frontend/src/api/types.ts`（ANALYSIS_TASK_TYPES 九类元数据 `{value, label, icon, batch}` + 契约类型；`PERMISSIONS.ANALYZE` 已在 Task 2 加入，勿重复）· 新 `frontend/src/features/analysis/api.ts` · `frontend/src/features/analysis/useAnalysis.ts` · `frontend/src/features/analysis/useAnalysis.test.tsx`。
 
-- [ ] **Step 1:** 写失败测试（`vi.stubGlobal('fetch')` + QueryClientProvider + renderHook）：submit 返回 202 + job_id；轮询克隆 `useIngest.ts` 的 `refetchInterval` 函数式——非终态 1200ms、终态返回 `false` 停、`enabled` 门控；报告列表 / 详情 / 导出客户端。
-- [ ] **Step 2:** 跑确认失败（`npm run test`）。
-- [ ] **Step 3:** 实现 types / client / hook。
-- [ ] **Step 4:** 跑绿三件套。
-- [ ] **Step 5:** 提交：`feat(frontend): 分析域类型、API 客户端与轮询 hook`。
+- [x] **Step 1:** 写失败测试（`vi.stubGlobal('fetch')` + QueryClientProvider + renderHook）：submit 返回 202 + job_id；轮询克隆 `useIngest.ts` 的 `refetchInterval` 函数式——非终态 1200ms、终态返回 `false` 停、`enabled` 门控；报告列表 / 详情 / 导出客户端。
+- [x] **Step 2:** 跑确认失败（`npm run test`）。
+- [x] **Step 3:** 实现 types / client / hook。
+- [x] **Step 4:** 跑绿三件套。
+- [x] **Step 5:** 提交：`feat(frontend): 分析域类型、API 客户端与轮询 hook`。
 
 ---
 
