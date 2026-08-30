@@ -40,7 +40,7 @@ created: 2026-08-30
 
 ## 移交注意事项
 
-- **`--real` 质量补跑不做**：`eval_p6.py --real` 与 `eval_p5.py --real` 锚点 2026-W45 用户本机；离线证据只承诺结构/契约，不得表述为「分析质量好」。
+- **`--real` 质量补跑已完成**（原锚点 2026-W45 提前于 2026-08-30（2026-W35）执行完毕；用户本机真模型 `Qwen3.8-27B-Q4_K_M`（GGUF Q4_K_M，LM Studio @ 192.168.50.97:8081，thinking 禁，32768 上下文约束））：两份证据已落盘并将随本次提交入库——`docs/verification/p6-real-Qwen3.8-27B-Q4_K_M.json`（`eval_p6.py --real`，15 例全 ok，mean_field_f1 0.1136 / mean_tuple_f1 0.5643 / mean_judge 4.4）与 `docs/verification/p5-real-Qwen3.8-27B-Q4_K_M.json`（`eval_p5.py --real`，9 例 × 6 配置三指标全 1.0000，小语料无区分度）；已登记 `docs/verification/README.md` 并更新 `docs/verification/P6-verification.md` 质量轨章节与未竟清单。离线基线 `p5-regression.json` / `p6-regression.json` 保持原样（离线≠质量，双轨口径不变）。收口待办已勾除。
 - **P6 离线基线已落盘**（Task 17 立基线，Task 21 第二批补 5 例重落，`docs/verification/p6-regression.json`）：15 例全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0（桩零区分度）/ mean_judge_overall 3.0（桩固定分）——结构/契约证据，非质量结论；第二批（Task 21–22）门槛之一已满足。
 - **Task 22 自定义分析已交付**（2026-08-30，`feat(analysis): 自定义分析（注入防御 + 动态 spec）`）：新 `analysis/sanitize.py`（`sanitize_user_schema` 拒根非对象 / `$ref` / 循环 / 深度 >4 / 键 >30 / 超字节 + `trim_to_safe_json_schema` 白名单裁剪）；`specs.py` 注册 `custom`（9 类全注册）+ `build_custom_spec` 安全闸门；新模板 `custom.txt`（指令 / schema / 材料均在 user 段）；`render_prompt` `{instruction}` 只进 user、system 令牌清除（结构性隔离，注入探针锁定）。**留痕**：团队级自定义模板注册表 + 完整 `jsonschema` 校验 → P7 评估（锚点 2026-W47）；custom 无固定金标，评估口径 = 结构校验 + judge 参考分（验证报告归 Task 23）。前端自定义表单归 Task 23，本任务未动前端。
 - **Task 25 不做**：按计划顺延 2026-W49（P9 模型层清单）。

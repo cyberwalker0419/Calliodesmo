@@ -1,0 +1,728 @@
+{
+  "baseline": {
+    "total": 9,
+    "mean_context_recall": 1.0,
+    "mean_faithfulness": 1.0,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，本月稀土市场的主要供应商是**北方稀土**和**盛和资源** [public__rare-earth-brief.md#0]。\n\n补充信息：\n- 北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。\n- 本月市场整体保持平稳，镨钕氧化物报价小幅上行，主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，镨钕氧化物的主要用途是**用于制造钕铁硼永磁材料** [public__rare-earth-brief.md#0]。\n\n此外，上下文提到其市场需求主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28（又称 Fancy Bear）擅长**鱼叉钓鱼（spear-phishing）**与**零日漏洞利用（zero-day exploitation）** [internal__apt28-tracking.md#0]。\n\n此外，近期观察到其使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "Fancy Bear 与 APT28 是同一组织，二者为同一威胁实体的不同名称（别名）。[internal__apt28-tracking.md#0]\n\n具体依据：\n- 上下文明确指出：“APT28（又称 Fancy Bear）是疑似源自俄罗斯的威胁组织……” [internal__apt28-tracking.md#0]\n- 并进一步确认：“Fancy Bear 与 APT28 为同一组织。” [internal__apt28-tracking.md#0]\n\n因此，Fancy Bear 是 APT28 的别名，两者指代同一个疑似源自俄罗斯、长期针对政府与国防目标的威胁组织。[internal__apt28-tracking.md#0]",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28 近期观察到的新型工具是 **Zebrocy 后门的变种** [c2]。\n\n具体细节如下：\n*   该后门经过 **Go 语言重写** [c2]。\n*   重写后其 **跨平台能力得到增强** [c2]。\n\n证据来源：\n*   [c2] `internal__apt28-tracking.md#0`：“近期观察到其使用新型后门 Zebrocy 的变种。” 以及 “Zebrocy 后门经 Go 语言重写，跨平台能力增强。”",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（代号 Nightingale）在 **2023 至 2025 年间活跃于东南亚地区** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，张三在夜莺（Nightingale）组织中担任**技术骨干**，具体职责是**负责漏洞武器化** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（Nightingale）的关键关联人包括：\n\n1.  **张三**：担任技术骨干，负责漏洞武器化 [c1]。\n2.  **李四**：负责资金联络，经手多笔加密货币转账 [c1]。\n\n该组织在 2023 至 2025 年间活跃于东南亚地区，被评估为高威胁等级 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      }
+    ]
+  },
+  "multi_query": {
+    "total": 9,
+    "mean_context_recall": 1.0,
+    "mean_faithfulness": 1.0,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，本月稀土市场的主要供应商是**北方稀土**和**盛和资源** [public__rare-earth-brief.md#0]。\n\n补充信息：\n- 北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。\n- 本月市场整体保持平稳，镨钕氧化物报价小幅上行，主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，镨钕氧化物的用途是**用于制造钕铁硼永磁材料** [public__rare-earth-brief.md#0]。\n\n该材料的需求主要受下游磁材市场拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28（又称 Fancy Bear）擅长**鱼叉钓鱼**与**零日漏洞利用** [internal__apt28-tracking.md#0]。\n\n此外，近期观察到该组织使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "Fancy Bear 与 APT28 是同一组织，二者为同一威胁组织的不同名称（别名）。\n\n证据：\n- 上下文明确指出“APT28（又称 Fancy Bear）是疑似源自俄罗斯的威胁组织” [internal__apt28-tracking.md#0]。\n- 并进一步说明“Fancy Bear 与 APT28 为同一组织” [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "APT28 近期观察到其使用新型后门 **Zebrocy 的变种**。该后门经过 **Go 语言重写**，从而增强了跨平台能力 [c2]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（代号 Nightingale）在 **2023 至 2025 年间活跃于东南亚地区** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，张三在夜莺（Nightingale）组织中担任**技术骨干**，具体职责是**负责漏洞武器化** [c1]。\n\n**证据引用：**\n*   [c1] `confidential__nightingale-assessment.md#0` 中明确记载：“关键关联人：张三（技术骨干，负责漏洞武器化）”。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（Nightingale）的关键关联人包括：\n\n1.  **张三**：担任技术骨干，负责漏洞武器化 [c1]。\n2.  **李四**：负责资金联络，经手多笔加密货币转账 [c1]。\n\n该组织在 2023 至 2025 年间活跃于东南亚地区，被评估为高威胁等级 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      }
+    ]
+  },
+  "contextual": {
+    "total": 9,
+    "mean_context_recall": 1.0,
+    "mean_faithfulness": 1.0,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，本月稀土市场的主要供应商是**北方稀土**和**盛和资源** [c1]。\n\n补充信息：\n*   北方稀土总部位于内蒙古包头 [c1]。\n*   本月市场保持平稳，镨钕氧化物报价小幅上行，主要受下游磁材需求拉动 [c1]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，镨钕氧化物主要用于**制造钕铁硼永磁材料** [public__rare-earth-brief.md#0]。\n\n此外，上下文提到其市场需求主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28（又称 Fancy Bear）擅长**鱼叉钓鱼**与**零日漏洞利用** [internal__apt28-tracking.md#0]。\n\n此外，近期观察到其使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "Fancy Bear 与 APT28 是同一组织，二者为同一威胁实体的不同名称（别名）。[internal__apt28-tracking.md#0]\n\n依据上下文：\n- 文档明确指出“APT28（又称 Fancy Bear）”，并进一步说明“Fancy Bear 与 APT28 为同一组织”。[internal__apt28-tracking.md#0]\n- 该组织被描述为疑似源自俄罗斯的威胁组织，长期针对政府与国防目标，擅长鱼叉钓鱼与零日漏洞利用，近期使用 Zebrocy 后门变种。[internal__apt28-tracking.md#0]\n\n因此，Fancy Bear 是 APT28 的别名，两者指代同一个威胁组织。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "APT28 近期观察到其使用新型后门 **Zebrocy 的变种** [c2]。该后门经过 **Go 语言重写**，从而增强了其跨平台能力 [c2]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（代号 Nightingale）在 **2023 至 2025 年间活跃于东南亚地区** [c1]。\n\n该组织疑似与多起供应链攻击事件存在关联 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，张三在夜莺（Nightingale）组织中担任**技术骨干**，具体职责是**负责漏洞武器化** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（Nightingale）的关键关联人如下：\n\n1.  **张三**：担任技术骨干，负责漏洞武器化 [c1]。\n2.  **李四**：负责资金联络，经手多笔加密货币转账 [c1]。\n\n该组织在 2023 至 2025 年间活跃于东南亚地区，被评估为高威胁等级 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      }
+    ]
+  },
+  "crag": {
+    "total": 9,
+    "mean_context_recall": 1.0,
+    "mean_faithfulness": 1.0,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，本月稀土市场的主要供应商是**北方稀土**和**盛和资源** [public__rare-earth-brief.md#0]。\n\n补充信息：\n*   本月稀土市场整体保持平稳，其中镨钕氧化物报价因下游磁材需求拉动而小幅上行 [public__rare-earth-brief.md#0]。\n*   北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，镨钕氧化物主要用于**制造钕铁硼永磁材料** [public__rare-earth-brief.md#0]。\n\n此外，上下文提到其市场需求主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "APT28（又称 Fancy Bear）擅长**鱼叉钓鱼（spear-phishing）**与**零日漏洞利用（zero-day exploitation）** [c1]。\n\n此外，近期观察到其使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [c1]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "Fancy Bear 与 APT28 是同一组织。\n\n依据：\n- 上下文明确指出“APT28（又称 Fancy Bear）是疑似源自俄罗斯的威胁组织” [internal__apt28-tracking.md#0]。\n- 并进一步说明“Fancy Bear 与 APT28 为同一组织” [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "APT28 近期观察到其使用新型后门 **Zebrocy 的变种**。该后门经过 **Go 语言重写**，从而增强了跨平台能力 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（代号 Nightingale）在 **2023 至 2025 年间活跃于东南亚地区** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，张三在夜莺组织中担任**技术骨干**，具体职责是**负责漏洞武器化** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（Nightingale）的关键关联人包括：\n\n1.  **张三**：担任技术骨干，负责漏洞武器化 [c1]。\n2.  **李四**：负责资金联络，经手多笔加密货币转账 [c1]。\n\n该组织在 2023 至 2025 年间活跃于东南亚地区，疑似与多起供应链攻击事件存在关联 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      }
+    ]
+  },
+  "selfcheck": {
+    "total": 9,
+    "mean_context_recall": 1.0,
+    "mean_faithfulness": 1.0,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，本月稀土市场的主要供应商是**北方稀土**和**盛和资源** [public__rare-earth-brief.md#0]。\n\n补充信息：\n*   北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。\n*   本月镨钕氧化物报价小幅上行，主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，镨钕氧化物的主要用途是**用于制造钕铁硼永磁材料** [public__rare-earth-brief.md#0]。\n\n此外，上下文提到其市场需求主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28（又称 Fancy Bear）擅长**鱼叉钓鱼（spear phishing）**与**零日漏洞利用（zero-day exploitation）** [internal__apt28-tracking.md#0]。\n\n此外，近期观察到其使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "Fancy Bear 与 APT28 是同一组织，Fancy Bear 是 APT28 的别称 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28 近期观察到的新型工具是 **Zebrocy 后门的变种**。\n\n具体细节如下：\n*   该后门经过 **Go 语言重写**，从而增强了其跨平台能力 [internal__apt28-tracking.md#0]。\n*   APT28（又称 Fancy Bear）长期针对政府与国防目标，擅长鱼叉钓鱼与零日漏洞利用 [internal__apt28-tracking.md#0]。\n\n证据来源：[internal__apt28-tracking.md#0]",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（代号 Nightingale）在 **2023 至 2025 年间活跃于东南亚地区** [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，张三在夜莺（Nightingale）组织中担任**技术骨干**，具体负责**漏洞武器化**工作。\n\n证据来源：\n- 在《夜莺组织评估（机密）》中明确列出：“关键关联人：张三（技术骨干，负责漏洞武器化）” [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺（Nightingale）组织的关键关联人包括：\n\n1.  **张三**：担任技术骨干，负责漏洞武器化 [c1]。\n2.  **李四**：负责资金联络，经手多笔加密货币转账 [c1]。\n\n该组织在 2023 至 2025 年间活跃于东南亚地区，威胁等级被评估为高 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      }
+    ]
+  },
+  "all": {
+    "total": 9,
+    "mean_context_recall": 1.0,
+    "mean_faithfulness": 1.0,
+    "mean_answer_relevance": 1.0,
+    "cases": [
+      {
+        "question": "稀土市场本月主要供应商有哪些？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，本月稀土市场的主要供应商是**北方稀土**和**盛和资源** [public__rare-earth-brief.md#0]。\n\n补充信息：\n- 北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。\n- 本月市场整体保持平稳，镨钕氧化物报价小幅上行，主要受下游磁材需求拉动 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "镨钕氧化物有什么用途？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，镨钕氧化物主要用于**制造钕铁硼永磁材料** [public__rare-earth-brief.md#0]。\n\n此外，上下文提到其报价受下游磁材需求拉动，表明其在磁性材料领域有重要应用 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      {
+        "question": "北方稀土总部位于哪里？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 擅长什么攻击手段？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28（又称 Fancy Bear）擅长**鱼叉钓鱼**与**零日漏洞利用** [internal__apt28-tracking.md#0]。\n\n此外，近期观察到其使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "Fancy Bear 与 APT28 是什么关系？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "Fancy Bear 与 APT28 是同一组织，二者为同一威胁实体的不同名称（别名）。\n\n证据：\n- 上下文明确指出“APT28（又称 Fancy Bear）”，并进一步说明“Fancy Bear 与 APT28 为同一组织” [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "APT28 近期观察到什么新型工具？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，APT28 近期观察到的新型工具是 **Zebrocy 后门的变种** [internal__apt28-tracking.md#0]。\n\n具体细节如下：\n*   该后门经过 **Go 语言重写** [internal__apt28-tracking.md#0]。\n*   重写后其 **跨平台能力得到增强** [internal__apt28-tracking.md#0]。\n\n该信息来源于内部追踪笔记，由分析师李华负责追踪 [internal__apt28-tracking.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织活跃于哪些地区？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（代号 Nightingale）在 **2023 至 2025 年间活跃于东南亚地区** [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      {
+        "question": "张三在夜莺组织中担任什么角色？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据上下文，张三在夜莺（Nightingale）组织中担任**技术骨干**，具体职责是**负责漏洞武器化** [confidential__nightingale-assessment.md#0]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "seed-cache.json#0"
+        ]
+      },
+      {
+        "question": "夜莺组织有哪些关键关联人？",
+        "context_recall": 1.0,
+        "faithfulness": 1.0,
+        "answer_relevance": 1.0,
+        "answer_text": "根据提供的上下文，夜莺组织（Nightingale）的关键关联人包括：\n\n1.  **张三**：担任技术骨干，负责漏洞武器化 [c1]。\n2.  **李四**：负责资金联络，经手多笔加密货币转账 [c1]。\n\n该信息来源于机密级评估档案，指出该组织在 2023 至 2025 年间活跃于东南亚地区 [c1]。",
+        "source_chunk_ids": [
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0",
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0"
+        ]
+      }
+    ]
+  }
+}

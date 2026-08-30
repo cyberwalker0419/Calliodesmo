@@ -37,6 +37,16 @@ created: 2026-08-30
 | 三角色抽查（一次性账号 t23analyst/t23reviewer） | ✅ analyst / reviewer 均可见分析页 + 提交启用 + 无管理导航；仅 admin 有管理菜单（与 DEFAULT_ROLE_PERMISSIONS 对齐）；账号验完即停用 |
 | console / network | ✅ 仅两条预期失败（401 错密、400 `$ref`），无意外错误 |
 
+### 质量轨（--real 真模型；原 2026-W45 锚点提前于 2026-08-30 执行完毕）
+
+- **执行环境**：用户本机真模型 `Qwen3.8-27B-Q4_K_M`（GGUF Q4_K_M 量化，LM Studio 服务 @ 192.168.50.97:8081，thinking 禁，32768 上下文约束）；执行日期 **2026-08-30**（原锚点 2026-W45 提前至 2026-W35 执行完毕）。
+- **P6**（`scripts/eval_p6.py --real`，证据 `p6-real-Qwen3.8-27B-Q4_K_M.json`）：15 例全 `ok`；MEAN field_f1 **0.1136** / tuple_f1 **0.5643** / judge_overall **4.4000**（judge 维度均值：completeness 4.0 / evidence_support 4.3333 / no_fabrication 5.0 / structure 4.2667；单例 judge 均分区间 2.0–5.0）。亮点单例：实体识别 tuple_f1 0.60（rare-earth）/ 0.8571（nightingale），关系映射 nightingale tuple_f1 0.80（全篇最高），tasks-nightingale field_f1 1.0。
+- **P5**（`scripts/eval_p5.py --real`，证据 `p5-real-Qwen3.8-27B-Q4_K_M.json`）：9 例 × 6 配置（baseline / multi_query / contextual / crag / selfcheck / all），ctx_recall / faithfulness / answer_relevance 三指标全部 **1.0000**。
+- **口径解读（双轨纪律不破）**：
+  - P5 六配置全 1.0000 系 9 例 × 3 文档小语料下真模型易饱和所致，各配置间无区分度——与 [[docs/verification/P5-verification|P5 验证报告]] 既有口径一致（离线基线 ctx_recall 0.4444 为小语料确定性基线；`answer_relevance` 恒分无区分度），不构成检索质量结论。
+  - P6 field_f1 0.1136 偏低：field_f1 为字段级精确匹配口径，金标字段系人工标注表述，与模型生成表述不一致即记 0 分所致；tuple_f1 与 judge 分为参考分。
+  - 以上数字仅陈述分数与口径，**不作「分析质量好」之断言**；质量证据与离线结构证据（`p6-regression.json`）并列，离线全绿仍只承诺结构 / 契约正确。
+
 ## 技术栈
 
 - 后端：`analysis/` 域（schemas/specs/prompts/parser/evidence/access/materials/engine/sanitize/factory/job_worker/report_store）+ `interfaces/analysis.py` + `db/models_analysis.py` + `db/migrate.py` + `api/analysis.py`；评估 `scripts/eval_p6.py` + `eval/` harness；FastAPI + SQLAlchemy 2.0 async + PyJWT/Argon2。
@@ -45,7 +55,7 @@ created: 2026-08-30
 
 ## 验证原理
 
-- **双轨严格分离**：离线桩（StubLLM + hash 64 维）对生成质量**零区分度**（固定输出 + 固定 judge 分），离线全绿只承诺状态机 / schema / 权限矩阵 / quote 子串 / 密级继承 / 轮询契约正确，**不得**表述为「分析质量好」；质量证据仅 `--real`（锚点 2026-W45，用户本机，含 P5 `--real` 同批）。
+- **双轨严格分离**：离线桩（StubLLM + hash 64 维）对生成质量**零区分度**（固定输出 + 固定 judge 分），离线全绿只承诺状态机 / schema / 权限矩阵 / quote 子串 / 密级继承 / 轮询契约正确，**不得**表述为「分析质量好」；质量证据仅 `--real`——原锚点 2026-W45 已提前于 2026-08-30（2026-W35）执行完毕（用户本机，含 P5 `--real` 同批），见「质量轨」小节。
 - **custom 类评估口径**：无固定金标，= 结构校验（sanitize 通过 + schema 符合）+ judge 参考分（见 Task 22 留痕）。
 - **契约优先 + TDD**：9 类报告模型与注册表为四方共用锚点；前端 types.ts 与后端 schemas.py 逐字段对齐；每 Task 先写失败测试再实现。
 - **权限唯一真相在后端**：前端导航隐藏 + 页内提交禁用为双保险，后端 `visible_to` / `require_permission` 为最终闸。
@@ -77,7 +87,7 @@ created: 2026-08-30
 | 20 | ReportViewer + 历史/导出 + 三角色 | ✅ | `9ae1666` + 修复 `a3fd42e` |
 | 21 | 第二批接线 | ✅ | `14627e7` |
 | 22 | 自定义分析（注入防御） | ✅ | `7f319ed` |
-| 23 | 第二批前端 + 验证报告 + 文档收尾 | ✅ | 本会话两笔提交 |
+| 23 | 第二批前端 + 验证报告 + 文档收尾 | ✅ | 本会话两笔提交（`--real` 质量补跑原锚点 2026-W45，提前于 2026-08-30 执行完毕，证据随证据登记提交入库） |
 | 24 | `analyze` CLI（可选） | ✅ 完成 | `86ca6a8`（2026-08-30 补做：管理员提交 + barrier 同步等待 + 报告摘要；7 例 cli_db 测试，离线桩） |
 | 25 | provider 能力探测（可选） | ⏭️ 顺延 | 2026-W49（P9 模型层清单） |
 | 26 | 多轮对话状态 | ⏸ 移交 | P7 |
@@ -87,7 +97,7 @@ created: 2026-08-30
 
 | 事项 | 锚点 | 说明 |
 | --- | --- | --- |
-| `eval_p6.py --real` + `eval_p5.py --real` 质量补跑 | 2026-W45 | 用户本机，同批合并；验证报告留 `p6-real-<模型名>.json` 待补 |
+| ~~`eval_p6.py --real` + `eval_p5.py --real` 质量补跑~~ ✅ 已完成 | 2026-08-30（原锚点 2026-W45 提前） | 用户本机真模型 `Qwen3.8-27B-Q4_K_M` 执行完毕；证据 `p6-real-Qwen3.8-27B-Q4_K_M.json` / `p5-real-Qwen3.8-27B-Q4_K_M.json` 已入库（口径：离线≠质量，质量分数仅为参考分，见「质量轨」小节） |
 | demo_seed 顶层 glob 缺口 + seed-cache 失效 | 2026-W36 | 现以 `CALLIODESMO_DEMO_DIR` 环境覆盖绕过 |
 | 移动端固定侧栏挤压 | 2026-W37 | P3 既有，候选折叠侧栏/抽屉 |
 | logout 方法不匹配（DELETE vs POST 405） | 2026-W37 | cookie 启用后影响面升格，修时须同验 cookie 失效 |
@@ -102,7 +112,9 @@ created: 2026-08-30
 
 ## 证据
 
-- `p6-regression.json`（离线基线 15 例全 ok；结构/契约证据，非质量结论）· `p6-real-<模型名>.json`（**待补**，2026-W45 用户本机）。
+- `p6-regression.json`（离线基线 15 例全 ok；结构/契约证据，非质量结论）。
+- `p6-real-Qwen3.8-27B-Q4_K_M.json`（P6 质量证据：2026-08-30 用户本机 `eval_p6.py --real`，真模型 `Qwen3.8-27B-Q4_K_M`；15 例全 ok，MEAN field_f1 0.1136 / tuple_f1 0.5643 / judge 4.4000；参考分，不作质量结论）。
+- `p5-real-Qwen3.8-27B-Q4_K_M.json`（P5 质量证据，同批执行：2026-08-30 用户本机 `eval_p5.py --real`；9 例 × 6 配置三指标全 1.0000，小语料饱和、各配置无区分度）。
 - `pytest` 1008 passed（Task 23 门槛）→ 1015 passed（Task 24 补做，`86ca6a8`）/ ruff clean / 前端三件套绿。
 - `data/verification/p6/t23-*.png`（preview 截图，不入库）· `data/serve-preview-p6-t23.log`（serve 日志，不入库）· `data/verification/p6/t23-capture.cjs`（截图脚本，不入库）。
 - 提交链：`b066e8e`…`7f319ed` + `feat(frontend)` / `docs(verification)` 两笔 + Task 24 补做 `86ca6a8`。

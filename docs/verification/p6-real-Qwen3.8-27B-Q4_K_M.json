@@ -1,0 +1,966 @@
+{
+  "mode": "real(.env)",
+  "generated_at": "2026-08-30T08:53:58.948273+00:00",
+  "disclaimer": "质量证据运行（真实模型）：字段 / 元组级 P-R-F1 与 G-Eval judge 为质量参考分；结论入验证报告须与离线结构证据（p6-regression.json）并列。",
+  "golden_file": "config/golden_analysis.yaml",
+  "total": 15,
+  "mean_field_f1": 0.1136,
+  "mean_tuple_f1": 0.5643,
+  "mean_judge_overall": 4.4,
+  "judge_dimension_means": {
+    "completeness": 4.0,
+    "evidence_support": 4.3333,
+    "no_fabrication": 5.0,
+    "structure": 4.2667
+  },
+  "cases": [
+    {
+      "case_id": "summary-rare-earth",
+      "task_type": "summary",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.1667,
+        "recall": 0.5,
+        "f1": 0.25
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "chunk_id": "public__rare-earth-brief.md#0",
+            "quote": "本月稀土市场保持平稳。镨钕氧化物报价小幅上行，主要受下游磁材需求拉动。",
+            "confidence": 1.0
+          },
+          {
+            "chunk_id": "public__rare-earth-brief.md#0",
+            "quote": "北方稀土与盛和资源是主要供应商。镨钕氧化物用于制造钕铁硼永磁材料。",
+            "confidence": 1.0
+          },
+          {
+            "chunk_id": "public__rare-earth-brief.md#0",
+            "quote": "分析师张明整理了本月数据。北方稀土总部位于内蒙古包头。",
+            "confidence": 1.0
+          }
+        ],
+        "summary": "本月稀土市场整体保持平稳，镨钕氧化物价格因下游磁材需求增加而小幅上涨。北方稀土（总部位于内蒙古包头）与盛和资源是该领域的主要供应商，镨钕氧化物主要用于制造钕铁硼永磁材料。相关数据由分析师张明整理。",
+        "key_points": [
+          "本月稀土市场保持平稳，镨钕氧化物报价小幅上行",
+          "价格上行主要受下游磁材需求拉动",
+          "北方稀土与盛和资源是主要供应商",
+          "镨钕氧化物用于制造钕铁硼永磁材料",
+          "北方稀土总部位于内蒙古包头",
+          "本月数据由分析师张明整理"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "summary-nightingale",
+      "task_type": "summary",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "chunk_id": "confidential__nightingale-assessment.md#0",
+            "quote": "该组织在 2023 至 2025 年间活跃于东南亚地区，疑似与多起供应链攻击事件存在关联。",
+            "confidence": 1.0
+          },
+          {
+            "chunk_id": "confidential__nightingale-assessment.md#0",
+            "quote": "关键关联人：张三（技术骨干，负责漏洞武器化）、李四（资金联络，经手多笔加密货币转账）。",
+            "confidence": 1.0
+          },
+          {
+            "chunk_id": "confidential__nightingale-assessment.md#0",
+            "quote": "评估结论：威胁等级高，建议持续监控其基础设施与人员动向。",
+            "confidence": 1.0
+          }
+        ],
+        "summary": "该机密档案评估了代号“夜莺”的组织，指出其在2023至2025年间活跃于东南亚地区，并疑似关联多起供应链攻击事件。档案识别出关键人员张三（负责漏洞武器化）和李四（负责加密货币资金联络），最终评估其威胁等级为高，建议持续监控其基础设施与人员动向。",
+        "key_points": [
+          "目标实体“夜莺”在2023至2025年间活跃于东南亚地区。",
+          "该组织疑似与多起供应链攻击事件存在关联。",
+          "关键关联人张三为技术骨干，负责漏洞武器化。",
+          "关键关联人李四负责资金联络，经手多笔加密货币转账。",
+          "评估结论认定该组织威胁等级高，建议持续监控。"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "key-information-rare-earth",
+      "task_type": "key_information",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "本月稀土市场保持平稳。",
+                "confidence": 1.0
+              }
+            ],
+            "label": "市场状态",
+            "value": "平稳"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物报价小幅上行",
+                "confidence": 1.0
+              }
+            ],
+            "label": "镨钕氧化物报价趋势",
+            "value": "小幅上行"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "主要受下游磁材需求拉动",
+                "confidence": 1.0
+              }
+            ],
+            "label": "报价上行原因",
+            "value": "主要受下游磁材需求拉动"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土与盛和资源是主要供应商。",
+                "confidence": 1.0
+              }
+            ],
+            "label": "主要供应商",
+            "value": "北方稀土、盛和资源"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物用于制造钕铁硼永磁材料。",
+                "confidence": 1.0
+              }
+            ],
+            "label": "镨钕氧化物用途",
+            "value": "用于制造钕铁硼永磁材料"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "分析师张明整理了本月数据。",
+                "confidence": 1.0
+              }
+            ],
+            "label": "数据整理人",
+            "value": "张明"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土总部位于内蒙古包头。",
+                "confidence": 1.0
+              }
+            ],
+            "label": "北方稀土总部地点",
+            "value": "内蒙古包头"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "key-information-apt28",
+      "task_type": "key_information",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "APT28（又称 Fancy Bear）是疑似源自俄罗斯的威胁组织",
+                "confidence": 1.0
+              }
+            ],
+            "label": "威胁组织名称",
+            "value": "APT28"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "APT28（又称 Fancy Bear）",
+                "confidence": 1.0
+              }
+            ],
+            "label": "威胁组织别名",
+            "value": "Fancy Bear"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "疑似源自俄罗斯的威胁组织",
+                "confidence": 1.0
+              }
+            ],
+            "label": "组织疑似来源地",
+            "value": "俄罗斯"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "长期针对政府与国防目标",
+                "confidence": 1.0
+              }
+            ],
+            "label": "主要攻击目标",
+            "value": "政府与国防目标"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "该组织擅长鱼叉钓鱼与零日漏洞利用",
+                "confidence": 1.0
+              }
+            ],
+            "label": "擅长攻击手法",
+            "value": "鱼叉钓鱼与零日漏洞利用"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "近期观察到其使用新型后门 Zebrocy 的变种",
+                "confidence": 1.0
+              }
+            ],
+            "label": "近期观察到的后门",
+            "value": "Zebrocy 的变种"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "追踪由分析师李华负责",
+                "confidence": 1.0
+              }
+            ],
+            "label": "追踪负责人",
+            "value": "李华"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "Zebrocy 后门经 Go 语言重写",
+                "confidence": 1.0
+              }
+            ],
+            "label": "后门重写语言",
+            "value": "Go 语言"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "跨平台能力增强",
+                "confidence": 1.0
+              }
+            ],
+            "label": "后门能力变化",
+            "value": "跨平台能力增强"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "timeline-nightingale",
+      "task_type": "timeline",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 2,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 4
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "该组织在 2023 至 2025 年间活跃于东南亚地区，疑似与多起供应链攻击事件存在关联。",
+                "confidence": 1.0
+              }
+            ],
+            "date_raw": "2023 至 2025 年间",
+            "date_normalized": "2023",
+            "granularity": "approximate",
+            "description": "夜莺组织在东南亚地区活跃，疑似与多起供应链攻击事件存在关联"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "timeline-apt28",
+      "task_type": "timeline",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 1,
+        "evidence_support": 1,
+        "no_fabrication": 5,
+        "structure": 1
+      },
+      "payload": {
+        "items": []
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "entity-recognition-rare-earth",
+      "task_type": "entity_recognition",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.4286,
+        "recall": 1.0,
+        "f1": 0.6
+      },
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土与盛和资源是主要供应商。",
+                "confidence": 1.0
+              },
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土总部位于内蒙古包头。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "北方稀土",
+            "type": "组织",
+            "description": "稀土市场主要供应商，总部位于内蒙古包头"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土与盛和资源是主要供应商。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "盛和资源",
+            "type": "组织",
+            "description": "稀土市场主要供应商"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "分析师张明整理了本月数据。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "张明",
+            "type": "人物",
+            "description": "整理本月稀土市场数据的分析师"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土总部位于内蒙古包头。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "内蒙古包头",
+            "type": "地点",
+            "description": "北方稀土的总部所在地"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物报价小幅上行，主要受下游磁材需求拉动。",
+                "confidence": 1.0
+              },
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物用于制造钕铁硼永磁材料。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "镨钕氧化物",
+            "type": "产品",
+            "description": "报价小幅上行的稀土产品，用于制造钕铁硼永磁材料"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物用于制造钕铁硼永磁材料。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "钕铁硼永磁材料",
+            "type": "产品",
+            "description": "由镨钕氧化物制造的下游产品"
+          },
+          {
+            "confidence": 0.9,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "本月稀土市场保持平稳。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "稀土市场",
+            "type": "事件",
+            "description": "本月保持平稳的市场环境"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "entity-recognition-nightingale",
+      "task_type": "entity_recognition",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571
+      },
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "目标实体：夜莺（代号 Nightingale）。该组织在 2023 至 2025 年间活跃于东南亚地区，疑似与多起供应链攻击事件存在关联。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "夜莺",
+            "type": "组织",
+            "description": "代号 Nightingale 的组织，2023 至 2025 年间活跃于东南亚地区，疑似与多起供应链攻击事件存在关联。"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "关键关联人：张三（技术骨干，负责漏洞武器化）",
+                "confidence": 1.0
+              }
+            ],
+            "name": "张三",
+            "type": "人物",
+            "description": "夜莺组织的技术骨干，负责漏洞武器化。"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "李四（资金联络，经手多笔加密货币转账）",
+                "confidence": 1.0
+              }
+            ],
+            "name": "李四",
+            "type": "人物",
+            "description": "夜莺组织的资金联络人，经手多笔加密货币转账。"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "该组织在 2023 至 2025 年间活跃于东南亚地区",
+                "confidence": 1.0
+              }
+            ],
+            "name": "东南亚",
+            "type": "地点",
+            "description": "夜莺组织在 2023 至 2025 年间的主要活跃区域。"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "relation-mapping-rare-earth",
+      "task_type": "relation_mapping",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "judge_scores": {
+        "completeness": 4,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "北方稀土总部位于内蒙古包头。",
+                "confidence": 1.0
+              }
+            ],
+            "head": "北方稀土",
+            "tail": "内蒙古包头",
+            "type": "headquartered_in",
+            "description": "北方稀土总部位于内蒙古包头"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物报价小幅上行，主要受下游磁材需求拉动。",
+                "confidence": 1.0
+              }
+            ],
+            "head": "磁材需求",
+            "tail": "镨钕氧化物",
+            "type": "drives_price",
+            "description": "下游磁材需求拉动镨钕氧化物报价小幅上行"
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "public__rare-earth-brief.md#0",
+                "quote": "镨钕氧化物用于制造钕铁硼永磁材料。",
+                "confidence": 1.0
+              }
+            ],
+            "head": "镨钕氧化物",
+            "tail": "钕铁硼永磁材料",
+            "type": "used_for_manufacturing",
+            "description": "镨钕氧化物用于制造钕铁硼永磁材料"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "relation-mapping-nightingale",
+      "task_type": "relation_mapping",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.6667,
+        "recall": 1.0,
+        "f1": 0.8
+      },
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "该组织在 2023 至 2025 年间活跃于东南亚地区",
+                "confidence": 1.0
+              }
+            ],
+            "head": "夜莺",
+            "tail": "东南亚",
+            "type": "ACTIVE_IN",
+            "description": "夜莺组织在 2023 至 2025 年间活跃于东南亚地区。"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "张三（技术骨干，负责漏洞武器化）",
+                "confidence": 1.0
+              }
+            ],
+            "head": "张三",
+            "tail": "夜莺",
+            "type": "MEMBER_OF",
+            "description": "张三是夜莺组织的技术骨干，负责漏洞武器化。"
+          },
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "李四（资金联络，经手多笔加密货币转账）",
+                "confidence": 1.0
+              }
+            ],
+            "head": "李四",
+            "tail": "夜莺",
+            "type": "MEMBER_OF",
+            "description": "李四是夜莺组织的资金联络人，经手多笔加密货币转账。"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "tasks-rare-earth",
+      "task_type": "tasks",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 1,
+        "evidence_support": 1,
+        "no_fabrication": 5,
+        "structure": 1
+      },
+      "payload": {
+        "items": []
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "tasks-nightingale",
+      "task_type": "tasks",
+      "status": "ok",
+      "field_scores": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 2,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 4
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.95,
+            "evidence": [
+              {
+                "chunk_id": "confidential__nightingale-assessment.md#0",
+                "quote": "建议持续监控其基础设施与人员动向",
+                "confidence": 1.0
+              }
+            ],
+            "action": "持续监控夜莺组织的基础设施与人员动向",
+            "owner_raw": "",
+            "deadline_raw": ""
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "concepts-apt28",
+      "task_type": "concepts",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 5,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "APT28（又称 Fancy Bear）是疑似源自俄罗斯的威胁组织，长期针对政府与国防目标。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "APT28",
+            "definition": "疑似源自俄罗斯的威胁组织，长期针对政府与国防目标，擅长鱼叉钓鱼与零日漏洞利用。",
+            "related": [
+              "Fancy Bear",
+              "鱼叉钓鱼",
+              "零日漏洞利用",
+              "Zebrocy"
+            ]
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "Fancy Bear 与 APT28 为同一组织。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "Fancy Bear",
+            "definition": "APT28 的别称，指代同一威胁组织。",
+            "related": [
+              "APT28"
+            ]
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "该组织擅长鱼叉钓鱼与零日漏洞利用。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "鱼叉钓鱼",
+            "definition": "APT28 组织擅长的一种攻击手段。",
+            "related": [
+              "APT28"
+            ]
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "该组织擅长鱼叉钓鱼与零日漏洞利用。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "零日漏洞利用",
+            "definition": "APT28 组织擅长的一种攻击手段。",
+            "related": [
+              "APT28"
+            ]
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "近期观察到其使用新型后门 Zebrocy 的变种。",
+                "confidence": 1.0
+              },
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "Zebrocy 后门经 Go 语言重写，跨平台能力增强。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "Zebrocy",
+            "definition": "APT28 近期观察到的使用的一种新型后门，其变种经 Go 语言重写，跨平台能力增强。",
+            "related": [
+              "APT28",
+              "Go 语言"
+            ]
+          },
+          {
+            "confidence": 1.0,
+            "evidence": [
+              {
+                "chunk_id": "internal__apt28-tracking.md#0",
+                "quote": "Zebrocy 后门经 Go 语言重写，跨平台能力增强。",
+                "confidence": 1.0
+              }
+            ],
+            "name": "Go 语言",
+            "definition": "用于重写 Zebrocy 后门的编程语言，使其跨平台能力增强。",
+            "related": [
+              "Zebrocy"
+            ]
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "qa-rare-earth",
+      "task_type": "qa",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 4,
+        "no_fabrication": 5,
+        "structure": 5
+      },
+      "payload": {
+        "confidence": 0.3,
+        "evidence": [],
+        "question": "北方稀土总部位于哪里？",
+        "answer": "北方稀土总部位于内蒙古包头 [public__rare-earth-brief.md#0]。",
+        "citations": [
+          "public__rare-earth-brief.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "internal__apt28-tracking.md#0"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "qa-apt28",
+      "task_type": "qa",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 5,
+        "evidence_support": 4,
+        "no_fabrication": 5,
+        "structure": 4
+      },
+      "payload": {
+        "confidence": 0.3,
+        "evidence": [],
+        "question": "APT28 擅长什么攻击手段？",
+        "answer": "APT28（又称 Fancy Bear）擅长**鱼叉钓鱼**与**零日漏洞利用** [internal__apt28-tracking.md#0]。\n\n此外，近期观察到其使用新型后门 **Zebrocy** 的变种，该后门经 Go 语言重写，跨平台能力增强 [internal__apt28-tracking.md#0]。",
+        "citations": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "confidential__nightingale-assessment.md#0",
+          "public__rare-earth-brief.md#0"
+        ]
+      },
+      "warnings": []
+    }
+  ]
+}
