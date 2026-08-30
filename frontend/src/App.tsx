@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Library, Menu, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest, FileUp, Sparkles, History } from "lucide-react";
+import { Library, Menu, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest, FileUp, Sparkles, History, Bot } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAccess } from "@/auth/useAccess";
@@ -63,6 +63,8 @@ export default function AppLayout() {
       {access.can(PERMISSIONS.ANALYZE) && (
         <NavItem to="/app/analysis/reports" icon={History} label="报告历史" />
       )}
+      {/* P7 T15：Agent 聊天面（QUERY 隐藏式门控，克隆分析页范式） */}
+      {access.canQuery() && <NavItem to="/app/agent" icon={Bot} label="Agent" />}
       {access.canPush() && (
         <NavItem to="/app/collab" icon={GitPullRequest} label="协作推送" />
       )}

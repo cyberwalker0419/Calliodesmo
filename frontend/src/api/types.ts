@@ -475,3 +475,51 @@ export const PERMISSIONS = {
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+// ---- P7 Agent 模式（T15，与后端 api/schemas.py 对齐）----
+export type AgentMode = "react" | "plan_execute"; // rewoo 预留不渲染
+
+export interface AgentSessionOut {
+  id: string;
+  mode: AgentMode;
+  label: string;
+  access_level: string;
+  library_scope: string;
+  created_at: string;
+}
+
+export interface AgentSessionListOut {
+  items: AgentSessionOut[];
+  total: number;
+}
+
+export interface AgentMessageOut {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant";
+  content: string;
+  run_id: string | null;
+  created_at: string;
+}
+
+export interface AgentRunOut {
+  id: string;
+  session_id: string;
+  status: string;
+  steps: number;
+  usage: Record<string, number>;
+  tool_trace: Array<{
+    call: { id: string; name: string; arguments: Record<string, unknown> };
+    result: { ok: boolean; output: string; error: string | null };
+  }>;
+  error: string | null;
+  created_at: string;
+}
+
+export interface AgentRunRequest {
+  question: string;
+}
+
+export interface AgentRunAccepted {
+  job_id: string;
+  status: string;
+}

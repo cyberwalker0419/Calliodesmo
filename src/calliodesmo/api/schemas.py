@@ -537,3 +537,16 @@ class AgentMessageOut(BaseModel):
     content: str
     run_id: uuid.UUID | None
     created_at: datetime
+
+
+class AgentRunOut(BaseModel):
+    """GET /agent/sessions/{id}/runs：执行列表（轨迹供前端折叠展示与评估消费）。"""
+
+    id: uuid.UUID
+    session_id: uuid.UUID
+    status: str
+    steps: int
+    usage: dict
+    tool_trace: list
+    error: str | None
+    created_at: datetime

@@ -26,6 +26,7 @@ from calliodesmo.api.deps import get_current_context, get_job_session_factory
 from calliodesmo.api.schemas import (
     AgentMessageOut,
     AgentRunAccepted,
+    AgentRunOut,
     AgentRunRequest,
     AgentSessionCreate,
     AgentSessionListOut,
@@ -34,7 +35,7 @@ from calliodesmo.api.schemas import (
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import Permission
-from calliodesmo.db.models_agent import AgentMessageORM, AgentSessionORM
+from calliodesmo.db.models_agent import AgentMessageORM, AgentRunORM, AgentSessionORM
 from calliodesmo.db.models_job import Job
 from calliodesmo.db.session import get_session
 from calliodesmo.utils.json import json_safe
@@ -189,4 +190,42 @@ async def list_messages(
             created_at=m.created_at,
         )
         for m in rows
+    ]
+
+
+@router.get("/sessions/{session_id}/runs", response_model=list[AgentRunOut])
+async def list_runs(
+    session_id: uuid.UUID,
+    context: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> list[AgentRunOut]:
+    """执行列表：轨迹 JSON 供前端 ToolTrace 折叠展示（不可见 -> 404 同语义）。"""
+    if not context.has_permission(Permission.QUERY):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
+    sess = await session.get(AgentSessionORM, session_id)
+    if sess is None or not verify_session_access(sess, access=context):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SESSION_GONE)
+    rows = (
+        (
+            await session.execute(
+                select(AgentRunORM)
+                .where(AgentRunORM.session_id == session_id)
+                .order_by(AgentRunORM.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        AgentRunOut(
+            id=r.id,
+            session_id=r.session_id,
+            status=r.status,
+            steps=r.steps,
+            usage=r.usage or {},
+            tool_trace=r.tool_trace or [],
+            error=r.error,
+            created_at=r.created_at,
+        )
+        for r in rows
     ]
