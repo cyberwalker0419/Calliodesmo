@@ -1,6 +1,6 @@
 {
   "mode": "offline-stub(hash+StubLLM)",
-  "generated_at": "2026-08-30T05:24:29.707708+00:00",
+  "generated_at": "2026-08-30T07:10:23.095858+00:00",
   "disclaimer": "离线证据≠质量证据：桩对生成质量零区分度（固定分析输出 + 固定 judge 分），本基线只承诺结构 / 契约；质量证据由 eval_p6.py --real 承担（锚点 2026-W45，用户本机）。",
   "golden_file": "config/golden_analysis.yaml",
   "total": 15,

@@ -20,6 +20,7 @@ tags:
 | [[docs/verification/full-chain-simulation|全链路仿真]] | P4.5 真后端 HTTP 全链路 | ✅ 22 步全绿 / 修复 2 处 `/ingest` bug | 2026-07-31 |
 | [[docs/verification/OCR-vision-verification|OCR/识图]] | P4.5 Task 7 多模态 | ✅ **423 passed** / 1 skipped | 2026-08-14 |
 | [[docs/verification/P5-verification|P5]] | 高级 RAG | ✅ 32 检索用例 + 9 golden × 6 配置回归（baseline 0.4444）/ Task 6 按证据跳过 | 2026-08-19 |
+| [[docs/verification/P6-verification|P6]] | LLM 分析任务 | ✅ 1008 passed / 前端 62 vitest / 15 例离线基线全 ok（结构·契约证据，质量待 --real）/ 第二批前端+三角色 preview 闭环 | 2026-08-30 |
 
 ## 验证标准
 
@@ -27,4 +28,4 @@ tags:
 
 ## 证据文件
 
-`pytest-output.txt`（P4.5 407 passed）/ `pytest-output-p3.txt` / `pytest-output-p4.txt` / `bootstrap-evidence.txt` / `p5-regression.json`（P5 golden 检索回归全量）/ `p6-regression.json`（P6 分析评估离线基线：结构/契约证据，非质量结论）。
+`pytest-output.txt`（P4.5 407 passed）/ `pytest-output-p3.txt` / `pytest-output-p4.txt` / `bootstrap-evidence.txt` / `p5-regression.json`(P5 golden 检索回归全量）/ `p6-regression.json`（P6 分析评估离线基线：结构/契约证据，非质量结论）/ `p6-real-<模型名>.json`（P6 质量证据，**待补**：锚点 2026-W45 用户本机 `eval_p6.py --real`，与 P5 `--real` 同批）。

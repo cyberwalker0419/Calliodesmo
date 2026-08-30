@@ -17,7 +17,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P4** Git-like 协作推送 ✅ 完成（Task 1-9 全闭合；A1 ContributionDetail + A2 CommunityVersions 已落地）
 - **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 `docs/plans/phases/P4.5-persistence-production.md`）
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 `docs/plans/phases/P5-advanced-rag.md`）
-- **P6** LLM 分析任务 📋 计划已定稿（2026-08-29）：9 类分析（摘要/关键信息/时间线/实体识别/关系映射/任务/概念/问答/自定义）结构化报告，2026-09 W36 起滚动开工（详见 `docs/plans/phases/P6-llm-analysis-tasks.md`）
+- **P6** LLM 分析任务 ✅ 完成（2026-08-30，本地分支 `feat/p6-llm-analysis-tasks` 闭合待 PR，1008 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑锚点 2026-W45；详见 `docs/plans/phases/P6-llm-analysis-tasks.md` 与 `docs/verification/P6-verification.md`）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -60,9 +60,10 @@ src/calliodesmo/
 ├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me、/query）
 ├── auth/         三维权限：models / security(Argon2+JWT) / context / service
 ├── audit/        审计日志（谁/何时/做了什么/从哪来）
-├── db/           异步 SQLAlchemy 引擎与声明式基类
+├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / migrate.py 幂等补列）
 ├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
-├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine ...
+├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store）
+├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis ...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
 ├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
 ├── eval/         P2 评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / harness
@@ -80,8 +81,8 @@ docs/
 ├── verification/         各阶段验证报告（README 索引 + P0-P5 / OCR 识图 / 全链路仿真报告 + pytest 输出/证据）
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
-config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml（评估 golden 集）
-scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）
+config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml + analysis_prompts/（P6 九类模板）+ golden_analysis.yaml（P6 评估 golden）
+scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）+ eval_p5.py / eval_p6.py（评估回归，--real 切真模型）
 .github/workflows/ci.yml   CI：ruff + pytest
 ```
 

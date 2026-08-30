@@ -73,7 +73,7 @@ created: 2026-08-29
 | 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | ✅ 完成 |
 | 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | ✅ 完成 |
 | 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | ✅ 完成 |
-| 23 | 第二批前端 + 验证报告 + 文档同步 + `--real` 补跑锚点 | ✅ 必做 | 未开始 |
+| 23 | 第二批前端 + 验证报告 + 文档同步 + `--real` 补跑锚点 | ✅ 必做 | ✅ 完成（`--real` 质量补跑留痕 2026-W45） |
 | 24 | `calliodesmo analyze` CLI（仿 `ask`） | 🔁 可选 | 未开始 |
 | 25 | provider 原生结构化输出能力探测 | 🔁 可选 | 未开始（锚点 2026-W49，P9 模型层清单） |
 | 26 | 多轮对话状态 | ⏸ 暂缓 | 移交 P7 |
@@ -712,12 +712,13 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `frontend/src/features/analysis/`（新 4 类选择与 ReportViewer 分节 + 自定义表单：指令 + 可选 schema JSON 输入（客户端 `JSON.parse` 预校验）+ 「指令将发给 LLM，勿含敏感信息」提示 + QA 类「范围为全可见库」文案复核）· 新 `docs/verification/P6-verification.md` · 改 `docs/verification/README.md`（索引登记）· 改 `docs/plans/roadmap.md` · **新建** `docs/plans/monthly/2026-09.md` / `2026-10.md` / `2026-11.md`（三份目前均不存在，按既有月计划 frontmatter（title/type/tags/created）+ wikilink 约定创建，覆盖 2026-W36–W46 的 P6 排期）· 改 `CLAUDE.md` + `AGENTS.md` 项目结构段与当前阶段段。
 
-- [ ] **Step 1:** 写失败测试：第二批类型组件渲染 + 自定义表单校验提示。
-- [ ] **Step 2:** 跑确认失败 → 实现 → 跑绿三件套 → preview 闭环（4 类各提交一次 + 自定义 400 提示路径 + 三角色回归抽查）。
-- [ ] **Step 3:** 离线轨：`uv run pytest -v` 全量绿 + `python scripts/eval_p6.py` 落盘 `p6-regression.json` 留痕；质量轨（用户本机，锚点 2026-W45）：`python scripts/eval_p6.py --real`（[[docs/model-selection|模型选型]] 清单内至少一个真模型；本地模型走豁免规则），同批合并补跑 `scripts/eval_p5.py --real`；若解析失败率 > 5% 记入验证报告作为解析链调优依据。
-- [ ] **Step 4:** 写 `docs/verification/P6-verification.md`（四要素：测试内容 / 技术栈 / 验证原理 / 验证过程 + Task 闭合矩阵 + 未竟清单），明确区分离线 / 质量两轨证据，注明 custom 类评估口径（见 Task 22 留痕）；`docs/verification/README.md` 报告清单表登记一行，**证据文件段登记 `p6-regression.json` 与 `p6-real-<模型名>.json`**（逐件列名，仿 `p5-regression.json` 格式）；`--real` 若延误，留痕顺延 2026-W46。
-- [ ] **Step 5:** roadmap P6 状态更新 + 本计划 wikilink；月计划新建 / 对齐（见 Files；验证报告骨架与滚动更新自 W43/W44 随做随记，本步仅收口）；CLAUDE.md / AGENTS.md 项目结构段补 `analysis/` 域、`interfaces/analysis.py`、`db/models_analysis.py`、`db/migrate.py`、`scripts/eval_p6.py`，**当前阶段段（逐阶段 ✅ 列表）补 P6 完成行**；roadmap 移交注记：P7 段记多轮对话状态与团队级自定义模板注册表评估（锚点 2026-W47）及 e2e 链路补建，P8 段记报告生命周期（删除 / 版本化 / 复核流）与置信度校准（ECE）去向，P9 段记 L2 主题摘要（**注明 P2 原指派 P6、此处改道**）与 `api/deps.py:89`、谓词下推去向。
-- [ ] **Step 6:** 提交：`feat(frontend): 第二批分析渲染与自定义表单` + `docs(verification): P6 验证报告与文档同步`（拆两笔亦可，均在本 Task 勾除）。
+- [x] **Step 1:** 写失败测试：第二批类型组件渲染 + 自定义表单校验提示。
+- [x] **Step 2:** 跑确认失败 → 实现 → 跑绿三件套 → preview 闭环（4 类各提交一次 + 自定义 400 提示路径 + 三角色回归抽查）。
+- [x] **Step 3:** 离线轨：`uv run pytest -v` 全量绿 + `python scripts/eval_p6.py` 落盘 `p6-regression.json` 留痕；质量轨（用户本机，锚点 2026-W45）：`python scripts/eval_p6.py --real`（[[docs/model-selection|模型选型]] 清单内至少一个真模型；本地模型走豁免规则），同批合并补跑 `scripts/eval_p5.py --real`；若解析失败率 > 5% 记入验证报告作为解析链调优依据。
+  **落地注记（2026-08-30）：** 离线轨全绿（1008 passed + eval_p6 重落 15 例全 ok、解析失败率 0）。质量轨 `--real` 不在本会话跑（纪律），顺延锚点 2026-W45 用户本机（含 P5 `--real` 同批），验证报告未竟清单留痕、证据段预留 `p6-real-<模型名>.json`。
+- [x] **Step 4:** 写 `docs/verification/P6-verification.md`（四要素：测试内容 / 技术栈 / 验证原理 / 验证过程 + Task 闭合矩阵 + 未竟清单），明确区分离线 / 质量两轨证据，注明 custom 类评估口径（见 Task 22 留痕）；`docs/verification/README.md` 报告清单表登记一行，**证据文件段登记 `p6-regression.json` 与 `p6-real-<模型名>.json`**（逐件列名，仿 `p5-regression.json` 格式）；`--real` 若延误，留痕顺延 2026-W46。
+- [x] **Step 5:** roadmap P6 状态更新 + 本计划 wikilink；月计划新建 / 对齐（见 Files；验证报告骨架与滚动更新自 W43/W44 随做随记，本步仅收口）；CLAUDE.md / AGENTS.md 项目结构段补 `analysis/` 域、`interfaces/analysis.py`、`db/models_analysis.py`、`db/migrate.py`、`scripts/eval_p6.py`，**当前阶段段（逐阶段 ✅ 列表）补 P6 完成行**；roadmap 移交注记：P7 段记多轮对话状态与团队级自定义模板注册表评估（锚点 2026-W47）及 e2e 链路补建，P8 段记报告生命周期（删除 / 版本化 / 复核流）与置信度校准（ECE）去向，P9 段记 L2 主题摘要（**注明 P2 原指派 P6、此处改道**）与 `api/deps.py:89`、谓词下推去向。
+- [x] **Step 6:** 提交：`feat(frontend): 第二批分析渲染与自定义表单` + `docs(verification): P6 验证报告与文档同步`（拆两笔亦可，均在本 Task 勾除）。
 
 ---
 
