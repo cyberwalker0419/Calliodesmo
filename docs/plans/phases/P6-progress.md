@@ -11,7 +11,7 @@ created: 2026-08-30
 
 ## 总进度：23/23 必做 + 可选 #24 完成
 
-- 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
+- 分支：`feat/p6-llm-analysis-tasks`（已 push origin，PR #11 已开：https://github.com/cyberwalker0419/Calliodesmo/pull/11，待审合入）
 - 测试基线：**1015 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475；Task 22 自定义分析 +36；Task 24 analyze CLI +7）；前端 vitest **62 passed**（Task 18 +9 / Task 19 +11 / Task 20 +17 / Task 23 +10；开工前 15）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
@@ -40,7 +40,7 @@ created: 2026-08-30
 
 ## 移交注意事项
 
-- **`--real` 质量补跑已完成**（原锚点 2026-W45 提前于 2026-08-30（2026-W35）执行完毕；用户本机真模型 `Qwen3.8-27B-Q4_K_M`（GGUF Q4_K_M，LM Studio @ 192.168.50.97:8081，thinking 禁，32768 上下文约束））：两份证据已落盘并将随本次提交入库——`docs/verification/p6-real-Qwen3.8-27B-Q4_K_M.json`（`eval_p6.py --real`，15 例全 ok，mean_field_f1 0.1136 / mean_tuple_f1 0.5643 / mean_judge 4.4）与 `docs/verification/p5-real-Qwen3.8-27B-Q4_K_M.json`（`eval_p5.py --real`，9 例 × 6 配置三指标全 1.0000，小语料无区分度）；已登记 `docs/verification/README.md` 并更新 `docs/verification/P6-verification.md` 质量轨章节与未竟清单。离线基线 `p5-regression.json` / `p6-regression.json` 保持原样（离线≠质量，双轨口径不变）。收口待办已勾除。
+- **`--real` 质量补跑已完成**（原锚点 2026-W45 提前于 2026-08-30（2026-W35）执行完毕；用户本机真模型 `Qwen3.8-27B-Q4_K_M`（GGUF Q4_K_M，LM Studio @ 192.168.50.97:8081，thinking 禁，32768 上下文约束））：两份证据已入库（`0d4da38` + 审查修复 `100a50d`）——`docs/verification/p6-real-Qwen3.8-27B-Q4_K_M.json`（`eval_p6.py --real`，15 例全 ok，mean_field_f1 0.1136 / mean_tuple_f1 0.5643 / mean_judge 4.4）与 `docs/verification/p5-real-Qwen3.8-27B-Q4_K_M.json`（`eval_p5.py --real`，9 例 × 6 配置三指标全 1.0000，小语料无区分度）；已登记 `docs/verification/README.md` 并更新 `docs/verification/P6-verification.md` 质量轨章节与未竟清单。离线基线 `p5-regression.json` / `p6-regression.json` 保持原样（离线≠质量，双轨口径不变）。收口待办已勾除。
 - **P6 离线基线已落盘**（Task 17 立基线，Task 21 第二批补 5 例重落，`docs/verification/p6-regression.json`）：15 例全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0（桩零区分度）/ mean_judge_overall 3.0（桩固定分）——结构/契约证据，非质量结论；第二批（Task 21–22）门槛之一已满足。
 - **Task 22 自定义分析已交付**（2026-08-30，`feat(analysis): 自定义分析（注入防御 + 动态 spec）`）：新 `analysis/sanitize.py`（`sanitize_user_schema` 拒根非对象 / `$ref` / 循环 / 深度 >4 / 键 >30 / 超字节 + `trim_to_safe_json_schema` 白名单裁剪）；`specs.py` 注册 `custom`（9 类全注册）+ `build_custom_spec` 安全闸门；新模板 `custom.txt`（指令 / schema / 材料均在 user 段）；`render_prompt` `{instruction}` 只进 user、system 令牌清除（结构性隔离，注入探针锁定）。**留痕**：团队级自定义模板注册表 + 完整 `jsonschema` 校验 → P7 评估（锚点 2026-W47）；custom 无固定金标，评估口径 = 结构校验 + judge 参考分（验证报告归 Task 23）。前端自定义表单归 Task 23，本任务未动前端。
 - **Task 25 不做**：按计划顺延 2026-W49（P9 模型层清单）。
