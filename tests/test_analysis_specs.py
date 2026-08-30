@@ -9,9 +9,10 @@
   ``granularity`` 三值枚举、exact / approximate 必须给归一化日期、relative 允许缺省
   （模糊时间不得臆造精确日期）；
 - ``AnalysisTaskSpec`` 注册表：第一批 5 类（Task 5）+ 第二批 3 类（关系映射 / 任务 /
-  概念，Task 21 接线）均已注册；``custom`` 仍待 ``build_custom_spec``（Task 22），
-  未注册类型 ``get_spec`` 抛 ``KeyError``（API 层转 400，未交付类型天然不可提交）；
-- ``build_custom_spec`` 仅声明 / 占位，实现留 Task 22（2026-W44）。
+  概念，Task 21 接线）+ ``custom``（Task 22 动态构造）= 9 类全注册；``get_spec``
+  对非法类型字符串抛 ``ValueError``（API 层转 400）；
+- ``build_custom_spec``（Task 22 实现）：校验指令非空 + sanitize 用户 schema 后
+  返回已注册的 custom 规格；安全闸门细目见 ``tests/test_analysis_sanitize.py``。
 """
 
 import dataclasses
@@ -98,7 +99,8 @@ _SECOND_BATCH = [
     AnalysisType.CONCEPTS,
 ]
 
-#: 两批合计 8 类模板驱动 / 检索驱动类型（custom 仍留 Task 22 动态构造）
+#: 两批合计 8 类模板驱动 / 检索驱动类型 + 自定义（custom 经 build_custom_spec 动态构造，
+#: Task 22 注册进 BUILTIN_ANALYSIS_SPECS，模板驱动链路消费）
 _ALL_REGISTERED = _FIRST_BATCH + _SECOND_BATCH
 
 _EXPECTED_OUTPUT_CLS = {
@@ -110,6 +112,7 @@ _EXPECTED_OUTPUT_CLS = {
     AnalysisType.RELATION_MAPPING: RelationMappingReport,
     AnalysisType.TASKS: ActionItemReport,
     AnalysisType.CONCEPTS: ConceptReport,
+    AnalysisType.CUSTOM: CustomReport,
 }
 
 
@@ -470,11 +473,12 @@ class TestAnalysisTaskSpec:
 
 
 class TestRegistry:
-    def test_two_batches_registered_exactly(self):
-        """第一批 5 类 + 第二批 3 类均已注册；custom 仍留 Task 22 动态构造。"""
-        assert set(BUILTIN_ANALYSIS_SPECS) == set(_ALL_REGISTERED)
+    def test_all_nine_types_registered(self):
+        """第一批 5 类 + 第二批 3 类 + custom（Task 22 动态构造）= 9 类全注册。"""
+        assert set(BUILTIN_ANALYSIS_SPECS) == set(_ALL_REGISTERED) | {AnalysisType.CUSTOM}
+        assert len(BUILTIN_ANALYSIS_SPECS) == len(AnalysisType)
 
-    @pytest.mark.parametrize("task_type", _ALL_REGISTERED)
+    @pytest.mark.parametrize("task_type", [*_ALL_REGISTERED, AnalysisType.CUSTOM])
     def test_get_spec_fields(self, task_type):
         spec = get_spec(task_type)
         assert isinstance(spec, AnalysisTaskSpec)
@@ -487,14 +491,10 @@ class TestRegistry:
     def test_get_spec_accepts_str(self):
         assert get_spec("summary").type is AnalysisType.SUMMARY
 
-    def test_unregistered_raises_key_error(self):
-        """custom 未注册抛 KeyError（API 层转 400）——未交付类型天然不可提交。"""
-        with pytest.raises(KeyError):
-            get_spec(AnalysisType.CUSTOM)
-
-    def test_unregistered_str_raises_key_error(self):
-        with pytest.raises(KeyError):
-            get_spec("custom")
+    def test_custom_registered_and_gettable(self):
+        """custom 已注册（Task 22）：get_spec 不再抛 KeyError，模板驱动链路可消费。"""
+        assert get_spec(AnalysisType.CUSTOM).type is AnalysisType.CUSTOM
+        assert get_spec("custom").output_cls is CustomReport
 
     def test_invalid_type_str_raises_value_error(self):
         with pytest.raises(ValueError):
@@ -502,7 +502,15 @@ class TestRegistry:
 
 
 class TestBuildCustomSpec:
-    def test_placeholder_not_implemented(self):
-        """声明 / 占位：实现留 Task 22（2026-W44，sanitize + 注入防御）。"""
-        with pytest.raises(NotImplementedError):
-            build_custom_spec("自由指令", {"type": "object"})
+    def test_returns_spec_for_registered_custom(self):
+        """build_custom_spec（Task 22 实现）：校验后返回已注册的 custom 规格。
+
+        安全闸门（空指令 / 非法 schema）与 sanitize / trim 细目见
+        ``tests/test_analysis_sanitize.py``。
+        """
+        spec = build_custom_spec("提取风险点", {"type": "object"})
+        assert spec is get_spec(AnalysisType.CUSTOM)
+
+    def test_blank_instruction_rejected(self):
+        with pytest.raises(ValueError, match="指令"):
+            build_custom_spec("   ")

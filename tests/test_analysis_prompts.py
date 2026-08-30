@@ -270,6 +270,41 @@ class TestRenderPromptTokens:
         assert "真实问题" not in rendered.user
 
 
+class TestInstructionTokenIsolation:
+    """``{instruction}`` 令牌（Task 22）：自定义指令只进 user 消息，与 system 隔离。"""
+
+    def test_instruction_token_replaced_in_user(self):
+        rendered = render_prompt(
+            load_template("custom.txt"), AnalysisType.CUSTOM, instruction="提取风险点"
+        )
+        assert "{instruction}" not in rendered.user
+        assert "提取风险点" in rendered.user
+
+    def test_instruction_not_substituted_into_system(self):
+        """结构性隔离：即便模板 system 段误含 {instruction}，指令值也不进 system。"""
+        template = PromptTemplate(
+            version=1,
+            system="[ANALYSIS:custom] S:{instruction}",
+            user="U:{instruction}",
+        )
+        rendered = render_prompt(template, AnalysisType.CUSTOM, instruction="越权载荷")
+        assert "越权载荷" in rendered.user
+        assert "越权载荷" not in rendered.system
+        # system 段的令牌被清除而非泄露指令内容
+        assert "{instruction}" not in rendered.system
+
+    def test_real_custom_template_instruction_only_in_user(self):
+        """真实 custom.txt：{instruction} 仅存在于 user 段（与 system 隔离）。"""
+        template = load_template("custom.txt")
+        assert "{instruction}" in template.user
+        assert "{instruction}" not in template.system
+
+    def test_empty_instruction_leaves_no_token(self):
+        rendered = render_prompt(load_template("custom.txt"), AnalysisType.CUSTOM)
+        assert "{instruction}" not in rendered.user
+        assert "{instruction}" not in rendered.system
+
+
 class TestRenderPromptVersion:
     """prompt_version = "<type>.v<version>"（运行记录，评估按版本切片）。"""
 

@@ -1,11 +1,13 @@
 """DefaultAnalysisEngine：prompt → LLM → 解析 → 回喂重试 → 证据自验 → 信封（P6 Task 10）。
 
-模板驱动 8 类离线端到端的执行体（第一批 5 类 + 第二批 3 类已接线，custom 留 Task 22）：
+模板驱动 8 类离线端到端的执行体（第一批 4 类 + 第二批 3 类 + 自定义，Task 22 接线）：
 
 - **模板驱动类型**（摘要 / 关键信息 / 时间线 / 实体识别，第二批 + 关系映射 / 任务 /
-  概念）：``get_spec`` 取注册表 → ``load_template`` / ``render_prompt`` 渲染
-  （预算双闸经 settings 传入）→ ``parse_with_retry`` 包真实 ``LLMProvider.complete``
-  （回喂消息作为追加 user 消息）→ ``verify_evidence`` 证据自验 → ``AnalysisReport``。
+  概念 + 自定义）：``get_spec`` 取注册表 → ``load_template`` / ``render_prompt`` 渲染
+  （预算双闸经 settings 传入；自定义 ``instruction`` / ``schema`` 只进 user 消息，
+  与 system 隔离，见 ``prompts.render_prompt``）→ ``parse_with_retry`` 包真实
+  ``LLMProvider.complete``（回喂消息作为追加 user 消息）→ ``verify_evidence`` 证据自验
+  → ``AnalysisReport``。
 - **问答类型**（QA）：经**构造注入的** ``SearchEngine`` 调 ``.query``（NATIVE_RAG 模式）
   得 ``Answer``，包装为 ``QAReport``——来源标注沿用 ``answer_synthesizer`` 的
   ``[chunk_id]`` 强制引注约定，空候选输出「无可引用证据」。**不得**在引擎内直调
@@ -132,6 +134,7 @@ class DefaultAnalysisEngine(AnalysisEngine):
             materials=materials,
             question=spec.question,
             schema=spec.custom_schema,
+            instruction=spec.custom_instruction,
             max_chunks=self._settings.analysis_max_chunks,
             max_input_chars=self._settings.analysis_max_input_chars,
         )

@@ -406,9 +406,9 @@ class JobOut(BaseModel):
 class AnalysisCustomRequest(BaseModel):
     """自定义分析请求体（custom 类型专用）：``instruction`` 必填，``schema`` 可选。
 
-    ``instruction`` 只进 user 消息（与 system 隔离，收敛注入面）；``schema`` 的
-    sanitize（拒 $ref / 递归 / 超深 / 超大）与 JSON Schema 安全子集裁剪留 Task 22
-    （2026-W44）——此前 custom 类型在请求边界即 400（未交付）。
+    ``instruction`` 只进 user 消息（与 system 隔离，收敛注入面）；``schema`` 经
+    ``analysis/sanitize.py`` 清洗（拒根非对象 / $ref / 递归 / 超深 / 超大 / 超字节）
+    后，于请求边界裁剪为 JSON Schema 安全子集再落 ``task_payload``（Task 22 交付）。
     """
 
     instruction: str = Field(

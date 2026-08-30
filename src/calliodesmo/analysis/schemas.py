@@ -14,7 +14,8 @@
   （``SummaryReport`` / ``QAReport`` / ``CustomReport``）的置信与证据在顶层，
   条目形态（其余六类）的置信与证据在每条 item 上，均由 ``ConfidenceEvidenceBase``
   承载「0–1 区间校验 + 缺证据自动降置信」。第二批 3 类（关系映射 / 任务 / 概念）
-  契约先立、接线已于 Task 21 落地；``CustomReport`` 的注入防御留 Task 22。
+  契约先立、接线已于 Task 21 落地；``CustomReport`` 的注入防御与动态 spec 已于
+  Task 22 落地（见 ``analysis/sanitize.py``）。
 """
 
 import enum

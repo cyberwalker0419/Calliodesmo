@@ -50,8 +50,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from calliodesmo.analysis.factory import build_analysis_engine
 from calliodesmo.analysis.job_worker import run_analysis_job
 from calliodesmo.analysis.report_store import AnalysisReportStore
+from calliodesmo.analysis.sanitize import SchemaSanitizeError, trim_to_safe_json_schema
 from calliodesmo.analysis.schemas import AnalysisEnvelope, AnalysisType
-from calliodesmo.analysis.specs import get_spec
+from calliodesmo.analysis.specs import build_custom_spec, get_spec
 from calliodesmo.api.deps import (
     get_app_stores,
     get_current_context,
@@ -114,20 +115,33 @@ async def submit_analysis_task(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="qa 分析需要 question（不得为空）",
         )
+    # custom 分支（Task 22）：指令必填 + 用户 schema 安全闸门 + 发送前安全子集裁剪。
+    # 指令只进 user 消息（与 system 隔离）；材料仍全经 visible_to（引擎 / 采集边界不变）。
+    custom_schema: dict | None = None
     if task_type is AnalysisType.CUSTOM:
         if req.custom is None or not req.custom.instruction.strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="custom 分析需要 custom.instruction（不得为空）",
             )
-        # TODO(P6 Task 22, 2026-W44)：custom 分支——sanitize_user_schema（拒 $ref / 递归 /
-        # 超深 / 超大）+ build_custom_spec 注册 + 指令注入防御；此前一律 400 未交付。
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="自定义分析尚未交付（P6 Task 22，2026-W44：sanitize 与注入防御先行）",
-        )
+        try:
+            build_custom_spec(
+                req.custom.instruction,
+                req.custom.schema_,
+                max_bytes=settings.analysis_custom_schema_max_bytes,
+            )
+        except SchemaSanitizeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"自定义输出 schema 不可用：{exc}",
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        # provider 发送前裁剪为 JSON Schema 安全子集（去未知键 / 限结构）
+        if req.custom.schema_ is not None:
+            custom_schema = trim_to_safe_json_schema(req.custom.schema_)
     try:
-        get_spec(task_type)  # 注册表校验：未交付类型天然不可提交（KeyError -> 400）
+        get_spec(task_type)  # 注册表校验（9 类均已注册；非法类型已在枚举转换处拦截）
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -159,8 +173,10 @@ async def submit_analysis_task(
             "task_type": task_type.value,
             "doc_ids": list(req.doc_ids),
             "question": req.question or "",
-            "custom_instruction": req.custom.instruction if req.custom else "",
-            "custom_schema": req.custom.schema_ if req.custom else None,
+            "custom_instruction": (
+                req.custom.instruction if task_type is AnalysisType.CUSTOM and req.custom else ""
+            ),
+            "custom_schema": custom_schema,
             "top_k": req.top_k,
         }
     )

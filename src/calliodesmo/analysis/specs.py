@@ -4,20 +4,21 @@
 spec + 一份模板，引擎不改（见计划「注册表与提示词」）。
 
 - ``BUILTIN_ANALYSIS_SPECS``：第一批 5 类（Task 5）+ 第二批 3 类
-  （relation_mapping / tasks / concepts，Task 21 接线）均已注册；
-  ``custom`` 经 ``build_custom_spec`` 动态构造（Task 22）。
-- ``get_spec``：未注册抛 ``KeyError``（API 层转 400）——未交付类型天然不可提交，
-  无需额外开关。
+  （relation_mapping / tasks / concepts，Task 21 接线）+ ``custom``（Task 22 经
+  ``build_custom_spec`` 动态构造后注册）= 9 类全注册。
+- ``get_spec``：非法类型字符串经枚举转换抛 ``ValueError``（API 层转 400）。
 """
 
 from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from calliodesmo.analysis.sanitize import sanitize_user_schema
 from calliodesmo.analysis.schemas import (
     ActionItemReport,
     AnalysisType,
     ConceptReport,
+    CustomReport,
     EntityRecognitionReport,
     KeyInfoReport,
     QAReport,
@@ -54,8 +55,8 @@ def _builtin(task_type: AnalysisType, output_cls: type[BaseModel]) -> AnalysisTa
     )
 
 
-#: 内置规格注册表：第一批 5 类 + 第二批 3 类（关系映射 / 任务 / 概念）均已注册
-#: （契约完整、交付分批）；custom 经 build_custom_spec（Task 22）。
+#: 内置规格注册表：第一批 5 类 + 第二批 3 类（关系映射 / 任务 / 概念）+
+#: ``custom``（Task 22）= 9 类全注册（契约完整、交付分批）。
 BUILTIN_ANALYSIS_SPECS: dict[AnalysisType, AnalysisTaskSpec] = {
     spec.type: spec
     for spec in (
@@ -67,28 +68,48 @@ BUILTIN_ANALYSIS_SPECS: dict[AnalysisType, AnalysisTaskSpec] = {
         _builtin(AnalysisType.RELATION_MAPPING, RelationMappingReport),
         _builtin(AnalysisType.TASKS, ActionItemReport),
         _builtin(AnalysisType.CONCEPTS, ConceptReport),
+        _builtin(AnalysisType.CUSTOM, CustomReport),
     )
 }
 
 
 def get_spec(task_type: AnalysisType | str) -> AnalysisTaskSpec:
-    """取指定分析类型的规格；未注册抛 ``KeyError``（API 层转 400）。
+    """取指定分析类型的规格；非法类型字符串经枚举转换抛 ``ValueError``（API 层转 400）。
 
-    接受枚举或其字符串值：非法类型字符串经枚举转换抛 ``ValueError``；
-    合法但未注册的类型（``custom``，动态构造留 Task 22）抛 ``KeyError``——
-    未交付类型天然不可提交。
+    接受枚举或其字符串值：9 类（含 ``custom``，Task 22）均已注册，合法类型恒可取到规格。
     """
     key = AnalysisType(task_type)
     return BUILTIN_ANALYSIS_SPECS[key]
 
 
-def build_custom_spec(instruction: str, schema: dict | None = None) -> AnalysisTaskSpec:
-    """动态构造自定义分析规格（仅声明 / 占位，实现留 Task 22，2026-W44）。
+def build_custom_spec(
+    instruction: str, schema: dict | None = None, *, max_bytes: int | None = None
+) -> AnalysisTaskSpec:
+    """动态构造自定义分析规格（Task 22）：安全闸门 + 返回已注册的 custom 规格。
 
-    未竟：用户 schema sanitize（拒 $ref / 递归 / 超深 / 超大）+ JSON Schema 安全子集
-    裁剪 + 指令注入防御 → P6 Task 22（2026-W44）；此前调用一律抛 ``NotImplementedError``。
+    职责（仅安全闸门）：
+
+    - 校验 ``instruction`` 非空白（自定义指令必填）；
+    - ``schema`` 非 ``None`` 时经 ``sanitize_user_schema`` 清洗（拒 ``$ref`` /
+      递归 / 超深 / 超大 / 超字节），违规抛 ``SchemaSanitizeError``（API 层转 400）。
+
+    返回 ``BUILTIN_ANALYSIS_SPECS`` 中已注册的 custom 规格（``CustomReport`` /
+    ``custom.txt`` / ``[ANALYSIS:custom]``）——引擎经 ``get_spec`` 消费同一对象。
+    ``instruction`` / ``schema`` 不进规格本身：二者经 ``AnalysisSpec`` 于渲染期注入，
+    且只进 user 消息（与 system 隔离，见 ``prompts.render_prompt`` 与注入探针测试）。
+
+    参数:
+        instruction: 自定义分析指令（非空白，否则 ``ValueError``）。
+        schema: 可选输出 schema；``None`` = 无结构约束。
+        max_bytes: schema 序列化字节上限；``None`` = 用
+            ``sanitize.DEFAULT_CUSTOM_SCHEMA_MAX_BYTES``（API 侧经 settings 显式传入）。
+
+    异常:
+        ValueError: ``instruction`` 为空白。
+        SchemaSanitizeError: ``schema`` 未通过安全清洗。
     """
-    raise NotImplementedError(
-        "自定义分析规格构造为 P6 Task 22（2026-W44）范围："
-        "需 sanitize_user_schema 与注入防御先行落地"
-    )
+    if not instruction or not instruction.strip():
+        raise ValueError("自定义分析指令不得为空（custom.instruction 必填，非空白）")
+    if schema is not None:
+        sanitize_user_schema(schema, max_bytes=max_bytes)
+    return BUILTIN_ANALYSIS_SPECS[AnalysisType.CUSTOM]

@@ -340,19 +340,16 @@ async def test_submit_summary_accepted_and_e2e(session):
 
 
 async def test_submit_unregistered_task_type_400(session):
-    """未注册 task_type -> 400：未交付类型（custom，留 Task 22）与非法字符串拦在边界。
+    """未注册 task_type -> 400：非法字符串拦在边界。
 
-    第二批 3 类（关系映射 / 任务 / 概念）已注册（Task 21），不在此列——
-    其可提交性由 ``test_submit_second_batch_types_accepted_e2e`` 锁定。
+    9 类（含 custom，Task 22）均已注册；第二批 3 类可提交性由
+    ``test_submit_second_batch_types_accepted_e2e`` 锁定，custom 由
+    ``test_submit_custom_accepted_e2e`` 锁定。
     """
     _, token = await _seed_actor(session, "badtype", {Permission.ANALYZE})
     async with _make_client(session) as c:
-        resp = await c.post("/analysis/tasks", json={"task_type": "custom"}, headers=_auth(token))
+        resp = await c.post("/analysis/tasks", json={"task_type": "nonsense"}, headers=_auth(token))
         assert resp.status_code == 400, resp.text
-        resp2 = await c.post(
-            "/analysis/tasks", json={"task_type": "nonsense"}, headers=_auth(token)
-        )
-        assert resp2.status_code == 400, resp2.text
 
 
 @pytest.mark.parametrize("task_type", ["relation_mapping", "tasks", "concepts"])
@@ -402,7 +399,11 @@ async def test_submit_qa_without_question_400(session):
 
 
 async def test_submit_custom_requires_instruction_400(session):
-    """custom 缺 instruction -> 400；带 instruction 亦 400（交付留 Task 22，2026-W44）。"""
+    """custom 缺 instruction（或空白 / 缺 custom 体）-> 400。
+
+    带合法 instruction 的提交已由 Task 22 交付 -> 202，见
+    ``test_submit_custom_accepted_e2e``。
+    """
     _, token = await _seed_actor(session, "custom", {Permission.ANALYZE})
     async with _make_client(session) as c:
         resp = await c.post("/analysis/tasks", json={"task_type": "custom"}, headers=_auth(token))
@@ -419,13 +420,66 @@ async def test_submit_custom_requires_instruction_400(session):
             headers=_auth(token),
         )
         assert resp3.status_code == 400, resp3.text
-        # 完整合法的 custom 请求：类型未注册（交付留 Task 22）-> 400 可读
-        resp4 = await c.post(
+
+
+async def test_submit_custom_accepted_e2e(session):
+    """custom 交付（Task 22）：合法指令 + 可选 schema -> 202 -> succeeded -> 报告详情可见。
+
+    桩对 [ANALYSIS:custom] 固定输出 fields 开放字典 -> CustomReport 校验通过。
+    """
+    user, token = await _seed_actor(session, "custom-e2e", {Permission.ANALYZE})
+    await get_app_stores().vector_store.upsert_chunks(
+        [
+            _chunk(
+                "alpha.md#0",
+                user.id,
+                doc_id="alpha.md",
+                content="阿尔法文档第一块。",
+                metadata={"title": "Alpha 文档"},
+            )
+        ]
+    )
+    schema = {"type": "object", "properties": {"风险等级": {"type": "string"}}}
+    async with _make_client(session) as c:
+        resp = await c.post(
             "/analysis/tasks",
-            json={"task_type": "custom", "custom": {"instruction": "提取风险点"}},
+            json={"task_type": "custom", "custom": {"instruction": "提取风险点", "schema": schema}},
             headers=_auth(token),
         )
-        assert resp4.status_code == 400, resp4.text
+        assert resp.status_code == 202, resp.text
+        body = resp.json()
+        assert body["task_type"] == "custom"
+        job = (await c.get(f"/jobs/{body['job_id']}", headers=_auth(token))).json()
+        assert job["status"] == "succeeded", job
+        assert job["report_id"] is not None
+        detail = (await c.get(f"/analysis/reports/{job['report_id']}", headers=_auth(token))).json()
+        assert detail["task_type"] == "custom"
+        assert detail["status"] == "ok"
+        assert detail["prompt_version"] == "custom.v1"
+        # CustomReport 载荷：fields 开放字典落位
+        assert "fields" in detail["payload"]
+
+
+async def test_submit_custom_bad_schema_400_readable(session):
+    """custom schema sanitize 失败 -> 400 且错误可读（$ref / 超深 / 超字节各一路径）。"""
+    user, token = await _seed_actor(session, "custom-badschema", {Permission.ANALYZE})
+    await get_app_stores().vector_store.upsert_chunks(
+        [_chunk("a.md#0", user.id, doc_id="a.md", content="材料。", metadata={})]
+    )
+    bad_schemas = [
+        ({"$ref": "#/definitions/x"}, "$ref"),  # 拒 $ref
+        ({"a": {"b": {"c": {"d": {"e": "x"}}}}}, "深度"),  # 拒嵌套 >4
+        ({"description": "x" * 5000}, "字节"),  # 拒序列化超字节上限
+    ]
+    async with _make_client(session) as c:
+        for schema, keyword in bad_schemas:
+            resp = await c.post(
+                "/analysis/tasks",
+                json={"task_type": "custom", "custom": {"instruction": "提取", "schema": schema}},
+                headers=_auth(token),
+            )
+            assert resp.status_code == 400, (schema, resp.text)
+            assert keyword in resp.json()["detail"], (schema, resp.json())
 
 
 async def test_submit_doc_ids_invisible_400_no_existence_leak(session):

@@ -72,7 +72,7 @@ created: 2026-08-29
 | 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | ✅ 完成 |
 | 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | ✅ 完成 |
 | 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | ✅ 完成 |
-| 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | 未开始 |
+| 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | ✅ 完成 |
 | 23 | 第二批前端 + 验证报告 + 文档同步 + `--real` 补跑锚点 | ✅ 必做 | 未开始 |
 | 24 | `calliodesmo analyze` CLI（仿 `ask`） | 🔁 可选 | 未开始 |
 | 25 | provider 原生结构化输出能力探测 | 🔁 可选 | 未开始（锚点 2026-W49，P9 模型层清单） |
@@ -695,12 +695,14 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `src/calliodesmo/analysis/sanitize.py` · 改 `src/calliodesmo/analysis/specs.py`（`build_custom_spec` + 注册 `custom`）· 改 `src/calliodesmo/api/analysis.py`（custom 分支）· 测试 `tests/test_analysis_sanitize.py`。
 
-- [ ] **Step 1:** 写失败测试：`sanitize_user_schema` 拒 `$ref` / 递归嵌套 / 深度 >4 / 字段数 >30 / 序列化超 `analysis_custom_schema_max_bytes`；`build_custom_spec(instructions, schema)` 产物可被引擎消费且 provider 发送前裁剪为 JSON Schema 安全子集；指令注入探针——自定义指令试图覆盖 system 约束 / 越权读取材料范围外内容，执行器边界不变（材料仍全经 `visible_to`）；API 层 sanitize 失败 → 400 且错误可读。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现 + 注册。
-- [ ] **留痕:** 团队级自定义模板注册表（仿 `ecl/extraction_template.py`）→ P7 计划评估，锚点 2026-W47；完整 JSON Schema 校验（引 `jsonschema`）随团队级模板一并评估。custom 类无固定金标，评估口径 = 结构校验（sanitize 通过 + schema 符合）+ judge 参考分，验证报告中注明该口径（Task 23 落）。
-- [ ] **Step 4:** 跑绿（第一批 5 类 + 第二批 3 类回归不红）。
-- [ ] **Step 5:** 提交：`feat(analysis): 自定义分析（注入防御 + 动态 spec）`。
+- [x] **Step 1:** 写失败测试：`sanitize_user_schema` 拒 `$ref` / 递归嵌套 / 深度 >4 / 字段数 >30 / 序列化超 `analysis_custom_schema_max_bytes`；`build_custom_spec(instructions, schema)` 产物可被引擎消费且 provider 发送前裁剪为 JSON Schema 安全子集；指令注入探针——自定义指令试图覆盖 system 约束 / 越权读取材料范围外内容，执行器边界不变（材料仍全经 `visible_to`）；API 层 sanitize 失败 → 400 且错误可读。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现 + 注册。
+- [x] **留痕:** 团队级自定义模板注册表（仿 `ecl/extraction_template.py`）→ P7 计划评估，锚点 2026-W47；完整 JSON Schema 校验（引 `jsonschema`）随团队级模板一并评估。custom 类无固定金标，评估口径 = 结构校验（sanitize 通过 + schema 符合）+ judge 参考分，验证报告中注明该口径（Task 23 落）。
+- [x] **Step 4:** 跑绿（第一批 5 类 + 第二批 3 类回归不红）。
+- [x] **Step 5:** 提交：`feat(analysis): 自定义分析（注入防御 + 动态 spec）`。
+
+**落地注记（2026-08-30）：** 新 `analysis/sanitize.py`——`sanitize_user_schema`（拒根非对象 / `$ref` 任意深度 / 循环引用 / 深度 >4 / 键总数 >30 / 序列化超 `analysis_custom_schema_max_bytes`，违规抛可读 `SchemaSanitizeError` → API 400）+ `trim_to_safe_json_schema`（白名单键裁剪为 JSON Schema 安全子集，去未知键 / 限深，provider 只见裁剪后子集）。`specs.py` 注册 `custom` 进 `BUILTIN_ANALYSIS_SPECS`（9 类全注册）+ `build_custom_spec` 安全闸门（空指令 / 非法 schema 拦截）；新模板 `config/analysis_prompts/custom.txt`（`[ANALYSIS:custom]` 标记，`{instruction}` / `{schema}` / `{materials}` 均在 user 段）。**注入隔离**：`render_prompt` 的 `{instruction}` 只替换进 user 段，system 段令牌被清除——指令与 system 约束结构性隔离；注入探针测试锁定（恶意 / 良性指令渲染的 system 完全一致）。材料仍全经 `visible_to`（采集 / 引擎边界不变）。全量 1008 passed, 1 skipped（+36：sanitize 新文件 24 / specs+prompts+engine 扩展 10 / API 2）。custom 离线桩无金标，结构 / 契约证据，非质量结论（口径见上留痕）。
 
 ---
 

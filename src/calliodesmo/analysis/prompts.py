@@ -9,10 +9,11 @@
   可经 ``template_dir`` 覆盖，测试用临时目录）。
 - 模板分 ``===SYSTEM===`` / ``===USER===`` 两段：system 承载角色声明与输出契约，
   user 承载 ``{materials}`` / ``{question}`` 等令牌。
-- 令牌替换：``{materials}`` / ``{question}`` / ``{schema}``（``{instruction}`` 属自定义类，
-  Task 22 落，2026-W44）。替换用逐令牌 ``str.replace`` 而非 ``str.format``——模板内的
-  输出 schema 示例含 JSON 花括号，``format`` 会误伤；且材料**最后**替换，材料文本中的
-  令牌字面量不会被二次替换（注入边界，见测试锁定）。
+- 令牌替换：``{materials}`` / ``{question}`` / ``{schema}`` / ``{instruction}``。
+  ``{instruction}`` 属自定义类（Task 22）：只替换进 user 段，system 段的该令牌被清除
+  而非替换——指令与 system 约束隔离，收敛注入面。替换用逐令牌 ``str.replace`` 而非
+  ``str.format``——模板内的输出 schema 示例含 JSON 花括号，``format`` 会误伤；且材料
+  **最后**替换，材料文本中的令牌字面量不会被二次替换（注入边界，见测试锁定）。
 - 预算双闸在 render 侧执行：``max_chunks``（材料块数）+ ``max_input_chars``（材料文本
   总字符）；采集侧截断属材料采集器（Task 9），此处为成本闸兜底。
 - ``prompt_version = "<type>.v<version>"`` 落运行记录，评估可按版本切片。
@@ -162,13 +163,16 @@ def render_prompt(
     materials: Sequence[Any] = (),
     question: str = "",
     schema: dict | None = None,
+    instruction: str = "",
     max_chunks: int | None = None,
     max_input_chars: int | None = None,
 ) -> RenderedPrompt:
     """渲染分析提示词（纯函数）：令牌替换 + 预算双闸 + 版本号。
 
-    - 令牌替换：``{materials}`` / ``{question}`` / ``{schema}``；材料最后替换，
-      材料文本内的令牌字面量不被二次替换；
+    - 令牌替换：``{materials}`` / ``{question}`` / ``{schema}`` / ``{instruction}``；
+      材料最后替换，材料文本内的令牌字面量不被二次替换；
+    - **``{instruction}`` 注入隔离（Task 22）**：自定义指令只替换进 user 段，system 段
+      的该令牌被清除而非替换——指令与 system 约束隔离，收敛注入面（见注入探针测试）；
     - 预算双闸：``max_chunks``（默认 ``DEFAULT_MAX_CHUNKS``）+ ``max_input_chars``
       （默认 ``DEFAULT_MAX_INPUT_CHARS``），引擎侧经 settings 显式传入；
     - ``prompt_version = "<type>.v<version>"``，落运行记录，评估按版本切片。
@@ -186,17 +190,16 @@ def render_prompt(
     )
     schema_block = json.dumps(schema, ensure_ascii=False) if schema is not None else _EMPTY_SCHEMA
 
-    def _substitute(text: str) -> str:
-        # question / schema 先行，材料最后：材料文本内的令牌字面量不被二次替换
-        return (
-            text.replace("{question}", question)
-            .replace("{schema}", schema_block)
-            .replace("{materials}", materials_block)
-        )
+    def _substitute(text: str, *, allow_instruction: bool) -> str:
+        # question / schema / instruction 先行，材料最后：材料文本内的令牌字面量不被二次替换；
+        # instruction 仅替换进 user 段（与 system 隔离），system 段令牌清除不泄露指令内容
+        result = text.replace("{question}", question).replace("{schema}", schema_block)
+        result = result.replace("{instruction}", instruction if allow_instruction else "")
+        return result.replace("{materials}", materials_block)
 
     return RenderedPrompt(
-        system=_substitute(template.system),
-        user=_substitute(template.user),
+        system=_substitute(template.system, allow_instruction=False),
+        user=_substitute(template.user, allow_instruction=True),
         prompt_version=f"{t.value}.v{template.version}",
         included_chunk_ids=tuple(chunk_id for chunk_id, _ in selected),
     )
