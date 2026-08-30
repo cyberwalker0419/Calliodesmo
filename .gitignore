@@ -46,3 +46,6 @@ frontend/*.config.js
 frontend/*.config.d.ts
 frontend/vitest.setup.js
 frontend/vitest.setup.d.ts
+
+# 根目录误装依赖产物（前端依赖在 frontend/ 内隔离）
+node_modules/
