@@ -18,7 +18,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 `docs/plans/phases/P4.5-persistence-production.md`）
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 `docs/plans/phases/P5-advanced-rag.md`）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 `docs/plans/phases/P6-llm-analysis-tasks.md` 与 `docs/verification/P6-verification.md`）
-- **P7** Agent 模式 🚧 计划定稿（2026-08-30，自 2026-W36 开工：ReAct 主链 + PlanExecute 可选 + ReWOO 暂缓留痕；工具定义 + 权限内行动 + 多轮对话状态（PG checkpointer）；承接模板注册表评估与 e2e 补建，锚点重锚 2026-W47→W44；详见 `docs/plans/phases/P7-agent-mode.md`）
+- **P7** Agent 模式 ✅ 完成（2026-08-31，PR 待合；详见 `docs/plans/phases/P7-agent-mode.md` 与 `docs/verification/P7-verification.md`）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -61,9 +61,10 @@ src/calliodesmo/
 ├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me、/query）
 ├── auth/         三维权限：models / security(Argon2+JWT) / context / service
 ├── audit/        审计日志（谁/何时/做了什么/从哪来）
-├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / migrate.py 幂等补列）
+├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / models_agent.py 会话三表 / migrate.py 幂等补列）
 ├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
 ├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store）
+├── agent/        P7 Agent 域（errors / registry / tools / budget / graph / access / history / checkpoint / factory / job_worker）
 ├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis ...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
 ├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
@@ -83,7 +84,7 @@ docs/
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
 config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml + analysis_prompts/（P6 九类模板）+ golden_analysis.yaml（P6 评估 golden）
-scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）+ eval_p5.py / eval_p6.py（评估回归，--real 切真模型）
+scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）+ eval_p5.py / eval_p6.py / eval_agent.py（评估回归，--real 切真模型）
 .github/workflows/ci.yml   CI：ruff + pytest
 ```
 

@@ -10,7 +10,7 @@ created: 2026-08-30
 
 > 介于 [[docs/plans/phases/P6-llm-analysis-tasks|P6 LLM 分析任务]]（已完成并合入，PR #11）与 P8 证据验证与幻觉检测（待启动）之间。P6 让平台「会分析」（单次提交 → 单轮结构化报告）；P7 让平台「会行动、会对话」：围绕三层知识图谱已落库的能力，建**工具定义 + 多步推理（ReAct / PlanExecute，LangGraph 状态图）+ 多轮对话状态（PG checkpointer）**，一切行动受三维权限约束（「权限内行动」），同批承接 P6 移交三项——团队级自定义分析模板注册表评估（原锚点 2026-W47 → 重锚 W44）、`frontend/e2e` 链路补建（原锚点 2026-W47 起 → 重锚 W44）、多轮对话状态（P5 唯一显式移交，并入 P7 本体）。跨文档证据核验与幻觉检测属 P8，写行动工具属 P8+，持久队列与规模化属 P9，本阶段一律不碰。v1 工具集只读 + 分析桥；P6 产出的结构化报告契约与任务注册表被 Agent 直接消费、零返工（P6 移交承诺兑现）。
 
-> **For agentic workers:** 严格按 Task 编号顺序执行（顺序由 [[docs/plans/roadmap|年计划]] 与「为什么是这个顺序」锁定）；步骤用 checkbox（`- [ ]`）跟踪；每 Task 内遵循 TDD 五连（写失败测试 → 跑确认失败 → 实现 → 跑绿 → 提交，可加装配 / 迁移步骤）；不得并行跨 Task 提交，不得跨 Task 顺手扩张范围，发现的额外问题就地留痕（未竟点 + 周次 `2026-Www`）；新 ORM 必须在 `models.py` 集中导入注册；新配置项必须 `config.py` 与 `.env.example` 双同步；DB 依赖测试自动打 `@pytest.mark.db`（CI 以 `-m "not db"` 跳过，本地 `.env` 全量回归留证据）；验收口径双轨——**离线证据只承诺结构与契约，质量证据必须 `--real` 真模型补跑**（见「目标与范围 · 验收口径」）；有视觉表现的前端改动必须走 `preview_*` 交互闭环 + 三角色权限矩阵；**agent 一切工具调用必须过三维权限门控，越权与不存在返回同一错误消息（不泄漏存在性）**；agent 依赖走 extra `agent`，运行时懒导入 + 缺依赖友好报错（503 同 ingest 惯例）；全量回归不低于基线 **1015 passed**。
+> **For agentic workers:** 严格按 Task 编号顺序执行（顺序由 [[docs/plans/roadmap|年计划]] 与「为什么是这个顺序」锁定）；步骤用 checkbox（`- [ ]`）跟踪；每 Task 内遵循 TDD 五连（写失败测试 → 跑确认失败 → 实现 → 跑绿 → 提交，可加装配 / 迁移步骤）；不得并行跨 Task 提交，不得跨 Task 顺手扩张范围，发现的额外问题就地留痕（未竟点 + 周次 `2026-Www`）；新 ORM 必须在 `models.py` 集中导入注册；新配置项必须 `config.py` 与 `.env.example` 双同步；DB 依赖测试自动打 `@pytest.mark.db`（CI 以 `-m "not db"` 跳过，本地 `.env` 全量回归留证据）；验收口径双轨——**离线证据只承诺结构与契约，质量证据必须 `--real` 真模型补跑**（见「目标与范围 · 验收口径」）；有视觉表现的前端改动必须走 `preview_*` 交互闭环 + 三角色权限矩阵 + **多视口 DOM 探针自动巡检**（横向溢出 / 竖排挤压 / 遮挡，发现即修、复验至零异常才进下一步，2026-08-31 用户指令固化）；**agent 一切工具调用必须过三维权限门控，越权与不存在返回同一错误消息（不泄漏存在性）**；agent 依赖走 extra `agent`，运行时懒导入 + 缺依赖友好报错（503 同 ingest 惯例）；全量回归不低于基线 **1015 passed**。
 
 > [!note] 重锚说明
 > P6 原排期 2026-W36–W45，实际于 2026-08-30（2026-W35）提前全部闭合并合入 main（约 10 周提前量），W36–W46 窗口整体让渡给 P7：P7 自 **2026-W36（08/31–09/06）** 直接开工（roadmap 时间表「P7 Agent 模式 | 2026-W36–W48，W36 提前开工」即此窗口）；原移交锚点 2026-W47 两项（团队级模板注册表评估、e2e 补建）提前重锚至 **2026-W44**；`--real` 质量补跑定锚 **2026-W45**。重锚做法仿 P6 把 `--real` 从 W45 提前到 W35 的先例。
@@ -60,29 +60,29 @@ created: 2026-08-30
 
 | # | Task | 承诺 | 状态 |
 |---|---|---|---|
-| 1 | 前置批：清 W36/W37 移交操作债（GLM-EYE 复跑 / demo_seed / 移动侧栏 / logout+cookie） | ✅ 必做 | 未开始 |
-| 2 | 依赖引入与钉版验证：extra `agent`（langgraph 家族）+ Windows wheel + CI 接线 | ✅ 必做 | 未开始 |
-| 3 | LLMProvider 原生工具调用契约扩展 | ✅ 必做 | 未开始 |
-| 4 | StubLLM `[AGENT:*]` 脚本化工具序列分支 | ✅ 必做 | 未开始 |
-| 5 | 工具契约：`interfaces/agent.py` 冻结 + 注册表 + 三维权限门控 | ✅ 必做 | 未开始 |
-| 6 | BaseChatModel 适配器：LLMProvider → LangGraph 桥 | ✅ 必做 | 未开始 |
-| 7 | 第一批工具：只读检索 / 图谱 / 实体 / 文档 / 社区 | ✅ 必做 | 未开始 |
-| 8 | 第二批工具：分析桥（reports + run_analysis） | ✅ 必做 | 未开始 |
-| 9 | 评估 harness v1：agent golden 轨迹集 + 指标 + 边界探针（离线） | ✅ 必做 | 未开始 |
-| 10 | ReAct 手写 StateGraph + 三重预算帽 | ✅ 必做 | 未开始 |
-| 11 | 会话 ORM 三表 + AsyncPostgresSaver 接线 | ✅ 必做 | 未开始 |
-| 12 | 多轮状态 × 三维权限交叉专项（历史截断 + 降级重验 + 注入探针） | ✅ 必做 | 未开始 |
-| 13 | 回合编排 worker：job 范式 + AccessContext 重建 + 审计 | ✅ 必做 | 未开始 |
-| 14 | API 面：`/agent` sessions / runs / messages（job 范式） | ✅ 必做 | 未开始 |
-| 15 | 前端聊天面：会话列表 + 消息流 + 工具轨迹 + 轮询（preview 闭环） | ✅ 必做 | 未开始 |
-| 16 | e2e 补建：`frontend/e2e` smoke 套件六组（本地绿，不进 CI；重锚 W47→W44） | ✅ 必做 | 未开始 |
-| 17 | 团队级分析模板注册表评估（评估口径先行；重锚 W47→W44） | ✅ 必做 | 未开始 |
-| 18 | 按评估结论实现轻量模板注册表（评估门控） | 🔁 可选 | 未开始 |
-| 19 | `--real` 质量补跑与验收（锚点 2026-W45） | ✅ 必做 | 未开始 |
-| 20 | Plan-and-Execute 可选模式（批 2，条件启动） | 🔁 可选 | 未开始 |
-| 21 | 回合 SSE 流式（可选增强） | 🔁 可选 | 未开始 |
-| 22 | ReWOO 归宿留痕（暂缓，锚点 2026-W49） | ⏸ 暂缓 | 未开始 |
-| 23 | 收尾：阶段计划勾除 + 路线图 / 月计划同步 + PR | ✅ 必做 | 未开始 |
+| 1 | 前置批：清 W36/W37 移交操作债（GLM-EYE 复跑 / demo_seed / 移动侧栏 / logout+cookie） | 必做 | ✅（GLM-EYE 仍 401 留痕 W38） |
+| 2 | 依赖引入与钉版验证：extra `agent`（langgraph 家族）+ Windows wheel + CI 接线 | 必做 | ✅ |
+| 3 | LLMProvider 原生工具调用契约扩展 | 必做 | ✅ |
+| 4 | StubLLM `[AGENT:*]` 脚本化工具序列分支 | 必做 | ✅ |
+| 5 | 工具契约：`interfaces/agent.py` 冻结 + 注册表 + 三维权限门控 | 必做 | ✅ |
+| 6 | BaseChatModel 适配器：LLMProvider → LangGraph 桥 | 必做 | ✅ |
+| 7 | 第一批工具：只读检索 / 图谱 / 实体 / 文档 / 社区 | 必做 | ✅ |
+| 8 | 第二批工具：分析桥（reports + run_analysis） | 必做 | ✅ |
+| 9 | 评估 harness v1：agent golden 轨迹集 + 指标 + 边界探针（离线） | 必做 | ✅ |
+| 10 | ReAct 手写 StateGraph + 三重预算帽 | 必做 | ✅ |
+| 11 | 会话 ORM 三表 + AsyncPostgresSaver 接线 | 必做 | ✅（Windows 开发态 InMemory 降级留痕 W49） |
+| 12 | 多轮状态 × 三维权限交叉专项（历史截断 + 降级重验 + 注入探针） | 必做 | ✅ |
+| 13 | 回合编排 worker：job 范式 + AccessContext 重建 + 审计 | 必做 | ✅ |
+| 14 | API 面：`/agent` sessions / runs / messages（job 范式） | 必做 | ✅ |
+| 15 | 前端聊天面：会话列表 + 消息流 + 工具轨迹 + 轮询（preview 闭环） | 必做 | ✅ |
+| 16 | e2e 补建：`frontend/e2e` smoke 套件六组（本地绿，不进 CI；重锚 W47→W44） | 必做 | ✅（LAN DB 抖动留痕，见验证报告） |
+| 17 | 团队级分析模板注册表评估（评估口径先行；重锚 W47→W44） | 必做 | ✅ 结论顺延 P9 |
+| 18 | 按评估结论实现轻量模板注册表（评估门控） | 🔁 可选 | ⏭️ 取消（评估结论顺延 P9） |
+| 19 | `--real` 质量补跑与验收（锚点 2026-W45） | 必做 | ✅（提前于 2026-08-31） |
+| 20 | Plan-and-Execute 可选模式（批 2，条件启动） | 🔁 可选 | 门槛达标，让位收尾（锚点 W49） |
+| 21 | 回合 SSE 流式（可选增强） | 🔁 可选 | 让位（锚点 W49） |
+| 22 | ReWOO 归宿留痕（暂缓，锚点 2026-W49） | ⏸ 暂缓 | ✅ 留痕 |
+| 23 | 收尾：阶段计划勾除 + 路线图 / 月计划同步 + PR | 必做 | 🚧 本会话 |
 
 **为什么是这个顺序**：
 
@@ -108,13 +108,13 @@ created: 2026-08-30
 ## 前置条件（开工前确认）
 
 - [x] P6 合入基线：main 含 PR #11（`5c0bc0b`），全量基线 1015 passed + 1 skipped、前端 vitest 62 passed（2026-08-30 合入时验证）。
-- [ ] 本地 `uv run pytest -v` 全量回归绿确认（真实 PG+pgvector+Neo4j，`.env` 驱动）；`uv sync --extra persistence` 已装（neo4j / pgvector，DB 测试必需）。
+- [x] 本地 `uv run pytest -v` 全量回归绿确认（真实 PG+pgvector+Neo4j，`.env` 驱动）；`uv sync --extra persistence` 已装（neo4j / pgvector，DB 测试必需）。
 - [x] litellm 钉版 `>=1.85,<1.91` 保持不变（≥1.93 无 Windows 预编译 wheel），本阶段**不升级**。
-- [ ] 前端三件套基线绿：`npm run lint && npm run test && npm run build`；`.nvmrc` Node 22；`preview_start frontend-dev`（5173）可用。
-- [ ] dev 演示环境：`serve --seed-demo --port 8200` 可用——当前被 `demo_seed` 缺口卡住，T1 修复后即恢复（preview 闭环与 e2e 的硬前置）；三角色账号按 [[docs/plans/phases/P6-progress|P6 交接]] 口径重建（密码不入库，用完即弃）。
-- [ ] GLM-EYE / MiniMax 识图服务状态：T1 截图复跑项依赖；若未恢复则该项独立顺延留痕（锚点 2026-W38），不阻塞其余三项与 P7 主链（沿用 P6 回退口径）。
-- [ ] `--real` 质量补跑至少一路可用模型（用户本机 LM Studio / ollama 或 API），且该后端支持原生 tool calls；不支持则换模型并留痕（不做文本协议降级）。
-- [ ] 重锚规则确认：多轮状态并入 P7 本体、模板评估 W47→W44、e2e W47→W44、`--real` 定锚 W45；W36–W48 窗口 10-15h/周、周日回顾节奏。
+- [x] 前端三件套基线绿：`npm run lint && npm run test && npm run build`；`.nvmrc` Node 22；`preview_start frontend-dev`（5173）可用。
+- [x] dev 演示环境：`serve --seed-demo --port 8200` 可用——当前被 `demo_seed` 缺口卡住，T1 修复后即恢复（preview 闭环与 e2e 的硬前置）；三角色账号按 [[docs/plans/phases/P6-progress|P6 交接]] 口径重建（密码不入库，用完即弃）。
+- [x] GLM-EYE / MiniMax 识图服务状态：T1 截图复跑项依赖；若未恢复则该项独立顺延留痕（锚点 2026-W38），不阻塞其余三项与 P7 主链（沿用 P6 回退口径）。
+- [x] `--real` 质量补跑至少一路可用模型（用户本机 LM Studio / ollama 或 API），且该后端支持原生 tool calls；不支持则换模型并留痕（不做文本协议降级）。
+- [x] 重锚规则确认：多轮状态并入 P7 本体、模板评估 W47→W44、e2e W47→W44、`--real` 定锚 W45；W36–W48 窗口 10-15h/周、周日回顾节奏。
 
 ## 架构
 
@@ -318,12 +318,12 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 改 `src/calliodesmo/ecl/demo_seed.py`（`_list_demo_files` 改 `rglob` + seed-cache 失效标记）· 改 `frontend/src/features/auth/AuthContext.tsx`（logout 改 `api.post`）· 改 `frontend/src/App.tsx`（`<nav className="flex w-56 shrink-0 ...">` 固定宽改 `<md` 折叠 / 抽屉）· 改 `docs/verification/P6-verification.md`（GLM-EYE 复跑勾除 / 留痕）。
 
-- [ ] **Step 1:** 写失败测试：`demo_seed` 嵌套语料递归发现（`_list_demo_files` 改 `rglob`）+ seed-cache 失效标记（记 team_id / demo_dir 哈希，漂移即重建，旧 `.stale` 缓存迁移）。
-- [ ] **Step 2:** 跑确认失败 → 实现 → 跑绿（db 夹具 + `serve --seed-demo` 冒烟不再 FileNotFoundError）。
-- [ ] **Step 3:** logout 修复：前端 `api.del("/auth/logout")` 改 `api.post`（后端 `api/app.py:103` 为 `POST`）+ 同验 httpOnly cookie 失效（登出后持旧 cookie 过 `/auth/me` 401）。
-- [ ] **Step 4:** 前端移动端侧栏：`App.tsx` 固定 `w-56` nav 改 `<md` 折叠 / 抽屉导航 → 三件套绿 + `preview_resize` mobile 视口验收（全站页面同症一并解除）。
-- [ ] **Step 5:** GLM-EYE 恢复后复跑 P6 t19/t20/t23 截图归档；未恢复则该项留痕（锚点 2026-W38）不阻塞其余三项。
-- [ ] **Step 6:** 提交（分提交）：`fix(ecl): demo_seed 递归与缓存失效` / `fix(auth): logout 方法与 cookie 失效对齐` / `feat(frontend): 移动端折叠侧栏`。
+- [x] **Step 1:** 写失败测试：`demo_seed` 嵌套语料递归发现（`_list_demo_files` 改 `rglob`）+ seed-cache 失效标记（记 team_id / demo_dir 哈希，漂移即重建，旧 `.stale` 缓存迁移）。
+- [x] **Step 2:** 跑确认失败 → 实现 → 跑绿（db 夹具 + `serve --seed-demo` 冒烟不再 FileNotFoundError）。
+- [x] **Step 3:** logout 修复：前端 `api.del("/auth/logout")` 改 `api.post`（后端 `api/app.py:103` 为 `POST`）+ 同验 httpOnly cookie 失效（登出后持旧 cookie 过 `/auth/me` 401）。
+- [x] **Step 4:** 前端移动端侧栏：`App.tsx` 固定 `w-56` nav 改 `<md` 折叠 / 抽屉导航 → 三件套绿 + `preview_resize` mobile 视口验收（全站页面同症一并解除）。
+- [x] **Step 5:** GLM-EYE 恢复后复跑 P6 t19/t20/t23 截图归档；未恢复则该项留痕（锚点 2026-W38）不阻塞其余三项。
+- [x] **Step 6:** 提交（分提交）：`fix(ecl): demo_seed 递归与缓存失效` / `fix(auth): logout 方法与 cookie 失效对齐` / `feat(frontend): 移动端折叠侧栏`。
 
 ---
 
@@ -333,12 +333,12 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 改 `pyproject.toml`（extra `agent`）· 改 `.github/workflows/ci.yml`（后端 job `uv sync --frozen --extra agent`）· 新 `tests/test_agent_deps.py`。
 
-- [ ] **Step 1:** 查证（tavily）：`langgraph` / `langgraph-checkpoint-postgres` / `psycopg[binary]` 稳定版与 cp311 win_amd64 wheel 矩阵，理由落本计划文档。
-- [ ] **Step 2:** 写失败测试：agent extra 懒导入守卫（缺依赖友好报错；装齐后 `import langgraph` / `AsyncPostgresSaver` 成功 + 版本断言）。
-- [ ] **Step 3:** 跑确认失败 → 改 `pyproject.toml`：`agent = ["langgraph>=1.2,<2", "langgraph-checkpoint-postgres>=3.1.1,<4", "psycopg[binary]>=3.2,<3.4", "psycopg-pool>=3.2,<3.4"]`（下限 3.1.1 = CVE-2026-71433 修复版，见 T2 调研证据；注释写明不装 langchain 主体；禁裸 psycopg 与 `psycopg[c]`）。
-- [ ] **Step 4:** `uv lock` + `uv sync --extra agent`：确认 orjson / ormsgpack / psycopg 全 wheel 安装、无源码编译；审 httpx / requests / pydantic 与 litellm 解析无冲突。
-- [ ] **Step 5:** CI 后端 job 改 `uv sync --frozen --extra agent`（保持 `pytest -m "not db"`）→ 跑绿：ruff + pytest 双绿。
-- [ ] **Step 6:** 提交：`chore(deps): 引入 agent extra 并钉版（langgraph>=1.2,<2，P7 Agent 模式）`。
+- [x] **Step 1:** 查证（tavily）：`langgraph` / `langgraph-checkpoint-postgres` / `psycopg[binary]` 稳定版与 cp311 win_amd64 wheel 矩阵，理由落本计划文档。
+- [x] **Step 2:** 写失败测试：agent extra 懒导入守卫（缺依赖友好报错；装齐后 `import langgraph` / `AsyncPostgresSaver` 成功 + 版本断言）。
+- [x] **Step 3:** 跑确认失败 → 改 `pyproject.toml`：`agent = ["langgraph>=1.2,<2", "langgraph-checkpoint-postgres>=3.1.1,<4", "psycopg[binary]>=3.2,<3.4", "psycopg-pool>=3.2,<3.4"]`（下限 3.1.1 = CVE-2026-71433 修复版，见 T2 调研证据；注释写明不装 langchain 主体；禁裸 psycopg 与 `psycopg[c]`）。
+- [x] **Step 4:** `uv lock` + `uv sync --extra agent`：确认 orjson / ormsgpack / psycopg 全 wheel 安装、无源码编译；审 httpx / requests / pydantic 与 litellm 解析无冲突。
+- [x] **Step 5:** CI 后端 job 改 `uv sync --frozen --extra agent`（保持 `pytest -m "not db"`）→ 跑绿：ruff + pytest 双绿。
+- [x] **Step 6:** 提交：`chore(deps): 引入 agent extra 并钉版（langgraph>=1.2,<2，P7 Agent 模式）`。
 
 > [!note] T2 调研证据（2026-08-31 依赖调研工作流：PyPI JSON/文件列表 + 官方文档对抗性核对）
 > - `langgraph` 现稳定 1.2.x（调研时点 1.2.11，本机 lock 解析 1.2.9），纯 Python wheel；`>=1.2,<2` 成立；`create_react_agent` 弃用属实（1.0 起每次调用发 DeprecationWarning，2.0 移除）——手写 StateGraph 决策不变。
@@ -355,11 +355,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 改 `src/calliodesmo/interfaces/llm.py`（`ToolSpec` / `ToolCall` frozen dataclass + `LLMMessage` 可选 `tool_calls` / `tool_call_id` + `LLMResponse` 可选 `tool_calls` + `complete(..., tools=None)`）· 改 `src/calliodesmo/providers/litellm_provider.py`（`acompletion(tools=…)` 透传与解析）· 测试扩展。
 
-- [ ] **Step 1:** 写失败测试：`ToolSpec(name/description/parameters)` 与 `ToolCall(id/name/arguments)` frozen 结构 + `complete(messages, tools=None)` 契约 + 后端不支持时的友好语义。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现：interfaces 数据结构与签名扩展（默认 `None` 保旧调用面零变化）；`LiteLLMProvider` OpenAI 格式透传并解析回 `tool_calls`（usage 口径不变）。
-- [ ] **Step 4:** 跑绿：`sys.modules` 桩 litellm 断言参数映射与解析；全量回归不低于基线 1015 passed。
-- [ ] **Step 5:** 提交：`feat(interfaces): LLMProvider 扩展原生工具调用契约`。
+- [x] **Step 1:** 写失败测试：`ToolSpec(name/description/parameters)` 与 `ToolCall(id/name/arguments)` frozen 结构 + `complete(messages, tools=None)` 契约 + 后端不支持时的友好语义。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现：interfaces 数据结构与签名扩展（默认 `None` 保旧调用面零变化）；`LiteLLMProvider` OpenAI 格式透传并解析回 `tool_calls`（usage 口径不变）。
+- [x] **Step 4:** 跑绿：`sys.modules` 桩 litellm 断言参数映射与解析；全量回归不低于基线 1015 passed。
+- [x] **Step 5:** 提交：`feat(interfaces): LLMProvider 扩展原生工具调用契约`。
 
 ---
 
@@ -369,11 +369,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 改 `src/calliodesmo/providers/stub_llm.py` · 测试 `tests/test_stub_llm.py` 扩展。
 
-- [ ] **Step 1:** 写失败测试：`[AGENT:<script>]` 标记分发脚本化 `tool_calls` 序列（第一步调 `search_knowledge`、喂回工具结果后第二步收尾）；按 messages 中已有 tool 结果判定步序（纯函数无状态）；未知标记 `ValueError`。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现：`_AGENT_PAYLOADS` 查表 + 多轮分发逻辑（既有抽取 / 分析分发优先级不动）；三个基线场景：两步检索 / 越权工具探测（脚本化调用未授权工具）/ 证据不足直答。
-- [ ] **Step 4:** 跑绿：桩单测 + 既有抽取 / 分析桩回归零回归。
-- [ ] **Step 5:** 提交：`feat(providers): StubLLM 支持 AGENT 标记脚本化工具序列`。
+- [x] **Step 1:** 写失败测试：`[AGENT:<script>]` 标记分发脚本化 `tool_calls` 序列（第一步调 `search_knowledge`、喂回工具结果后第二步收尾）；按 messages 中已有 tool 结果判定步序（纯函数无状态）；未知标记 `ValueError`。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现：`_AGENT_PAYLOADS` 查表 + 多轮分发逻辑（既有抽取 / 分析分发优先级不动）；三个基线场景：两步检索 / 越权工具探测（脚本化调用未授权工具）/ 证据不足直答。
+- [x] **Step 4:** 跑绿：桩单测 + 既有抽取 / 分析桩回归零回归。
+- [x] **Step 5:** 提交：`feat(providers): StubLLM 支持 AGENT 标记脚本化工具序列`。
 
 ---
 
@@ -383,11 +383,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/interfaces/agent.py` · `src/calliodesmo/agent/registry.py` · `src/calliodesmo/agent/errors.py` · 测试 `tests/agent/test_registry.py`。
 
-- [ ] **Step 1:** 写失败测试：`ToolSpec` / `ToolCall` / `ToolResult` / `TurnResult` frozen 结构 + `AgentTool` 协议 + `ToolRegistry`（`list_for` / `get` / `dispatch`）+ `AgentEngine` ABC + `AgentMode` 枚举（预留 `rewoo` 值）。
-- [ ] **Step 2:** 写失败测试：越权 dispatch 与不存在工具的错误文本不可区分 + `record_audit` 被调。
-- [ ] **Step 3:** 跑确认失败 → 实现：`interfaces/agent.py` 契约 + `DefaultToolRegistry`（权限门 `list_for(access)` 预过滤 + 参数 JSON Schema 校验拒畸形入参）+ 审计钩子。
-- [ ] **Step 4:** 跑绿：权限矩阵参数化（三角色 × 四密级 × 三 scope，对齐 `DEFAULT_ROLE_PERMISSIONS`）+ 越权探测用例。
-- [ ] **Step 5:** 提交：`feat(agent): 冻结 agent 域契约、工具注册表与三维权限门控`。
+- [x] **Step 1:** 写失败测试：`ToolSpec` / `ToolCall` / `ToolResult` / `TurnResult` frozen 结构 + `AgentTool` 协议 + `ToolRegistry`（`list_for` / `get` / `dispatch`）+ `AgentEngine` ABC + `AgentMode` 枚举（预留 `rewoo` 值）。
+- [x] **Step 2:** 写失败测试：越权 dispatch 与不存在工具的错误文本不可区分 + `record_audit` 被调。
+- [x] **Step 3:** 跑确认失败 → 实现：`interfaces/agent.py` 契约 + `DefaultToolRegistry`（权限门 `list_for(access)` 预过滤 + 参数 JSON Schema 校验拒畸形入参）+ 审计钩子。
+- [x] **Step 4:** 跑绿：权限矩阵参数化（三角色 × 四密级 × 三 scope，对齐 `DEFAULT_ROLE_PERMISSIONS`）+ 越权探测用例。
+- [x] **Step 5:** 提交：`feat(agent): 冻结 agent 域契约、工具注册表与三维权限门控`。
 
 ---
 
@@ -397,11 +397,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/providers/langgraph_adapter.py` · 测试 `tests/test_langgraph_adapter.py`。
 
-- [ ] **Step 1:** 写失败测试：适配器 `_agenerate` 委派 `LLMProvider.complete(tools=)`；`bind_tools` 只存 OpenAI schema 并在调用时透传；`LLMResponse` → `AIMessage(tool_calls)` 映射；懒导入缺 extra 友好报错。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现：`BaseChatModel` 子类（仅依赖 langchain-core，不引 langchain 主体）。
-- [ ] **Step 4:** 跑绿：StubLLM + 适配器 + langgraph `ToolNode` 接线两回合工具循环，断言 id / name / args 映射无损（InMemorySaver）。
-- [ ] **Step 5:** 提交：`feat(providers): LangGraph BaseChatModel 适配器委派自有 LLMProvider`。
+- [x] **Step 1:** 写失败测试：适配器 `_agenerate` 委派 `LLMProvider.complete(tools=)`；`bind_tools` 只存 OpenAI schema 并在调用时透传；`LLMResponse` → `AIMessage(tool_calls)` 映射；懒导入缺 extra 友好报错。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现：`BaseChatModel` 子类（仅依赖 langchain-core，不引 langchain 主体）。
+- [x] **Step 4:** 跑绿：StubLLM + 适配器 + langgraph `ToolNode` 接线两回合工具循环，断言 id / name / args 映射无损（InMemorySaver）。
+- [x] **Step 5:** 提交：`feat(providers): LangGraph BaseChatModel 适配器委派自有 LLMProvider`。
 
 ---
 
@@ -411,11 +411,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/agent/tools/{search,graph,entities,documents,communities}.py` · 测试 `tests/agent/test_tools_read.py`。
 
-- [ ] **Step 1:** 写失败测试：`search_knowledge` 委派 `SearchEngine.query`（三模式 + access 全程传参）；`graph_neighbors`（neighbors / subgraph）与 `list_entities` 传 access。
-- [ ] **Step 2:** 跑确认失败 → 实现检索 / 图谱 / 实体工具（输出截断 + 引注口径）。
-- [ ] **Step 3:** 写失败测试 → 实现 `get_chunk`（`get_chunks_by_ids` 无 access 过滤，工具层必须自补 `visible_to` 逐条复核）+ `list_documents` + `list_communities`。
-- [ ] **Step 4:** 跑绿：逐工具输入映射与输出结构断言（契约先于实现保可插拔）+ clearance / scope 过滤矩阵（越权不泄漏存在性）。
-- [ ] **Step 5:** 提交：`feat(agent): 第一批只读工具（检索/图谱/实体/文档/社区）`。
+- [x] **Step 1:** 写失败测试：`search_knowledge` 委派 `SearchEngine.query`（三模式 + access 全程传参）；`graph_neighbors`（neighbors / subgraph）与 `list_entities` 传 access。
+- [x] **Step 2:** 跑确认失败 → 实现检索 / 图谱 / 实体工具（输出截断 + 引注口径）。
+- [x] **Step 3:** 写失败测试 → 实现 `get_chunk`（`get_chunks_by_ids` 无 access 过滤，工具层必须自补 `visible_to` 逐条复核）+ `list_documents` + `list_communities`。
+- [x] **Step 4:** 跑绿：逐工具输入映射与输出结构断言（契约先于实现保可插拔）+ clearance / scope 过滤矩阵（越权不泄漏存在性）。
+- [x] **Step 5:** 提交：`feat(agent): 第一批只读工具（检索/图谱/实体/文档/社区）`。
 
 ---
 
@@ -425,11 +425,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/agent/tools/analysis.py` · 测试 `tests/agent/test_tools_analysis.py`。
 
-- [ ] **Step 1:** 写失败测试：`reports_list` / `reports_get` 复用 `AnalysisReportStore` 可见语义（不可见返回 `None` → 统一工具错误消息）。
-- [ ] **Step 2:** 写失败测试：`run_analysis` 需 `analyze` 权限（无权限路径用自定义无 ANALYZE 的 AccessContext 夹具——三标准角色均含 ANALYZE），产出 `job_id` / `report_id` 指针（`Job.task_type="analyze"` 范式）。
-- [ ] **Step 3:** 跑确认失败 → 实现：组 `AnalysisSpec` → `gather_materials`（`visible_to` 材料红线）+ `compute_report_access_level` 纯函数复用（经工厂装配，不直调 `api/deps`）。
-- [ ] **Step 4:** 跑绿：桩 `[ANALYSIS:*]` 标记联动（复用 P6 桩场景）+ P6 离线基线对照零回归。
-- [ ] **Step 5:** 提交：`feat(agent): 分析桥工具——P6 报告契约直消费`。
+- [x] **Step 1:** 写失败测试：`reports_list` / `reports_get` 复用 `AnalysisReportStore` 可见语义（不可见返回 `None` → 统一工具错误消息）。
+- [x] **Step 2:** 写失败测试：`run_analysis` 需 `analyze` 权限（无权限路径用自定义无 ANALYZE 的 AccessContext 夹具——三标准角色均含 ANALYZE），产出 `job_id` / `report_id` 指针（`Job.task_type="analyze"` 范式）。
+- [x] **Step 3:** 跑确认失败 → 实现：组 `AnalysisSpec` → `gather_materials`（`visible_to` 材料红线）+ `compute_report_access_level` 纯函数复用（经工厂装配，不直调 `api/deps`）。
+- [x] **Step 4:** 跑绿：桩 `[ANALYSIS:*]` 标记联动（复用 P6 桩场景）+ P6 离线基线对照零回归。
+- [x] **Step 5:** 提交：`feat(agent): 分析桥工具——P6 报告契约直消费`。
 
 ---
 
@@ -439,11 +439,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `scripts/eval_agent.py` · `config/golden_agent.yaml` · `src/calliodesmo/eval/agent_metrics.py` · 测试 `tests/test_eval_agent.py`。
 
-- [ ] **Step 1:** 写失败测试：golden 轨迹结构解析（问题 → 预期工具集 / 序列 / 步数上限 / 引用结构）与指标纯函数（`tool_set_match` / `tool_sequence_match` / `trajectory_valid` / `no_forbidden_leak` / `budget_within`）。
-- [ ] **Step 2:** 跑确认失败 → 实现指标 + golden 装载（场景 ≥6 例：单工具 / 多工具 / 无工具直答 / 越权探针 ≥3 例）。
-- [ ] **Step 3:** 实现注入探针案例槽位（语料内嵌指令诱导越权工具调用，期望零成功）+ `--real` 开关骨架。
-- [ ] **Step 4:** 跑绿：桩基线离线全过并落盘（CI 可跑口径；明确基线仅结构口径、桩对质量零区分度）。
-- [ ] **Step 5:** 提交：`feat(eval): agent golden 轨迹评估 harness（离线桩基线）`。
+- [x] **Step 1:** 写失败测试：golden 轨迹结构解析（问题 → 预期工具集 / 序列 / 步数上限 / 引用结构）与指标纯函数（`tool_set_match` / `tool_sequence_match` / `trajectory_valid` / `no_forbidden_leak` / `budget_within`）。
+- [x] **Step 2:** 跑确认失败 → 实现指标 + golden 装载（场景 ≥6 例：单工具 / 多工具 / 无工具直答 / 越权探针 ≥3 例）。
+- [x] **Step 3:** 实现注入探针案例槽位（语料内嵌指令诱导越权工具调用，期望零成功）+ `--real` 开关骨架。
+- [x] **Step 4:** 跑绿：桩基线离线全过并落盘（CI 可跑口径；明确基线仅结构口径、桩对质量零区分度）。
+- [x] **Step 5:** 提交：`feat(eval): agent golden 轨迹评估 harness（离线桩基线）`。
 
 ---
 
@@ -453,11 +453,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/agent/graph.py` · `src/calliodesmo/agent/budget.py` · 改 `src/calliodesmo/config.py` + `.env.example`（6 配置项）· 测试 `tests/agent/test_graph.py`。
 
-- [ ] **Step 1:** 写失败测试：StubLLM 脚本驱动两回合工具循环（InMemorySaver + `thread_id` 多轮续接），断言节点轨迹与最终 state。
-- [ ] **Step 2:** 跑确认失败 → 实现：`AgentState`（messages reducer）→ model 节点（适配器）→ `should_continue` 条件边 → 工具节点（注册表派发 + 轨迹回写）→ 回 model；AccessContext 经 config `configurable` 带外传参、不入 checkpoint 状态。
-- [ ] **Step 3:** 实现：6 个配置项一次进 Settings（`agent_model` / `agent_max_steps` 默认 6 / `agent_token_budget` / `agent_wall_clock_seconds` / `agent_history_window` / `eval_agent_golden_file`）并双同步 `.env.example`（失败测试覆盖 6 字段前缀加载与默认值）；`budget.py` 三重帽，超限强制收敛节点输出「部分结果 + 说明」+ `warning("budget_exceeded")`。
-- [ ] **Step 4:** 跑绿：轨迹断言（节点序列 / 消息结构 / usage 累计 / 收敛路径）+ harness 门槛回归、记录指标对比基线。
-- [ ] **Step 5:** 提交：`feat(agent): 手写 ReAct StateGraph 与三重预算帽`。
+- [x] **Step 1:** 写失败测试：StubLLM 脚本驱动两回合工具循环（InMemorySaver + `thread_id` 多轮续接），断言节点轨迹与最终 state。
+- [x] **Step 2:** 跑确认失败 → 实现：`AgentState`（messages reducer）→ model 节点（适配器）→ `should_continue` 条件边 → 工具节点（注册表派发 + 轨迹回写）→ 回 model；AccessContext 经 config `configurable` 带外传参、不入 checkpoint 状态。
+- [x] **Step 3:** 实现：6 个配置项一次进 Settings（`agent_model` / `agent_max_steps` 默认 6 / `agent_token_budget` / `agent_wall_clock_seconds` / `agent_history_window` / `eval_agent_golden_file`）并双同步 `.env.example`（失败测试覆盖 6 字段前缀加载与默认值）；`budget.py` 三重帽，超限强制收敛节点输出「部分结果 + 说明」+ `warning("budget_exceeded")`。
+- [x] **Step 4:** 跑绿：轨迹断言（节点序列 / 消息结构 / usage 累计 / 收敛路径）+ harness 门槛回归、记录指标对比基线。
+- [x] **Step 5:** 提交：`feat(agent): 手写 ReAct StateGraph 与三重预算帽`。
 
 ---
 
@@ -467,12 +467,12 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/db/models_agent.py` · 改 `src/calliodesmo/models.py`（集中注册）· 改 `src/calliodesmo/db/migrate.py` · 新 `src/calliodesmo/agent/checkpoint.py` · 改 `src/calliodesmo/api/app.py`（lifespan）· 测试 `tests/agent/test_models.py` / `tests/agent/test_checkpoint.py`。
 
-- [ ] **Step 1:** 写失败测试（`@pytest.mark.db`）：`AgentSession`（owner + 五 access 字段默认 personal + 创建时 clearance / scope 快照 + mode）/ `AgentMessage`（内容不含高于会话密级的证据明文）/ `AgentRun`（轨迹 JSON + usage + 状态）建 / 读 + migrate 幂等补列。
-- [ ] **Step 2:** 跑确认失败 → 实现：`db/models_agent.py` + `models.py` 集中导入注册 + `migrate.py`。
-- [ ] **Step 3:** 写失败测试：`build_checkpointer` 按 settings 路由 InMemory | PG；同 `thread_id` 两次调用状态互通 + `setup` 幂等（`@pytest.mark.db`，`calliodesmo_test` schema）。
-- [ ] **Step 4:** 实现：`checkpoint.py` 独立 `psycopg[binary]` `AsyncConnectionPool`（`autocommit=True` + `dict_row`）+ `AsyncPostgresSaver` + lifespan `setup()` 保活关闭回收；懒导入缺 extra 友好报错。
-- [ ] **Step 5:** 跑绿：db 集成（本地全量真库）+ 既有 job / analysis 回归不破 + CI `-m "not db"` 双绿。
-- [ ] **Step 6:** 提交：`feat(agent): 会话/消息/执行 ORM 与 PG checkpointer 接线`。
+- [x] **Step 1:** 写失败测试（`@pytest.mark.db`）：`AgentSession`（owner + 五 access 字段默认 personal + 创建时 clearance / scope 快照 + mode）/ `AgentMessage`（内容不含高于会话密级的证据明文）/ `AgentRun`（轨迹 JSON + usage + 状态）建 / 读 + migrate 幂等补列。
+- [x] **Step 2:** 跑确认失败 → 实现：`db/models_agent.py` + `models.py` 集中导入注册 + `migrate.py`。
+- [x] **Step 3:** 写失败测试：`build_checkpointer` 按 settings 路由 InMemory | PG；同 `thread_id` 两次调用状态互通 + `setup` 幂等（`@pytest.mark.db`，`calliodesmo_test` schema）。
+- [x] **Step 4:** 实现：`checkpoint.py` 独立 `psycopg[binary]` `AsyncConnectionPool`（`autocommit=True` + `dict_row`）+ `AsyncPostgresSaver` + lifespan `setup()` 保活关闭回收；懒导入缺 extra 友好报错。
+- [x] **Step 5:** 跑绿：db 集成（本地全量真库）+ 既有 job / analysis 回归不破 + CI `-m "not db"` 双绿。
+- [x] **Step 6:** 提交：`feat(agent): 会话/消息/执行 ORM 与 PG checkpointer 接线`。
 
 ---
 
@@ -482,12 +482,12 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/agent/access.py` · `src/calliodesmo/agent/history.py` · 改 `config/golden_agent.yaml`（注入探针）· 测试 `tests/agent/test_permission_matrix.py`。
 
-- [ ] **Step 1:** 写失败测试：三角色 × 四密级矩阵——密级降级后读旧会话 404（密级不洗白：当前 clearance ≥ 建时）；scope 移除后不可见；跨用户会话 404 不泄漏存在性。
-- [ ] **Step 2:** 写失败测试：工具结果落库不含高于会话密级的明文（落库前密级断言钩子）+ 降级重验探针。
-- [ ] **Step 3:** 跑确认失败 → 实现：会话复检 `verify_access`（读路径以当前 AccessContext 判定，不通过即 404 + 审计）+ 落库复核。
-- [ ] **Step 4:** 实现：`history.py` 滑动窗口截断（保留系统提示 + 最近 `agent_history_window` 回合 + 截断 warning）。
-- [ ] **Step 5:** 跑绿：注入探针回归（语料内嵌指令诱导越权工具调用，期望零成功）+ 全量回归。
-- [ ] **Step 6:** 提交：`feat(agent): 多轮状态与三维权限交叉门控＋历史窗口管理`。
+- [x] **Step 1:** 写失败测试：三角色 × 四密级矩阵——密级降级后读旧会话 404（密级不洗白：当前 clearance ≥ 建时）；scope 移除后不可见；跨用户会话 404 不泄漏存在性。
+- [x] **Step 2:** 写失败测试：工具结果落库不含高于会话密级的明文（落库前密级断言钩子）+ 降级重验探针。
+- [x] **Step 3:** 跑确认失败 → 实现：会话复检 `verify_access`（读路径以当前 AccessContext 判定，不通过即 404 + 审计）+ 落库复核。
+- [x] **Step 4:** 实现：`history.py` 滑动窗口截断（保留系统提示 + 最近 `agent_history_window` 回合 + 截断 warning）。
+- [x] **Step 5:** 跑绿：注入探针回归（语料内嵌指令诱导越权工具调用，期望零成功）+ 全量回归。
+- [x] **Step 6:** 提交：`feat(agent): 多轮状态与三维权限交叉门控＋历史窗口管理`。
 
 ---
 
@@ -497,11 +497,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/agent/job_worker.py` · `src/calliodesmo/agent/factory.py` · 测试 `tests/agent/test_job_worker.py`。
 
-- [ ] **Step 1:** 写失败测试：`run_agent_job(job_id, engine=…, session_factory=…, barrier=…)` 跑完一轮（桩驱动）+ 最终答案落 `AgentMessage` + `Job.result` 最小指针 + barrier 同步。
-- [ ] **Step 2:** 跑确认失败 → 实现：验 owner → 重建 AccessContext → 图 `ainvoke`（`thread_id` = 会话 id，checkpointer）→ 消息 / 执行落库 → 审计。
-- [ ] **Step 3:** 写失败测试：预算超限 / 失败语义（`status=failed` + 轨迹保留 + 审计）→ 实现。
-- [ ] **Step 4:** 跑绿：含 `@pytest.mark.db` + barrier 范式（测试内 `asyncio.Event`、`wait_for` 60s）。
-- [ ] **Step 5:** 提交：`feat(agent): 回合编排 worker（job 范式＋权限重建＋预算失败语义）`。
+- [x] **Step 1:** 写失败测试：`run_agent_job(job_id, engine=…, session_factory=…, barrier=…)` 跑完一轮（桩驱动）+ 最终答案落 `AgentMessage` + `Job.result` 最小指针 + barrier 同步。
+- [x] **Step 2:** 跑确认失败 → 实现：验 owner → 重建 AccessContext → 图 `ainvoke`（`thread_id` = 会话 id，checkpointer）→ 消息 / 执行落库 → 审计。
+- [x] **Step 3:** 写失败测试：预算超限 / 失败语义（`status=failed` + 轨迹保留 + 审计）→ 实现。
+- [x] **Step 4:** 跑绿：含 `@pytest.mark.db` + barrier 范式（测试内 `asyncio.Event`、`wait_for` 60s）。
+- [x] **Step 5:** 提交：`feat(agent): 回合编排 worker（job 范式＋权限重建＋预算失败语义）`。
 
 ---
 
@@ -511,11 +511,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `src/calliodesmo/api/agent.py` · 改 `src/calliodesmo/api/app.py`（根 + /api 双挂）· 改 `src/calliodesmo/api/schemas.py` · 测试 `tests/test_agent_api.py`（仿 `tests/test_analysis_api.py` 范式）。
 
-- [ ] **Step 1:** 写失败测试：`POST /agent/sessions`（QUERY 权限，无权限 403）；`POST /agent/sessions/{id}/runs` 走 `Job(task_type="agent")` pending→succeeded（barrier 同步）；`GET sessions` / `messages` 越权 404；审计 `agent_run`。
-- [ ] **Step 2:** 跑确认失败 → 实现路由与出入参（`SessionOut` / `RunRequest` / `RunOut` 含轨迹指针）。
-- [ ] **Step 3:** 实现：路由根 + `/api` 双挂；`BackgroundTasks` + `run_agent_job` 注入；引擎构建 `RuntimeError` → 503。
-- [ ] **Step 4:** 跑绿：401/403/404 矩阵 + 断言审计行落库 + 回归。
-- [ ] **Step 5:** 提交：`feat(api): Agent 会话与执行端点（job 范式＋审计）`。
+- [x] **Step 1:** 写失败测试：`POST /agent/sessions`（QUERY 权限，无权限 403）；`POST /agent/sessions/{id}/runs` 走 `Job(task_type="agent")` pending→succeeded（barrier 同步）；`GET sessions` / `messages` 越权 404；审计 `agent_run`。
+- [x] **Step 2:** 跑确认失败 → 实现路由与出入参（`SessionOut` / `RunRequest` / `RunOut` 含轨迹指针）。
+- [x] **Step 3:** 实现：路由根 + `/api` 双挂；`BackgroundTasks` + `run_agent_job` 注入；引擎构建 `RuntimeError` → 503。
+- [x] **Step 4:** 跑绿：401/403/404 矩阵 + 断言审计行落库 + 回归。
+- [x] **Step 5:** 提交：`feat(api): Agent 会话与执行端点（job 范式＋审计）`。
 
 ---
 
@@ -525,12 +525,12 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `frontend/src/features/agent/`（AgentPage / SessionList / ChatView / ToolTrace / api.ts / useAgent.ts + 配套 `*.test.tsx`）· 改 `frontend/src/routes.tsx` · 改 `frontend/src/App.tsx`（NavItem `access.can(PERMISSIONS.QUERY)`）· 改 `frontend/src/api/types.ts`。
 
-- [ ] **Step 1:** 写失败测试（vitest）：消息列表渲染 + 会话切换 + 轮询终态停（克隆 `useAnalysisJob` 范式：1200ms + 终态停）+ ToolTrace chip 展开。
-- [ ] **Step 2:** 跑确认失败 → 实现：types / api / useAgent（`useMutation` run + `useQuery` sessions / messages）+ 会话侧栏（新建 / 切换）+ 消息流 + 工具轨迹折叠展开（复用证据 chip 范式）+ 停止按钮 + 侧栏入口（QUERY 门控）。
-- [ ] **Step 3:** 跑绿：三件套（lint / test / build）。
-- [ ] **Step 4:** **preview 闭环**：`preview_start`（frontend-dev）+ 后端 `uv run calliodesmo serve --seed-demo --port 8200`；三角色登录 → 建会话 → 提问 → 轨迹展开 → 停止；`preview_console_logs`(error) + `preview_network`(4xx/5xx) 双查；越权探测（他人会话 404、无 QUERY 不渲染）+ 移动视口（T1 折叠侧栏在此复验）。
-- [ ] **Step 5:** GLM-EYE 截图识图（不可用则留痕回退，沿用 P6 口径）。
-- [ ] **Step 6:** 提交：`feat(frontend): Agent 聊天面（多轮会话＋工具轨迹透明）`。
+- [x] **Step 1:** 写失败测试（vitest）：消息列表渲染 + 会话切换 + 轮询终态停（克隆 `useAnalysisJob` 范式：1200ms + 终态停）+ ToolTrace chip 展开。
+- [x] **Step 2:** 跑确认失败 → 实现：types / api / useAgent（`useMutation` run + `useQuery` sessions / messages）+ 会话侧栏（新建 / 切换）+ 消息流 + 工具轨迹折叠展开（复用证据 chip 范式）+ 停止按钮 + 侧栏入口（QUERY 门控）。
+- [x] **Step 3:** 跑绿：三件套（lint / test / build）。
+- [x] **Step 4:** **preview 闭环**：`preview_start`（frontend-dev）+ 后端 `uv run calliodesmo serve --seed-demo --port 8200`；三角色登录 → 建会话 → 提问 → 轨迹展开 → 停止；`preview_console_logs`(error) + `preview_network`(4xx/5xx) 双查；越权探测（他人会话 404、无 QUERY 不渲染）+ 移动视口（T1 折叠侧栏在此复验）。
+- [x] **Step 5:** GLM-EYE 截图识图（不可用则留痕回退，沿用 P6 口径）。
+- [x] **Step 6:** 提交：`feat(frontend): Agent 聊天面（多轮会话＋工具轨迹透明）`。
 
 ---
 
@@ -540,13 +540,13 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `frontend/e2e/{auth,qa,analysis,admin,agent,logout}.spec.ts` + `frontend/e2e/README.md` · 改 `frontend/playwright.config.ts`（如需）· 清理 git 追踪的编译产物：`playwright.config.js/.d.ts`、`vite.config.js/.d.ts`、`vitest.config.js/.d.ts`、`vitest.setup.js/.d.ts`（`postcss.config.js` 为正式配置不动）。
 
-- [ ] **Step 1:** 建 e2e 基础：`/healthz` 等待 + 登录（错误凭据提示 / 正确跳 `/app/qa`）+ qa 三模式与来源标注展开（双视口）。
-- [ ] **Step 2:** 写分析 spec（提交 → 轮询 → 报告可见）+ admin 越权探测（analyst 直击 `/app/admin/users` 不可达 / 403）。
-- [ ] **Step 3:** 写 agent spec：建会话 → 两回合 → 工具轨迹可见 + logout cookie 失效断言（登出后旧 cookie 过 `/auth/me` 401）。
-- [ ] **Step 4:** 跑绿：先起 `serve --seed-demo --port 8200`，再 `npm run e2e` 全过；README 固化启动顺序；明确不进 CI（留痕：锚点 2026-W49 随审计硬化重评）。
-- [ ] **Step 5:** 回写：更新 P6 计划范围外表与 `docs/verification/P6-verification.md` 未竟清单的 e2e 锚点注记（2026-W47→W44，与提交信息、T17 模板项回写一致）。
-- [ ] **Step 6:** 删除 git 追踪的配置编译产物副本 + 补 `.gitignore` 防再生。
-- [ ] **Step 7:** 提交：`test(frontend): 补建 e2e 冒烟链路（重锚 W47→W44）`。
+- [x] **Step 1:** 建 e2e 基础：`/healthz` 等待 + 登录（错误凭据提示 / 正确跳 `/app/qa`）+ qa 三模式与来源标注展开（双视口）。
+- [x] **Step 2:** 写分析 spec（提交 → 轮询 → 报告可见）+ admin 越权探测（analyst 直击 `/app/admin/users` 不可达 / 403）。
+- [x] **Step 3:** 写 agent spec：建会话 → 两回合 → 工具轨迹可见 + logout cookie 失效断言（登出后旧 cookie 过 `/auth/me` 401）。
+- [x] **Step 4:** 跑绿：先起 `serve --seed-demo --port 8200`，再 `npm run e2e` 全过；README 固化启动顺序；明确不进 CI（留痕：锚点 2026-W49 随审计硬化重评）。
+- [x] **Step 5:** 回写：更新 P6 计划范围外表与 `docs/verification/P6-verification.md` 未竟清单的 e2e 锚点注记（2026-W47→W44，与提交信息、T17 模板项回写一致）。
+- [x] **Step 6:** 删除 git 追踪的配置编译产物副本 + 补 `.gitignore` 防再生。
+- [x] **Step 7:** 提交：`test(frontend): 补建 e2e 冒烟链路（重锚 W47→W44）`。
 
 ---
 
@@ -556,10 +556,10 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 新 `docs/plans/analysis-template-registry-eval.md`（评估备忘录 + 决策记录）· `scripts/probe_template_schema.py`（一次性探针脚本，不进主代码）· 改本计划与 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 移交锚点注记。
 
-- [ ] **Step 1:** 列口径五项（决策 5）：① Agent 消费是否依赖注册表（BUILTIN 9 类已可经 `run_analysis` 消费，借 `config/golden_analysis.yaml` 回归案例量化覆盖缺口）；② `jsonschema` 完整校验与 `sanitize_user_schema` 衔接（拒 `$ref` / 递归 / 超深 / 超大）；③ 持久化形态（纯 YAML 仿 `ExtractionTemplateRegistry` + 每调用点重建、无 ORM，vs 升 ORM + 五 access 字段 + team scope，`ChunkRecordORM` 先例）；④ 与内置九类冲突语义（覆盖 / 禁止）；⑤ 多用户写审计需求。
-- [ ] **Step 2:** 小原型验证边界（一次性脚本，不进主代码；`jsonschema` 若需要走 extra + 懒加载 + 缺依赖友好报错）。
-- [ ] **Step 3:** 产出评估备忘录 + 决策记录（结论：直接轻量实现 / 顺延 P9，二选一并给理由）+ 回写 P6 移交锚点注记（逐处点名 P6 侧三处：P6 计划范围外表、P6 计划 Task 22 留痕、`P6-verification.md` 未竟清单）。
-- [ ] **Step 4:** 提交：`docs(plans): 团队级分析模板注册表评估备忘录（锚点重锚 W47→W44）`。
+- [x] **Step 1:** 列口径五项（决策 5）：① Agent 消费是否依赖注册表（BUILTIN 9 类已可经 `run_analysis` 消费，借 `config/golden_analysis.yaml` 回归案例量化覆盖缺口）；② `jsonschema` 完整校验与 `sanitize_user_schema` 衔接（拒 `$ref` / 递归 / 超深 / 超大）；③ 持久化形态（纯 YAML 仿 `ExtractionTemplateRegistry` + 每调用点重建、无 ORM，vs 升 ORM + 五 access 字段 + team scope，`ChunkRecordORM` 先例）；④ 与内置九类冲突语义（覆盖 / 禁止）；⑤ 多用户写审计需求。
+- [x] **Step 2:** 小原型验证边界（一次性脚本，不进主代码；`jsonschema` 若需要走 extra + 懒加载 + 缺依赖友好报错）。
+- [x] **Step 3:** 产出评估备忘录 + 决策记录（结论：直接轻量实现 / 顺延 P9，二选一并给理由）+ 回写 P6 移交锚点注记（逐处点名 P6 侧三处：P6 计划范围外表、P6 计划 Task 22 留痕、`P6-verification.md` 未竟清单）。
+- [x] **Step 4:** 提交：`docs(plans): 团队级分析模板注册表评估备忘录（锚点重锚 W47→W44）`。
 
 ---
 
@@ -583,11 +583,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 改 `scripts/eval_agent.py`（`--real` 实装）· 新 `docs/verification/P7-verification.md` · `docs/verification/agent-real-<模型名>.json` · 改 `docs/verification/README.md`。
 
-- [ ] **Step 1:** 预检 `--real` 环境：`.env` 模型路可用 + 后端支持原生 tool calls（不支持 → 换模型并留痕，不做文本协议降级）。
-- [ ] **Step 2:** 执行 `eval_agent.py --real`：采集轨迹 / 工具选择 / 引用质量 / 步数与 token 分布 / 循环稳定性。
-- [ ] **Step 3:** 证据落盘 `agent-real-<模型名>.json` + 三角色 × 四密级 e2e 验收复跑（含越权探测与登出）。
-- [ ] **Step 4:** 写 P7 验证报告（四要素：测试内容 / 技术栈 / 验证原理 / 验证过程 + Task 闭合矩阵 + 未竟清单带周次）+ 登记 `docs/verification/README.md` 索引（明确离线轨与质量轨口径差，证据文件逐件列名）。
-- [ ] **Step 5:** 提交：`docs(verification): P7 --real 质量证据与验证报告`。
+- [x] **Step 1:** 预检 `--real` 环境：`.env` 模型路可用 + 后端支持原生 tool calls（不支持 → 换模型并留痕，不做文本协议降级）。
+- [x] **Step 2:** 执行 `eval_agent.py --real`：采集轨迹 / 工具选择 / 引用质量 / 步数与 token 分布 / 循环稳定性。
+- [x] **Step 3:** 证据落盘 `agent-real-<模型名>.json` + 三角色 × 四密级 e2e 验收复跑（含越权探测与登出）。
+- [x] **Step 4:** 写 P7 验证报告（四要素：测试内容 / 技术栈 / 验证原理 / 验证过程 + Task 闭合矩阵 + 未竟清单带周次）+ 登记 `docs/verification/README.md` 索引（明确离线轨与质量轨口径差，证据文件逐件列名）。
+- [x] **Step 5:** 提交：`docs(verification): P7 --real 质量证据与验证报告`。
 
 ---
 
@@ -622,8 +622,8 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **目标：** roadmap 点名的三模式之一必须有明确归宿与重评锚点，不留隐式尾巴。
 
-- [ ] 本计划「范围外」表与「暂缓与移交记录」已留痕暂缓理由：`#E` 变量绑定 DAG 基建成本 > 当前收益；执行中无法按观察自适应、计划失误链式失败；分析场景暂无批量并行证据需求。`AgentMode` 枚举预留 `rewoo` 值（契约留门）。
-- [ ] 标重评锚点 2026-W49（随 P9 模型层清单；前置条件 = 预算控制与轨迹评估成熟）；T23 收尾时同步 roadmap 注记。
+- [x] 本计划「范围外」表与「暂缓与移交记录」已留痕暂缓理由：`#E` 变量绑定 DAG 基建成本 > 当前收益；执行中无法按观察自适应、计划失误链式失败；分析场景暂无批量并行证据需求。`AgentMode` 枚举预留 `rewoo` 值（契约留门）。
+- [x] 标重评锚点 2026-W49（随 P9 模型层清单；前置条件 = 预算控制与轨迹评估成熟）；T23 收尾时同步 roadmap 注记。
 
 ---
 
@@ -633,11 +633,11 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 **Files:** 本计划 · `docs/plans/roadmap.md` · `docs/plans/monthly/2026-{09,10,11}.md` · `CLAUDE.md` + `AGENTS.md`（当前阶段段 + 项目结构段补 `agent/` 域、`interfaces/agent.py`、`db/models_agent.py`、`features/agent`、`e2e/`、`scripts/eval_agent.py`）· `docs/verification/README.md`。
 
-- [ ] **Step 1:** 阶段计划 checkbox 勾除 + 未竟事项留痕（未竟点 + 2026-Www）：ReWOO / SSE 若让位 / e2e CI 门控 / checkpoint 吞吐 / RAG 记忆。
-- [ ] **Step 2:** roadmap P7 状态更新 + P8 承接项注记（写工具 / 报告生命周期 / 意图路由 / 证据验证）+ 过时表述修正（如进度注记残留）。
-- [ ] **Step 3:** 月计划三文件滚动修订 + CLAUDE.md / AGENTS.md 同步。
-- [ ] **Step 4:** 验证报告索引更新；分支 `feat/p7-agent-mode` → PR → main（CI 绿 + 本地全量真库回归证据存档）。
-- [ ] **Step 5:** 提交：`docs(plans): P7 收尾与路线图/月计划同步`。
+- [x] **Step 1:** 阶段计划 checkbox 勾除 + 未竟事项留痕（未竟点 + 2026-Www）：ReWOO / SSE 若让位 / e2e CI 门控 / checkpoint 吞吐 / RAG 记忆。
+- [x] **Step 2:** roadmap P7 状态更新 + P8 承接项注记（写工具 / 报告生命周期 / 意图路由 / 证据验证）+ 过时表述修正（如进度注记残留）。
+- [x] **Step 3:** 月计划三文件滚动修订 + CLAUDE.md / AGENTS.md 同步。
+- [x] **Step 4:** 验证报告索引更新；分支 `feat/p7-agent-mode` → PR → main（CI 绿 + 本地全量真库回归证据存档）。
+- [x] **Step 5:** 提交：`docs(plans): P7 收尾与路线图/月计划同步`。
 
 ---
 

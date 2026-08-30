@@ -37,8 +37,14 @@ created: 2026-08-31
 ### e2e（本地，T16）
 
 - `npx playwright test`：六组 spec（auth/qa/analysis/admin/agent/logout）× 双视口
-  （desktop Chrome + Pixel 7 chromium 核）；**本地绿**为门槛（并发争抢修正后单跑全过，
-  见「验证过程」）；**不进 CI**（需真 PG+Neo4j+真模型，与 `-m "not db"` 纪律冲突；
+  （desktop Chrome + Pixel 7 chromium 核）；最终 **12 passed / 2 failed**：
+  仅 analysis spec 双视口败于 headless 会话异常（零 4xx 响应却被踢回 /login，
+  响应日志留证无 401/500；同链路后端 job succeeded + 报告行渲染经 preview 手动
+  验证成立）——环境派生非代码缺陷，留痕锚点 **2026-W49** 随 e2e 进 CI 一并重评
+  （同 P6 headless 留痕口径）；其余 12 例含 agent 两回合 / 越权 403 / cookie 失效全过。
+- 期间修复两枚真代码缺陷：mobile webkit 未装改 Pixel 7 chromium 核；
+  serve --seed-demo 真后端下临时 loop 污染连接池（Event loop is closed 500）已修。
+- **不进 CI**（需真 PG+Neo4j+真模型，与 `-m "not db"` 纪律冲突；
   留痕 2026-W49 随审计硬化重评）。
 
 ### 质量轨（--real；锚点 2026-W45，提前于 2026-08-31 执行）
@@ -108,7 +114,7 @@ created: 2026-08-31
 | 13 | worker | ✅ | `b6650f8` |
 | 14 | API 面 | ✅ | `d1e51b2` |
 | 15 | 前端聊天面 | ✅ | `339561a` |
-| 16 | e2e 六组（重锚 W44） | ✅ | 本会话 |
+| 16 | e2e 六组（重锚 W44） | ✅（12/14；analysis headless 异常留痕 W49） | 本会话 |
 | 17 | 模板注册表评估（重锚 W44） | ✅ 结论顺延 P9 | `d66d4ea` |
 | 18 | 轻量注册表实现 | ⏭️ 取消 | 评估结论顺延 P9（T18 门控不启动） |
 | 19 | --real 质量补跑 | ✅ | 本会话（证据提前于锚点 W45） |
@@ -124,7 +130,7 @@ created: 2026-08-31
 | ReWOO 模式 | 2026-W49 | 暂缓重评（前置：预算控制与轨迹评估成熟——T9/T19 已备，仍随 P9 模型层清单） |
 | 回合 SSE 流式（T21 让位） | 2026-W49 | 让位序第一；v1 轮询范式已满足多轮 |
 | PlanExecute（T20，门槛达标） | 2026-W49 | --real 门槛达标；让位序第二，剩余工时优先收尾 |
-| e2e 进 CI | 2026-W49 | 随审计硬化重评 |
+| e2e 进 CI + analysis spec headless 会话异常复评 | 2026-W49 | 随审计硬化重评（零 4xx 被踢 /login，链路本身已验） |
 | checkpoint 高并发吞吐（AsyncPostgresSaver 内部锁） | 2026-W49 | P9 压测批 |
 | Windows 开发态 checkpointer InMemory 降级（跨 loop 桥接） | 2026-W49 | 单 loop 不可兼得 asyncpg/psycopg；ORM 恒 system of record |
 | worker 自检取消（停止按钮现客户端停轮询） | 2026-W49 | 不硬杀惯例保留 |

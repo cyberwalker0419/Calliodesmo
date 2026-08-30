@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P7-agent-mode**（Agent 模式：ReAct/PlanExecute（LangGraph）+ 工具定义 + 多轮对话状态，权限内行动；计划已定稿，2026-W36 起滚动开工。P0-P6 均已完成并合入 main，后端 1015 passed）。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P7-agent-mode**（Agent 模式：ReAct 主链 + 工具定义 + 多轮对话状态，权限内行动；2026-08-31 完成，PR 待合。P0-P6 均已完成并合入 main，后端 1124 passed）。
 
 ## 当前阶段
 
@@ -22,7 +22,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 [docs/plans/phases/P4.5-persistence-production.md](docs/plans/phases/P4.5-persistence-production.md)）
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 [docs/plans/phases/P5-advanced-rag.md](docs/plans/phases/P5-advanced-rag.md)）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 [docs/plans/phases/P6-llm-analysis-tasks.md](docs/plans/phases/P6-llm-analysis-tasks.md) 与 [docs/verification/P6-verification.md](docs/verification/P6-verification.md)）
-- **P7** Agent 模式 🚧 计划定稿（2026-08-30，自 2026-W36 开工：ReAct 主链 + PlanExecute 可选 + ReWOO 暂缓留痕；工具定义 + 权限内行动 + 多轮对话状态（PG checkpointer）；承接模板注册表评估与 e2e 补建，锚点重锚 2026-W47→W44；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md)）
+- **P7** Agent 模式 ✅ 完成（2026-08-31，PR 待合：ReAct 主链 + 三重预算帽 + 只读工具七件/分析桥 + 三维门控（越权与不存在同消息）+ 会话 ORM 三表 + PG checkpointer + agent golden harness（离线 + --real 双轨）+ 前端聊天面 + e2e 六组；ReWOO 暂缓 / PlanExecute 门槛达标让位 / SSE 让位（锚点 2026-W49）；模板注册表评估结论顺延 P9；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md) 与 [docs/verification/P7-verification.md](docs/verification/P7-verification.md)）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 
@@ -66,10 +66,11 @@ src/calliodesmo/
 ├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me、/query）
 ├── auth/         三维权限：models / security(Argon2+JWT) / context / service
 ├── audit/        审计日志（谁/何时/做了什么/从哪来）
-├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / migrate.py 幂等补列）
+├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / models_agent.py 会话三表 / migrate.py 幂等补列）
 ├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
 ├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store）
-├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis ...
+├── agent/        P7 Agent 域（errors / registry / tools / budget / graph / access / history / checkpoint / factory / job_worker）
+├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis / agent（P7 契约）...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
 ├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
 ├── eval/         P2 评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / harness
@@ -88,7 +89,7 @@ docs/
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
 config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml + analysis_prompts/（P6 九类模板）+ golden_analysis.yaml（P6 评估 golden）
-scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）+ eval_p5.py / eval_p6.py（评估回归，--real 切真模型）
+scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）+ eval_p5.py / eval_p6.py / eval_agent.py（评估回归，--real 切真模型）
 .github/workflows/ci.yml   CI：ruff + pytest
 ```
 
@@ -161,7 +162,7 @@ uv run calliodesmo ingest <path> # 端到端建图
 > **底线**：任何前端改动都要过三件套（`lint` / `test` / `build`）。
 > **之上**：有可见视觉表现的改动（`components/` / `features/` / `App.tsx` / `index.css` / 图谱）**必须走此交互验证闭环**；纯逻辑 / 类型改动（无视觉表现）三件套即可，不用 `preview_*`。判不准时默认走三件套。
 
-前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `cytoscape` + `cytoscape-fcose`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 **8200**（见 `frontend/vite.config.ts`），同源 cookie 全程可用；后端联调启 `uv run calliodesmo serve --port 8200`。生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）。
+前端为独立 SPA（`frontend/`，与 `src/` 平级），React 19 + Vite 6 + TanStack Query + React Router 7 + Tailwind + shadcn/ui（Radix 源码拷贝）+ `cytoscape` + `cytoscape-fcose`（图谱，Canvas）+ `lucide-react`（图标）。开发期 Vite dev server（5173）经 dev proxy 把 `/api` 转发后端 **8200**（见 `frontend/vite.config.ts`），同源 cookie 全程可用；后端联调启 `uv run calliodesmo serve --port 8200`。生产构建产物由 FastAPI `StaticFiles` 托管（`frontend/dist`），同源免 CORS。路由：`/login` + `/app/{qa, library, agent, admin/users, admin/teams, admin/communities, settings}`（见 `frontend/src/routes.tsx`）；e2e 冒烟在 `frontend/e2e/`（本地绿，不进 CI）。
 
 ### 工具说明
 
