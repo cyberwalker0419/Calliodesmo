@@ -9,6 +9,7 @@ import { UserManage } from "@/features/admin/UserManage";
 import { TeamProjectManage } from "@/features/admin/TeamProjectManage";
 import { DocumentCommunityManage } from "@/features/admin/DocumentCommunityManage";
 import { ContributionsPanel } from "@/features/collab/ContributionsPanel";
+import { AnalysisPage } from "@/features/analysis/AnalysisPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 export const routes = createBrowserRouter([
@@ -25,6 +26,7 @@ export const routes = createBrowserRouter([
       { path: "qa", element: <AskPanel /> },
       { path: "library", element: <LibraryPage /> },
       { path: "ingest", element: <IngestPage /> },
+      { path: "analysis", element: <AnalysisPage /> },
       { path: "admin/users", element: <UserManage /> },
       { path: "admin/teams", element: <TeamProjectManage /> },
       { path: "admin/communities", element: <DocumentCommunityManage /> },

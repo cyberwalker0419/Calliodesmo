@@ -69,7 +69,7 @@ created: 2026-08-29
 | 16 | 评估 I：`config/golden_analysis.yaml` + 字段 / 元组级 P-R-F1（`expected_answer` 落地） | ✅ 必做 | ✅ 完成 |
 | 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | ✅ 完成 |
 | 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | ✅ 完成 |
-| 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | 未开始 |
+| 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | ✅ 完成 |
 | 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | 未开始 |
 | 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | 未开始 |
 | 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | 未开始 |
@@ -647,11 +647,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 改 `frontend/src/routes.tsx`（加一行 `{ path: "analysis", element: <AnalysisPage /> }`）· 改 `frontend/src/App.tsx`（NavItem `access.can(PERMISSIONS.ANALYZE)` 隐藏式门控——与 Task 2 常量在此会合）· 新 `frontend/src/features/analysis/AnalysisPage.tsx`（TaskTypePicker 克隆 AskPanel `MODES` 按钮组 + MaterialPicker 文档多选（消费 Task 14 的 `GET /analysis/documents`，仅可见项）+ qa 问题输入 + **QA 类「范围为全可见库」文案**（与风险表落点对齐）+ Skeleton 等待 + 进度条 + `STAGE_LABEL` 阶段文案 + destructive 错误盒 + 重试面板）· 测试 `frontend/src/features/analysis/AnalysisPage.test.tsx`。
 
-- [ ] **Step 1:** 写失败测试：提交 mutation 参数组装；9 类选择器渲染第一批 5 类、其余灰显「即将上线」；MaterialPicker 消费 `/analysis/documents` 出参；无 `analyze` 权限时提交禁用。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现页面与组件（不引新 UI 依赖，缺件克隆既有手写替代）。
-- [ ] **Step 4:** 跑绿三件套 → **preview 闭环**：`preview_start`（frontend-dev）+ 后端 `uv run calliodesmo serve --seed-demo --port 8200`；`preview_snapshot` 取 selector → 选类型 / 选材料 / 提交 → 进度条推进 → 成功；**权限矩阵可执行口径**：种子三角色均持 analyze（决策 1），preview 侧抽查三角色可见可用集合；无 analyze 场景（导航隐藏 / 直访 403）以后端测试的 `_seed_actor` 式自定义无权角色断言为准（Task 2/14 覆盖），或在 admin UI 手工建一个仅 query 权限的自定义角色用户验证（若角色管理 UI 不支持自定义角色，以 vitest/后端断言为准并留痕说明）；`preview_console_logs`(error) + `preview_network`(4xx/5xx) 双查；桌面 + 移动视口截图 + GLM-EYE 分析。
-- [ ] **Step 5:** 提交：`feat(frontend): 分析提交页与任务轮询`。
+- [x] **Step 1:** 写失败测试：提交 mutation 参数组装；9 类选择器渲染第一批 5 类、其余灰显「即将上线」；MaterialPicker 消费 `/analysis/documents` 出参；无 `analyze` 权限时提交禁用。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现页面与组件（不引新 UI 依赖，缺件克隆既有手写替代）。
+- [x] **Step 4:** 跑绿三件套 → **preview 闭环**：`preview_start`（frontend-dev）+ 后端 `uv run calliodesmo serve --seed-demo --port 8200`；`preview_snapshot` 取 selector → 选类型 / 选材料 / 提交 → 进度条推进 → 成功；**权限矩阵可执行口径**：种子三角色均持 analyze（决策 1），preview 侧抽查三角色可见可用集合；无 analyze 场景（导航隐藏 / 直访 403）以后端测试的 `_seed_actor` 式自定义无权角色断言为准（Task 2/14 覆盖），或在 admin UI 手工建一个仅 query 权限的自定义角色用户验证（若角色管理 UI 不支持自定义角色，以 vitest/后端断言为准并留痕说明）；`preview_console_logs`(error) + `preview_network`(4xx/5xx) 双查；桌面 + 移动视口截图 + GLM-EYE 分析。
+  - 闭环实录（2026-08-30）：admin 登录 → /app/analysis → 摘要 + 多选材料提交 → 202 + 轮询 → 成功卡（报告 ID 占位入口）；qa 类提交同绿；qa 空问题前端校验拦截（无 POST）。worker 六段进度（gather→done）逐段 commit 于服务端日志佐证推进；截图存 `data/verification/p6/t19-*.png`（不入库）。环境留痕：① 本会话外部识图 MCP（GLM-EYE 401 / MiniMax 配额）不可用，截图改以会话内视觉逐张分析，GLM-EYE 复跑锚点 2026-W36；② dev 库旧 seed-cache 团队 ID 漂移 + `data/demo-docs` 改嵌套语料致 `_list_demo_files` 顶层 glob 失配（FileNotFoundError），本会话以 `CALLIODESMO_DEMO_DIR=data/demo` 环境覆盖绕过，demo_seed 递归 glob + 缓存失效留痕 2026-W36；③ 移动端 App 固定 w-56 侧栏全站挤压内容（P3 既有），折叠导航评估锚点 2026-W37。
+- [x] **Step 5:** 提交：`feat(frontend): 分析提交页与任务轮询`。
 
 ---
 

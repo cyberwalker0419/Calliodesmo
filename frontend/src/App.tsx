@@ -1,4 +1,4 @@
-import { Library, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest, FileUp } from "lucide-react";
+import { Library, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest, FileUp, Sparkles } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAccess } from "@/auth/useAccess";
@@ -55,6 +55,10 @@ export default function AppLayout() {
           {access.canQuery() && <NavItem to="/app/library" icon={Library} label="知识库浏览" />}
           {access.can(PERMISSIONS.INGEST) && (
             <NavItem to="/app/ingest" icon={FileUp} label="文档摄入" />
+          )}
+          {/* P6：分析入口（access.can(ANALYZE) 隐藏式门控，与 Task 2 常量在此会合） */}
+          {access.can(PERMISSIONS.ANALYZE) && (
+            <NavItem to="/app/analysis" icon={Sparkles} label="分析" />
           )}
           {access.canPush() && (
             <NavItem to="/app/collab" icon={GitPullRequest} label="协作推送" />
