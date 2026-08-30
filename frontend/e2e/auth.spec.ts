@@ -18,8 +18,15 @@ test("错误凭据提示用户名或密码错误", async ({ page }) => {
 test("正确凭据登录跳 /app/qa", async ({ page }) => {
   await login(page, ADMIN);
   expect(page.url()).toContain("/app/qa");
-  // 桌面见导航项；移动见汉堡按钮（抽屉收纳）
+  // 桌面见导航项；移动见汉堡按钮（抽屉收纳）；expect.poll 抗 AuthProvider 加载态
   const navLink = page.getByRole("link", { name: "问答面板" });
   const burger = page.getByRole("button", { name: "打开导航菜单" });
-  expect((await navLink.isVisible().catch(() => false)) || (await burger.isVisible().catch(() => false))).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        (await navLink.isVisible().catch(() => false)) ||
+        (await burger.isVisible().catch(() => false)),
+      { timeout: 15_000 }
+    )
+    .toBe(true);
 });
