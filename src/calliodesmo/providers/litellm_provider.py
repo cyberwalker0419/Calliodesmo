@@ -109,7 +109,10 @@ def _to_openai_message(m: LLMMessage) -> dict:
             {
                 "id": tc.id,
                 "type": "function",
-                "function": {"name": tc.name, "arguments": json.dumps(tc.arguments, ensure_ascii=False)},
+                "function": {
+                    "name": tc.name,
+                    "arguments": json.dumps(tc.arguments, ensure_ascii=False),
+                },
             }
             for tc in m.tool_calls
         ]

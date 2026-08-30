@@ -64,11 +64,13 @@ async def test_litellm_provider_omits_optional_kwargs(monkeypatch):
 
 def test_tool_spec_and_tool_call_frozen():
     """ToolSpec / ToolCall frozen 结构（注册表与 provider 共用同一份 JSON Schema）。"""
+    from dataclasses import FrozenInstanceError
+
     spec = ToolSpec(name="t", description="d", parameters={"type": "object"})
     call = ToolCall(id="c1", name="t", arguments={"a": 1})
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         spec.name = "x"  # frozen
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         call.arguments = {}  # frozen
     assert spec.parameters == {"type": "object"}
     assert call.arguments == {"a": 1}
