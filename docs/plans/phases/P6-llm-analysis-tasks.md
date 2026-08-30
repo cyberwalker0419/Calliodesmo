@@ -71,7 +71,7 @@ created: 2026-08-29
 | 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | ✅ 完成 |
 | 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | ✅ 完成 |
 | 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | ✅ 完成 |
-| 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | 未开始 |
+| 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | ✅ 完成 |
 | 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | 未开始 |
 | 23 | 第二批前端 + 验证报告 + 文档同步 + `--real` 补跑锚点 | ✅ 必做 | 未开始 |
 | 24 | `calliodesmo analyze` CLI（仿 `ask`） | 🔁 可选 | 未开始 |
@@ -678,11 +678,12 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `config/analysis_prompts/{relation_mapping,tasks,concepts}.txt` · 改 `src/calliodesmo/analysis/specs.py`（注册 3 类）· 测试（引擎离线端到端 ×3 + 桩契约回归——桩标记 Task 8 已落齐，此处仅验证）。
 
-- [ ] **Step 1:** 写失败测试：3 类离线端到端（关系映射经图谱复用路径；`ActionItemReport` / `ConceptReport` 校验通过）。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现模板 + 注册。
-- [ ] **Step 4:** 补 golden：关系映射 / 任务 / 概念各补 1–2 例进 `config/golden_analysis.yaml`（复用既有小语料同源材料），纳入 `eval_p6.py` 离线回归；跑绿 + 离线回归不回归。
-- [ ] **Step 5:** 提交：`feat(analysis): 第二批接线（关系映射/任务/概念）`。
+- [x] **Step 1:** 写失败测试：3 类离线端到端（关系映射经图谱复用路径；`ActionItemReport` / `ConceptReport` 校验通过）。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现模板 + 注册。
+- [x] **Step 4:** 补 golden：关系映射 / 任务 / 概念各补 1–2 例进 `config/golden_analysis.yaml`（复用既有小语料同源材料），纳入 `eval_p6.py` 离线回归；跑绿 + 离线回归不回归。
+- [x] **Step 5:** 提交：`feat(analysis): 第二批接线（关系映射/任务/概念）`。
+- [x] **留痕:** 关系映射图谱复用经新增 `analysis/materials.py` `fold_graph_context` / `format_graph_context` 把 `gather_materials` 采集的实体 / 关系序列化为追加伪材料块（`graph-context`），worker 与评估 harness 折入后经统一 `{materials}` 渲染进引擎——保引擎纯逻辑不读 `graph_store`；密级继承 / 块计数仍只认真材料块。离线基线重落 `docs/verification/p6-regression.json`：15 例（第二批 +5）全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0 / mean_judge_overall 3.0（桩零区分度，结构 / 契约证据）。全量 972 passed, 1 skipped。
 
 ---
 

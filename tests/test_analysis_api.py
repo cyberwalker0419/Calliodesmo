@@ -9,8 +9,8 @@ LLM + hash 嵌入，零网络）+ ``dependency_overrides[get_job_session_factory
 
 - 401 未认证 / 403 缺 analyze（提交与读取两侧）；
 - 合法提交 -> 202 + job_id + 审计 ``analyze_submit``（resource_type="job"）；
-- 400：未注册 task_type（未交付二类 / 非法字符串）/ qa 缺 question / custom 缺
-  instruction / doc_ids 含不可见项（不泄漏存在性细节）；
+- 400：未注册 task_type（未交付类型 / 非法字符串）/ qa 缺 question / custom 缺
+  instruction / doc_ids 含不可见项（不泄漏存在性细节）；第二批 3 类注册后可提交（Task 21）；
 - 422 请求体 pydantic 校验失败；503 模型缺 key（RuntimeError -> 503，同 ingest 惯例）；
 - ``GET /analysis/reports`` 三维过滤（personal 隔离 + clearance）+ 分页；
 - ``GET /analysis/reports/{id}`` 他人不可见 / 不存在 / 低 clearance -> 404（不暴露存在性）；
@@ -340,17 +340,48 @@ async def test_submit_summary_accepted_and_e2e(session):
 
 
 async def test_submit_unregistered_task_type_400(session):
-    """未注册 task_type -> 400：未交付二类（relation_mapping）与非法字符串均拦在边界。"""
+    """未注册 task_type -> 400：未交付类型（custom，留 Task 22）与非法字符串拦在边界。
+
+    第二批 3 类（关系映射 / 任务 / 概念）已注册（Task 21），不在此列——
+    其可提交性由 ``test_submit_second_batch_types_accepted_e2e`` 锁定。
+    """
     _, token = await _seed_actor(session, "badtype", {Permission.ANALYZE})
     async with _make_client(session) as c:
-        resp = await c.post(
-            "/analysis/tasks", json={"task_type": "relation_mapping"}, headers=_auth(token)
-        )
+        resp = await c.post("/analysis/tasks", json={"task_type": "custom"}, headers=_auth(token))
         assert resp.status_code == 400, resp.text
         resp2 = await c.post(
             "/analysis/tasks", json={"task_type": "nonsense"}, headers=_auth(token)
         )
         assert resp2.status_code == 400, resp2.text
+
+
+@pytest.mark.parametrize("task_type", ["relation_mapping", "tasks", "concepts"])
+async def test_submit_second_batch_types_accepted_e2e(session, task_type):
+    """第二批 3 类注册后均可提交：202 -> worker -> 报告详情可见（Task 21 接线）。"""
+    user, token = await _seed_actor(session, f"analyst-{task_type}", {Permission.ANALYZE})
+    await get_app_stores().vector_store.upsert_chunks(
+        [
+            _chunk(
+                "alpha.md#0",
+                user.id,
+                doc_id="alpha.md",
+                content="阿尔法文档第一块。",
+                metadata={"title": "Alpha 文档"},
+            )
+        ]
+    )
+    async with _make_client(session) as c:
+        resp = await c.post("/analysis/tasks", json={"task_type": task_type}, headers=_auth(token))
+        assert resp.status_code == 202, resp.text
+        body = resp.json()
+        assert body["task_type"] == task_type
+        job = (await c.get(f"/jobs/{body['job_id']}", headers=_auth(token))).json()
+        assert job["status"] == "succeeded", job
+        assert job["report_id"] is not None
+        detail = (await c.get(f"/analysis/reports/{job['report_id']}", headers=_auth(token))).json()
+        assert detail["task_type"] == task_type
+        assert detail["status"] == "ok"
+        assert detail["prompt_version"] == f"{task_type}.v1"
 
 
 async def test_submit_qa_without_question_400(session):

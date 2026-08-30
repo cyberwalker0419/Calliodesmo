@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from calliodesmo.analysis.materials import gather_materials
+from calliodesmo.analysis.materials import fold_graph_context, gather_materials
 from calliodesmo.analysis.schemas import AnalysisType
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.eval.golden import GoldenCase
@@ -332,7 +332,9 @@ class AnalysisEvalHarness:
             doc_ids=tuple(case.doc_ids) if case.doc_ids else None,
             question=case.question,
         )
-        report = await self._engine.run(spec, gathered.materials, access)
+        # 图谱上下文折入材料（与 worker 同一采集 / 装配路径，见 analysis/materials）
+        materials = fold_graph_context(gathered)
+        report = await self._engine.run(spec, materials, access)
         if report.status != "ok" and report.status != "partial":
             # 完全失败：指标与 judge 跳过（不计均值；无产出与低分产出不可比）
             return AnalysisCaseResult(
@@ -354,7 +356,7 @@ class AnalysisEvalHarness:
                 self._judge,
                 task_type=task_type,
                 payload=report.payload,
-                material_texts=list(gathered.source_texts.values()),
+                material_texts=[m.text for m in materials],
                 question=case.question,
             )
             if self._judge is not None

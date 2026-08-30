@@ -9,7 +9,8 @@
   ``test/*`` → 桩；``analysis_model`` 空回退 ``llm_model``；localhost / ``ollama/`` /
   ``lm-studio/`` 豁免 key；缺 key ``RuntimeError`` 带配置指引；
 - 第一批 4 个模板驱动类型离线端到端（材料 → prompt → 桩 → 解析 → 证据自验 →
-  信封 status=ok 且 prompt_version/usage 落位）；
+  信封 status=ok 且 prompt_version/usage 落位）；第二批 3 类（关系映射 / 任务 /
+  概念）同链路 + 关系映射经图谱上下文折入的图谱复用路径（Task 21）；
 - 问答类经**构造注入** 的 ``SearchEngine``（内存 stores + test/stub 装配，不经
   ``api/deps.get_search_engine()``）``.query`` 包成 ``QAReport``（来源标注沿用
   ``[chunk_id]`` 约定，空候选输出「无可引用证据」）；
@@ -493,3 +494,112 @@ class TestFeedbackRetry:
         assert [item.label for item in salvaged.items] == ["时间"]
         assert any("部分抢救" in w for w in report.warnings)
         assert len(llm.calls) == 3
+
+
+_SECOND_BATCH_TEMPLATE_TYPES = [
+    AnalysisType.RELATION_MAPPING,
+    AnalysisType.TASKS,
+    AnalysisType.CONCEPTS,
+]
+
+
+class TestSecondBatchOfflineEndToEnd:
+    """第二批模板驱动类型离线端到端（Task 21）：材料 → prompt → 桩 → 解析 → 信封。"""
+
+    @pytest.mark.parametrize("task_type", _SECOND_BATCH_TEMPLATE_TYPES)
+    async def test_stub_end_to_end_status_ok(self, task_type):
+        engine = _engine()
+        report = await engine.run(AnalysisSpec(task_type=task_type), [_material()], _access())
+        assert isinstance(report, AnalysisReport)
+        assert report.task_type is task_type
+        assert report.status == AnalysisStatus.OK.value
+        assert report.model == "test/stub"
+        assert report.prompt_version == f"{task_type.value}.v1"
+        assert report.usage == {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        assert report.source_chunk_ids == ["doc1#1"]
+        assert report.warnings == []
+        # payload 经对应报告模型二次校验通过（关系映射 / 任务 / 概念各自模型）
+        from calliodesmo.analysis.specs import get_spec
+
+        validated = get_spec(task_type).output_cls.model_validate(report.payload)
+        assert validated is not None
+
+    async def test_relation_mapping_payload_validates_report_model(self):
+        """关系映射桩输出过 ``RelationMappingReport`` 校验（head/tail/type 齐备）。"""
+        from calliodesmo.analysis.schemas import RelationMappingReport
+
+        report = await _engine().run(
+            AnalysisSpec(task_type=AnalysisType.RELATION_MAPPING), [_material()], _access()
+        )
+        payload = RelationMappingReport.model_validate(report.payload)
+        assert payload.items
+        assert payload.items[0].head and payload.items[0].tail and payload.items[0].type
+
+    async def test_tasks_payload_validates_action_item_report(self):
+        """任务类桩输出过 ``ActionItemReport`` 校验（action/owner_raw/deadline_raw）。"""
+        from calliodesmo.analysis.schemas import ActionItemReport
+
+        report = await _engine().run(
+            AnalysisSpec(task_type=AnalysisType.TASKS), [_material()], _access()
+        )
+        payload = ActionItemReport.model_validate(report.payload)
+        assert payload.items
+        assert payload.items[0].action
+
+    async def test_concepts_payload_validates_concept_report(self):
+        """概念类桩输出过 ``ConceptReport`` 校验（name/definition/related）。"""
+        from calliodesmo.analysis.schemas import ConceptReport
+
+        report = await _engine().run(
+            AnalysisSpec(task_type=AnalysisType.CONCEPTS), [_material()], _access()
+        )
+        payload = ConceptReport.model_validate(report.payload)
+        assert payload.items
+        assert payload.items[0].name
+
+    async def test_relation_mapping_with_folded_graph_context(self):
+        """关系映射经图谱复用路径：图谱上下文折入材料后进引擎（source_chunk_ids 见伪块）。"""
+        from calliodesmo.analysis.materials import (
+            GRAPH_CONTEXT_CHUNK_ID,
+            GatheredMaterials,
+            fold_graph_context,
+        )
+        from calliodesmo.interfaces.graph_store import EntityRecord, RelationRecord
+
+        entities = (
+            EntityRecord(
+                name="示例组织",
+                type="org",
+                description="图谱实体",
+                source_chunk_ids=["doc1#1"],
+                owner_id=USER_ID,
+            ),
+        )
+        relations = (
+            RelationRecord(
+                source="示例组织",
+                target="示例产品",
+                type="developed",
+                description="开发",
+                source_chunk_ids=["doc1#1"],
+                owner_id=USER_ID,
+            ),
+        )
+        gathered = GatheredMaterials(
+            materials=(_material(),),
+            source_texts={"doc1#1": _material().text},
+            entities=entities,
+            relations=relations,
+            truncated=False,
+        )
+        materials = fold_graph_context(gathered)
+        # 折入后材料末尾为图谱上下文伪块（实体 / 关系数据序列化入文）
+        assert [m.chunk_id for m in materials] == ["doc1#1", GRAPH_CONTEXT_CHUNK_ID]
+        assert "示例组织" in materials[-1].text and "示例产品" in materials[-1].text
+
+        report = await _engine().run(
+            AnalysisSpec(task_type=AnalysisType.RELATION_MAPPING), materials, _access()
+        )
+        assert report.status == AnalysisStatus.OK.value
+        # 图谱上下文块实际进入提示词（render 侧 included_chunk_ids 落 source_chunk_ids）
+        assert report.source_chunk_ids == ["doc1#1", GRAPH_CONTEXT_CHUNK_ID]

@@ -14,7 +14,7 @@
   （``SummaryReport`` / ``QAReport`` / ``CustomReport``）的置信与证据在顶层，
   条目形态（其余六类）的置信与证据在每条 item 上，均由 ``ConfidenceEvidenceBase``
   承载「0–1 区间校验 + 缺证据自动降置信」。第二批 3 类（关系映射 / 任务 / 概念）
-  契约先立、接线留 Task 21（2026-W44）；``CustomReport`` 的注入防御留 Task 22。
+  契约先立、接线已于 Task 21 落地；``CustomReport`` 的注入防御留 Task 22。
 """
 
 import enum
@@ -293,7 +293,7 @@ class RelationItem(ConfidenceEvidenceBase):
 
 
 class RelationMappingReport(BaseModel):
-    """关系映射报告（第二批接线，契约先立；接线留 Task 21，2026-W44）。"""
+    """关系映射报告（第二批，契约先立；接线已于 Task 21 落地，图谱复用只组织）。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -317,7 +317,7 @@ class ActionItem(ConfidenceEvidenceBase):
 
 
 class ActionItemReport(BaseModel):
-    """任务报告（「任务」类模型名避免与 Job 混淆；第二批接线，契约先立）。"""
+    """任务报告（「任务」类模型名避免与 Job 混淆；第二批，接线已于 Task 21 落地）。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -338,7 +338,7 @@ class ConceptItem(ConfidenceEvidenceBase):
 
 
 class ConceptReport(BaseModel):
-    """概念报告（第二批接线，契约先立；接线留 Task 21，2026-W44）。"""
+    """概念报告（第二批，契约先立；接线已于 Task 21 落地）。"""
 
     model_config = ConfigDict(extra="forbid")
 

@@ -2,10 +2,11 @@
 
 离线证据只承诺结构 / 契约：``field_f1`` / ``tuple_f1`` 为确定性纯函数（手算样例：
 空预测 / 全命中 / 部分命中 / 双向匹配边界）；``config/golden_analysis.yaml`` 第一批
-5 类 × 每类 2 例小金标，复用 ``data/demo`` 三件语料同源材料（chunk_id 前缀约定与
-``config/golden_qa.yaml`` 一致）。QA 类 ``expected_answer`` 自 P2 以来首次被指标消费，
-``expected_answer`` 为空跳过该指标。分析质量证据由 ``scripts/eval_p6.py --real`` 承担
-（Task 17/23，锚点 2026-W45），本测试不表述为「分析质量好」。
+5 类 × 每类 2 例 + 第二批 3 类（关系映射 / 任务 / 概念，Task 21 补入）小金标，复用
+``data/demo`` 三件语料同源材料（chunk_id 前缀约定与 ``config/golden_qa.yaml`` 一致）。
+QA 类 ``expected_answer`` 自 P2 以来首次被指标消费，``expected_answer`` 为空跳过该指标。
+分析质量证据由 ``scripts/eval_p6.py --real`` 承担（Task 17/23，锚点 2026-W45），
+本测试不表述为「分析质量好」。
 """
 
 from collections.abc import Sequence
@@ -17,8 +18,10 @@ from calliodesmo.eval.metrics_analysis import PRF1, answer_field_pair, field_f1,
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_FILE = REPO_ROOT / "config" / "golden_analysis.yaml"
 
-#: 第一批 5 类（Task 5/6 已冻结契约；第二批 / 自定义不在本 golden 集）
+#: 第一批 5 类（Task 5/6 已冻结契约）
 FIRST_BATCH_TYPES = ("summary", "key_information", "timeline", "entity_recognition", "qa")
+#: 第二批 3 类（Task 21 接线；custom 无固定金标，不在本 golden 集）
+SECOND_BATCH_TYPES = ("relation_mapping", "tasks", "concepts")
 
 
 class TestLoadGoldenAnalysis:
@@ -84,16 +87,33 @@ cases:
         assert c.expected_fields[1] == "纯量要点"
         assert c.expected_tuples == [("组织", "北方稀土")]
 
-    def test_real_golden_first_batch_structure(self):
+    def test_real_golden_two_batches_structure(self):
         from collections import Counter
 
         cases = load_golden_analysis(GOLDEN_FILE)
-        assert len(cases) == 10  # 5 类 × 每类 2 例
         counts = Counter(c.task_type for c in cases)
-        assert set(counts) == set(FIRST_BATCH_TYPES)
-        assert all(n == 2 for n in counts.values())  # 每类恰 2 例
+        # 第一批 5 类 + 第二批 3 类（关系映射 / 任务 / 概念，Task 21 补入）
+        assert set(counts) == set(FIRST_BATCH_TYPES) | set(SECOND_BATCH_TYPES)
+        for t in FIRST_BATCH_TYPES:
+            assert counts[t] == 2  # 第一批每类恰 2 例
+        # 第二批：关系映射 / 任务各 2 例、概念 1 例（每类 1–2 例口径）
+        assert counts["relation_mapping"] == 2
+        assert counts["tasks"] == 2
+        assert counts["concepts"] == 1
+        assert len(cases) == 15
         assert all(c.case_id for c in cases)
         assert all(c.doc_ids for c in cases)  # 每条都有材料范围
+
+    def test_real_golden_second_batch_metric_shapes(self):
+        """第二批金标形状：关系映射三元组、任务 / 概念字段条目（对齐确定性指标入参）。"""
+        cases = {c.case_id: c for c in load_golden_analysis(GOLDEN_FILE)}
+        rel = cases["relation-mapping-rare-earth"]
+        assert rel.expected_tuples and all(len(t) == 3 for t in rel.expected_tuples)
+        tasks = cases["tasks-rare-earth"]
+        assert tasks.expected_fields and all(isinstance(f, dict) for f in tasks.expected_fields)
+        assert any("action" in f for f in tasks.expected_fields)
+        concepts = cases["concepts-apt28"]
+        assert concepts.expected_fields and all("name" in f for f in concepts.expected_fields)
 
     def test_real_golden_qa_has_expected_answer(self):
         cases = load_golden_analysis(GOLDEN_FILE)

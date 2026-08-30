@@ -1,6 +1,6 @@
 """DefaultAnalysisEngine：prompt → LLM → 解析 → 回喂重试 → 证据自验 → 信封（P6 Task 10）。
 
-第一批 5 类离线端到端的执行体（第二批 3 类接线留 Task 21，custom 留 Task 22）：
+模板驱动 8 类离线端到端的执行体（第一批 5 类 + 第二批 3 类已接线，custom 留 Task 22）：
 
 - **模板驱动类型**（摘要 / 关键信息 / 时间线 / 实体识别，第二批 + 关系映射 / 任务 /
   概念）：``get_spec`` 取注册表 → ``load_template`` / ``render_prompt`` 渲染
@@ -19,8 +19,9 @@
   模板直连 QA 路径是否复用随 QA ``doc_ids`` 范围（谓词下推，P9，2026-W49）一并重评。
 - QA 报告 ``evidence`` 恒空（``citations`` 仅材料块 ID 列表；引文级证据需源文映射，
   随谓词下推补，P9，2026-W49），故 QA 路径跳过 ``verify_evidence``（空证据下为无操作）。
-- 实体 / 关系类的图谱上下文由 ``gather_materials`` 采集（Task 9），worker（Task 13，
-  2026-W40）折入材料后进引擎；引擎自身不读 ``graph_store``——保引擎纯逻辑可测。
+- 实体 / 关系类的图谱上下文由 ``gather_materials`` 采集（Task 9），经
+  ``materials.fold_graph_context`` 折入材料后由 worker（Task 13 / 21）进引擎；
+  引擎自身不读 ``graph_store``——保引擎纯逻辑可测（关系映射等图谱复用，LLM 只组织）。
 - LLM 传输层异常（网络 / provider 故障）不在引擎内吞掉，向上传播由调用方
   （worker，Task 13）按 job failed 处置；解析预算耗尽则返回 ``status=failed`` 的
   ``AnalysisReport``，warnings 携带可读失败信号。

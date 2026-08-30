@@ -19,7 +19,8 @@ P6 Task 13：``task_type="analyze"`` 执行体，1:1 对齐 ``ecl/job_worker.py`
 
 ```text
 gather_materials（含 visible_to 二次把关）→ 空材料拦为失败
-→ compute_report_access_level（密级继承）→ engine.run
+→ 图谱上下文折入材料（关系映射等图谱复用类，fold_graph_context）
+→ compute_report_access_level（密级继承，只认真材料块）→ engine.run
 → 报告落库（仅 ok / partial；AnalysisReportStore 拒 failed）+ 信封装配（补 generated_at）
 → Job.result = {report_id, status} 最小指针（决策 2）→ 终态审计
 ```
@@ -49,7 +50,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.analysis.access import compute_report_access_level
-from calliodesmo.analysis.materials import GatheredMaterials, gather_materials
+from calliodesmo.analysis.materials import (
+    GatheredMaterials,
+    fold_graph_context,
+    gather_materials,
+)
 from calliodesmo.analysis.report_store import AnalysisReportStore
 from calliodesmo.analysis.schemas import AnalysisEnvelope, AnalysisStatus, AnalysisType
 from calliodesmo.audit.service import record_audit
@@ -101,7 +106,9 @@ async def run_analysis_job(
             if not gathered.materials:
                 raise ValueError("无可见材料（提交范围为空或权限已变化）")
             await _update_job(job_session, job_id, JobStatus.RUNNING, stage="prompt", progress=25)
-            report = await engine.run(spec, gathered.materials, access)
+            # 图谱上下文折入材料（关系映射等图谱复用类；引擎不读 graph_store，见
+            # analysis/materials.fold_graph_context）——密级继承 / 块计数仍只认真材料块
+            report = await engine.run(spec, fold_graph_context(gathered), access)
             # 进度近似推进（引擎内部无阶段回调，仿 ingest worker 惯例）
             await _update_job(job_session, job_id, JobStatus.RUNNING, stage="llm", progress=60)
             await _update_job(job_session, job_id, JobStatus.RUNNING, stage="verify", progress=80)

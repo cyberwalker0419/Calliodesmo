@@ -7,12 +7,12 @@ created: 2026-08-30
 ---
 # P6 进度快照与新会话交接
 
-> 快照时间：2026-08-30（2026-W35，Task 20 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
+> 快照时间：2026-08-30（2026-W35，Task 21 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
 
-## 总进度：20/23 必做 Task 完成
+## 总进度：21/23 必做 Task 完成
 
 - 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
-- 测试基线：**936 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475；Task 20 审查修复 +3：cookie 消费回归）；前端 vitest **52 passed**（Task 18 新增 9 例 + Task 19 新增 11 例 + Task 20 新增 17 例；开工前 15）
+- 测试基线：**972 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475；Task 21 第二批接线 +36）；前端 vitest **52 passed**（Task 18 新增 9 例 + Task 19 新增 11 例 + Task 20 新增 17 例；开工前 15）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
 | 批次 | 范围 | 状态 |
@@ -24,7 +24,8 @@ created: 2026-08-30
 | Task 18 | 前端数据层（types / API 客户端 / `useAnalysis` hook + vitest） | ✅ `4d09e56` |
 | Task 19 | 前端提交页 + 轮询（preview 闭环） | ✅ `2b57b77` |
 | Task 20 | 前端报告渲染 + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ `9ae1666` + 审查修复 `a3fd42e`（cookie 会话回退） |
-| Task 21–22 | 第二批接线 + 自定义分析 | 🔄 进行中（门槛：#17 基线绿 ✅ + #20 矩阵过 ✅） |
+| Task 21 | 第二批接线（关系映射 / 任务 / 概念，图谱复用） | ✅ 完成（基线重落 15 例全 ok） |
+| Task 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | 🔄 进行中（门槛：#17 基线绿 ✅ + #20 矩阵过 ✅） |
 | Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ⏭️ 未开始 |
 | Task 24（可选） | `analyze` CLI | ⏭️ 视工时 |
 
@@ -40,7 +41,7 @@ created: 2026-08-30
 ## 移交注意事项
 
 - **`--real` 质量补跑不做**：`eval_p6.py --real` 与 `eval_p5.py --real` 锚点 2026-W45 用户本机；离线证据只承诺结构/契约，不得表述为「分析质量好」。
-- **P6 离线基线已落盘**（Task 17，`docs/verification/p6-regression.json`）：10 例全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0（桩零区分度）/ mean_judge_overall 3.0（桩固定分）——结构/契约证据，非质量结论；第二批（Task 21–22）门槛之一已满足。
+- **P6 离线基线已落盘**（Task 17 立基线，Task 21 第二批补 5 例重落，`docs/verification/p6-regression.json`）：15 例全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0（桩零区分度）/ mean_judge_overall 3.0（桩固定分）——结构/契约证据，非质量结论；第二批（Task 21–22）门槛之一已满足。
 - **Task 25 不做**：按计划顺延 2026-W49（P9 模型层清单）。
 - `design/` 未追踪目录与本阶段无关，不动。
 - 既有库迁移已由 `db/migrate.py` 承接并挂进 `db init`（Task 11）；复杂迁移需 Alembic 已留痕 2026-W49。

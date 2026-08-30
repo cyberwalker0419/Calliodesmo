@@ -48,6 +48,7 @@ from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.models_analysis import AnalysisReportORM
 from calliodesmo.db.models_job import Job, JobStatus
 from calliodesmo.interfaces.analysis import AnalysisEngine
+from calliodesmo.interfaces.graph_store import EntityRecord, RelationRecord
 from calliodesmo.interfaces.llm import LLMProvider, LLMResponse
 from calliodesmo.interfaces.vector_store import ChunkRecord
 from calliodesmo.providers.stub_llm import StubLLMProvider
@@ -180,6 +181,23 @@ class _ScriptedLLM(LLMProvider):
         )
 
 
+class _RecordingLLM(LLMProvider):
+    """记录每次调用消息的 provider：返回固定合法 JSON（断言图谱上下文入提示词用）。"""
+
+    def __init__(self, content: str, model: str = "test/recording"):
+        self.content = content
+        self.model = model
+        self.calls: list[list] = []
+
+    async def complete(self, messages, *, temperature=0.2, max_tokens=None):
+        self.calls.append(list(messages))
+        return LLMResponse(
+            content=self.content,
+            model=self.model,
+            usage={"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+        )
+
+
 class _BoomEngine(AnalysisEngine):
     """执行即抛错的坏引擎（失败路径用）。"""
 
@@ -306,6 +324,89 @@ async def test_doc_ids_membership_filter_from_task_payload(session):
     assert len(reports) == 1
     assert reports[0].source_doc_ids == ["alpha.md"]
     assert reports[0].payload["source_chunk_ids"] == ["alpha.md#0"]
+
+
+# ---------------------------------------------------------------------------
+# 图谱复用：关系映射经图谱上下文折入材料后进引擎（Task 21，LLM 只组织不重新抽取）
+# ---------------------------------------------------------------------------
+
+
+async def test_relation_mapping_graph_context_folded_into_prompt(session):
+    """关系映射图谱复用路径：图谱实体 / 关系折入材料 -> 进提示词 -> 报告落库。"""
+    from calliodesmo.analysis.materials import GRAPH_CONTEXT_CHUNK_ID
+
+    user = await _seed_actor(session, "analyst-relmap")
+    await get_app_stores().vector_store.upsert_chunks(
+        [
+            _chunk(
+                "alpha.md#0",
+                user.id,
+                doc_id="alpha.md",
+                content="阿尔法文档第一块。",
+                metadata={"title": "Alpha 文档"},
+            )
+        ]
+    )
+    # 图谱数据：可见且源块与材料块相交（采集器经 visible_to + 相交纳入图谱上下文）
+    await get_app_stores().graph_store.upsert_graph(
+        [
+            EntityRecord(
+                name="立项委员会",
+                type="org",
+                description="项目立项机构",
+                source_chunk_ids=["alpha.md#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=user.id,
+            )
+        ],
+        [
+            RelationRecord(
+                source="立项委员会",
+                target="合作机构",
+                type="cooperate",
+                description="联合研发",
+                source_chunk_ids=["alpha.md#0"],
+                library_scope=LibraryScope.PERSONAL,
+                owner_id=user.id,
+            )
+        ],
+    )
+    valid = json.dumps(
+        {
+            "items": [
+                {
+                    "head": "立项委员会",
+                    "tail": "合作机构",
+                    "type": "cooperate",
+                    "description": "图谱数据组织而来",
+                    "confidence": 1.0,
+                }
+            ]
+        },
+        ensure_ascii=False,
+    )
+    llm = _RecordingLLM(valid)
+    job = await _create_job(session, user.id, {"task_type": "relation_mapping", "doc_ids": []})
+    factory = _job_factory(session)
+
+    await _run_worker(job.id, DefaultAnalysisEngine(llm=llm, settings=_offline_settings()), factory)
+
+    row = await _job_row(factory, job.id)
+    assert row.status == JobStatus.SUCCEEDED
+    # 图谱上下文进入提示词：user 消息含实体 / 关系数据（worker 折入材料后经引擎渲染）
+    assert llm.calls, "引擎应至少调用一次 LLM"
+    user_text = "\n".join(m.content for messages in llm.calls for m in messages if m.role == "user")
+    assert "立项委员会" in user_text and "合作机构" in user_text
+    assert "图谱上下文" in user_text
+    # 报告落库：关系映射载荷 + 图谱伪块落 source_chunk_ids（真实块计数不受伪块影响）
+    reports = await _report_rows(factory)
+    assert len(reports) == 1
+    report = reports[0]
+    assert report.task_type == "relation_mapping"
+    assert report.status == "ok"
+    assert report.source_chunk_count == 1  # 仅真实材料块
+    assert set(report.payload["source_chunk_ids"]) == {"alpha.md#0", GRAPH_CONTEXT_CHUNK_ID}
+    assert report.payload["payload"]["items"][0]["head"] == "立项委员会"
 
 
 # ---------------------------------------------------------------------------

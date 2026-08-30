@@ -23,7 +23,11 @@ pytest.importorskip("neo4j")
 
 from calliodesmo.analysis.access import compute_report_access_level
 from calliodesmo.analysis.materials import (
+    GRAPH_CONTEXT_CHUNK_ID,
     AnalysisMaterial,
+    GatheredMaterials,
+    fold_graph_context,
+    format_graph_context,
     gather_materials,
 )
 from calliodesmo.analysis.schemas import (
@@ -643,4 +647,100 @@ def test_compute_report_access_level_accepts_raw_levels():
     assert (
         compute_report_access_level([ClearanceLevel.PUBLIC, ClearanceLevel.CONFIDENTIAL])
         == ClearanceLevel.CONFIDENTIAL
+    )
+
+
+# ---------------------------------------------------------------------------
+# fold_graph_context：图谱上下文折入材料（纯函数，worker / 评估侧折后进引擎）
+# ---------------------------------------------------------------------------
+
+
+def _gathered(entities=(), relations=(), materials=None) -> GatheredMaterials:
+    """构造 GatheredMaterials（折入纯函数用例用；材料默认一条）。"""
+    mats = materials if materials is not None else (_mat(ClearanceLevel.INTERNAL),)
+    return GatheredMaterials(
+        materials=tuple(mats),
+        source_texts={m.chunk_id: m.text for m in mats},
+        entities=tuple(entities),
+        relations=tuple(relations),
+        truncated=False,
+    )
+
+
+def _fold_ent(name="立项委员会", access=ClearanceLevel.INTERNAL) -> EntityRecord:
+    return EntityRecord(
+        name=name,
+        type="org",
+        description=f"desc-{name}",
+        source_chunk_ids=["c#0"],
+        access_level=access,
+    )
+
+
+def _fold_rel(src="立项委员会", tgt="合作机构", access=ClearanceLevel.INTERNAL) -> RelationRecord:
+    return RelationRecord(
+        source=src,
+        target=tgt,
+        type="related",
+        description=f"{src} 与 {tgt} 合作",
+        source_chunk_ids=["c#0"],
+        access_level=access,
+    )
+
+
+def test_fold_graph_context_noop_without_graph_data():
+    """无实体 / 关系：原样返回材料（非图谱类与图空场景不加伪块）。"""
+    gathered = _gathered()
+    assert fold_graph_context(gathered) == gathered.materials
+
+
+def test_fold_graph_context_appends_pseudo_material():
+    """有图谱上下文：末尾追加伪材料块，实体 / 关系数据序列化入文。"""
+    gathered = _gathered(entities=[_fold_ent()], relations=[_fold_rel()])
+    folded = fold_graph_context(gathered)
+    assert [m.chunk_id for m in folded] == ["c#0", GRAPH_CONTEXT_CHUNK_ID]
+    pseudo = folded[-1]
+    assert "立项委员会" in pseudo.text  # 实体名入文
+    assert "合作机构" in pseudo.text  # 关系尾实体入文
+    assert "related" in pseudo.text  # 关系类型入文
+    # 真实材料块不变（伪块仅追加）
+    assert folded[0] == gathered.materials[0]
+
+
+def test_fold_graph_context_access_level_is_max_of_graph_data():
+    """伪块 access_level 取实体 / 关系各级最大值（保守方向）。"""
+    gathered = _gathered(
+        entities=[_fold_ent(access=ClearanceLevel.INTERNAL)],
+        relations=[_fold_rel(access=ClearanceLevel.SECRET)],
+    )
+    folded = fold_graph_context(gathered)
+    assert folded[-1].access_level == ClearanceLevel.SECRET
+
+
+def test_fold_graph_context_entities_only_and_relations_only():
+    """仅实体或仅关系亦可折入（对应段缺省时不渲染空段）。"""
+    ent_only = fold_graph_context(_gathered(entities=[_fold_ent()]))
+    assert ent_only[-1].chunk_id == GRAPH_CONTEXT_CHUNK_ID
+    assert "立项委员会" in ent_only[-1].text
+    rel_only = fold_graph_context(_gathered(relations=[_fold_rel()]))
+    assert rel_only[-1].chunk_id == GRAPH_CONTEXT_CHUNK_ID
+    assert "合作机构" in rel_only[-1].text
+
+
+def test_format_graph_context_deterministic_and_skips_blank_fields():
+    """序列化确定性：段落标记固定；空类型 / 空描述不渲染多余分隔符。"""
+    ent = EntityRecord(name="甲", type=None, description="", source_chunk_ids=["c#0"])
+    rel = RelationRecord(
+        source="甲", target="乙", type="", description="", source_chunk_ids=["c#0"]
+    )
+    text = format_graph_context([ent], [rel])
+    assert text == ("【图谱上下文 · 实体】\n- 实体：甲\n【图谱上下文 · 关系】\n- 关系：甲 -> 乙")
+
+
+def test_format_graph_context_renders_type_and_description():
+    """非空类型 / 描述以「 | 」分隔渲染（字段内容原样复用，不重新抽取）。"""
+    text = format_graph_context([_fold_ent()], [_fold_rel()])
+    assert "- 实体：立项委员会 | 类型：org | 描述：desc-立项委员会" in text
+    assert (
+        "- 关系：立项委员会 -> 合作机构 | 类型：related | 描述：立项委员会 与 合作机构 合作" in text
     )

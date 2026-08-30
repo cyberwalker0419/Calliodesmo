@@ -1,4 +1,4 @@
-"""P6 Task 6 测试：提示词模板与构造（第一批 5 类，纯函数无夹具，CI 可覆盖）。
+"""P6 Task 6 测试：提示词模板与构造（第一批 5 类 + 第二批 3 类，纯函数无夹具，CI 可覆盖）。
 
 覆盖：
 - ``{materials}`` / ``{question}`` / ``{schema}`` 令牌替换（材料最后替换，
@@ -8,7 +8,8 @@
 - 版本号解析：模板首行 ``# version: N`` → ``prompt_version = "<type>.v<version>"``；
 - 模板遵循 ``ecl/extractor.py`` 范式：系统角色声明 + 「严格只输出一个 JSON 对象」
   + 输出 schema 示例 + ``[ANALYSIS:<type>]`` StubLLM 分发锚点；
-- 时间线模板含 ISO 8601 归一化 + 锚点换算 + 模糊时间落 ``relative`` 不得臆造精确日期。
+- 时间线模板含 ISO 8601 归一化 + 锚点换算 + 模糊时间落 ``relative`` 不得臆造精确日期；
+- 关系映射模板含图谱复用口径（基于给定实体/关系数据组织、不重新抽取，Task 21）。
 """
 
 import dataclasses
@@ -37,6 +38,15 @@ _FIRST_BATCH = [
     AnalysisType.QA,
 ]
 
+#: 第二批 3 类（关系映射 / 任务 / 概念，Task 21 接线）
+_SECOND_BATCH = [
+    AnalysisType.RELATION_MAPPING,
+    AnalysisType.TASKS,
+    AnalysisType.CONCEPTS,
+]
+
+_ALL_TEMPLATE_TYPES = _FIRST_BATCH + _SECOND_BATCH
+
 #: 各模板输出 schema 示例应含的报告键（与 analysis/schemas.py 模型字段一致）
 _SCHEMA_KEYS: dict[AnalysisType, tuple[str, ...]] = {
     AnalysisType.SUMMARY: ('"summary"', '"key_points"'),
@@ -44,6 +54,9 @@ _SCHEMA_KEYS: dict[AnalysisType, tuple[str, ...]] = {
     AnalysisType.TIMELINE: ('"items"', '"date_raw"', '"date_normalized"', '"granularity"'),
     AnalysisType.ENTITY_RECOGNITION: ('"items"', '"name"', '"type"'),
     AnalysisType.QA: ('"question"', '"answer"', '"citations"'),
+    AnalysisType.RELATION_MAPPING: ('"items"', '"head"', '"tail"', '"type"'),
+    AnalysisType.TASKS: ('"items"', '"action"', '"owner_raw"', '"deadline_raw"'),
+    AnalysisType.CONCEPTS: ('"items"', '"name"', '"definition"', '"related"'),
 }
 
 #: 合成模板（{schema} 令牌替换 / 版本解析 / 系统段替换等纯函数用例，不依赖文件）
@@ -106,9 +119,9 @@ class TestParseTemplate:
 class TestLoadTemplate:
     """load_template：模板文件定位与读取。"""
 
-    @pytest.mark.parametrize("task_type", _FIRST_BATCH)
-    def test_first_batch_template_files_exist(self, task_type):
-        """第一批 5 类的模板文件按注册表 ``template_name`` 约定存在且版本为 1。"""
+    @pytest.mark.parametrize("task_type", _ALL_TEMPLATE_TYPES)
+    def test_template_files_exist(self, task_type):
+        """两批 8 类的模板文件按注册表 ``template_name`` 约定存在且版本为 1。"""
         spec = get_spec(task_type)
         assert spec.template_name == f"{task_type.value}.txt"
         template = load_template(spec.template_name)
@@ -129,7 +142,7 @@ class TestLoadTemplate:
 class TestTemplateContracts:
     """实际模板文件遵循 ``ecl/extractor.py`` 范式（角色声明 + 单一 JSON + schema 示例）。"""
 
-    @pytest.mark.parametrize("task_type", _FIRST_BATCH)
+    @pytest.mark.parametrize("task_type", _ALL_TEMPLATE_TYPES)
     def test_extractor_paradigm(self, task_type):
         template = load_template(get_spec(task_type).template_name)
         system = template.system
@@ -143,14 +156,14 @@ class TestTemplateContracts:
         assert "{" in system and "}" in system
         assert "evidence" in system
 
-    @pytest.mark.parametrize("task_type", _FIRST_BATCH)
+    @pytest.mark.parametrize("task_type", _ALL_TEMPLATE_TYPES)
     def test_output_schema_keys_match_report_model(self, task_type):
         """schema 示例键与 analysis/schemas.py 对应报告模型字段一致。"""
         template = load_template(get_spec(task_type).template_name)
         for key in _SCHEMA_KEYS[task_type]:
             assert key in template.system
 
-    @pytest.mark.parametrize("task_type", _FIRST_BATCH)
+    @pytest.mark.parametrize("task_type", _ALL_TEMPLATE_TYPES)
     def test_user_section_has_materials_token(self, task_type):
         template = load_template(get_spec(task_type).template_name)
         assert "{materials}" in template.user
@@ -170,6 +183,33 @@ class TestTimelineTemplateGuidance:
         assert "锚点" in system  # 相对时间表述按材料时间锚点换算
         assert "relative" in system  # 模糊时间落 relative
         assert "臆造" in system  # 不得臆造精确日期
+
+
+class TestRelationMappingTemplateGuidance:
+    """关系映射模板：图谱复用口径——基于给定实体/关系数据组织，不重新抽取。"""
+
+    def test_relation_mapping_graph_reuse_guidance(self):
+        template = load_template("relation_mapping.txt")
+        system = template.system
+        assert "实体" in system and "关系" in system  # 面向实体/关系数据
+        assert "组织" in system  # LLM 只组织
+        assert "抽取" in system  # 「不重新抽取」口径出现
+        assert "不" in system  # 否定式约束（不新造 / 不重新抽取）
+
+    def test_relation_mapping_schema_example_head_tail(self):
+        """schema 示例含 head / tail / type / description 四键（对齐 RelationItem）。"""
+        template = load_template("relation_mapping.txt")
+        for key in ('"head"', '"tail"', '"type"', '"description"'):
+            assert key in template.system
+
+    def test_tasks_and_concepts_schema_examples(self):
+        """任务 / 概念模板的 schema 示例对齐各自报告模型字段。"""
+        tasks = load_template("tasks.txt")
+        for key in ('"action"', '"owner_raw"', '"deadline_raw"'):
+            assert key in tasks.system
+        concepts = load_template("concepts.txt")
+        for key in ('"name"', '"definition"', '"related"'):
+            assert key in concepts.system
 
 
 class TestRenderPromptTokens:
@@ -233,7 +273,7 @@ class TestRenderPromptTokens:
 class TestRenderPromptVersion:
     """prompt_version = "<type>.v<version>"（运行记录，评估按版本切片）。"""
 
-    @pytest.mark.parametrize("task_type", _FIRST_BATCH)
+    @pytest.mark.parametrize("task_type", _ALL_TEMPLATE_TYPES)
     def test_prompt_version_from_file_templates(self, task_type):
         template = load_template(get_spec(task_type).template_name)
         rendered = render_prompt(template, task_type, materials=_materials(1))

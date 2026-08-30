@@ -19,7 +19,8 @@ P6 Task 9。把「提交参数 → 可见材料 + 源文映射 + 可选图谱上
 优化 → P9（2026-W49，与 ``api/deps.py`` ProfileCard/BM25 改 PG 同批）。
 
 **图谱复用**：实体识别 / 关系映射类另读 ``graph_store`` 实体与关系（经
-``visible_to``，只纳入与最终材料块相交者）作图谱上下文，LLM 只组织、不重新抽取。
+``visible_to``，只纳入与最终材料块相交者）作图谱上下文，由 ``fold_graph_context``
+折入材料（序列化为追加伪块）后进引擎，LLM 只组织、不重新抽取。
 
 ``AnalysisMaterial`` 为引擎侧材料形态；``interfaces/analysis.py``（Task 10，
 2026-W39）re-export 本 dataclass，不重复定义（与 ``schemas.AnalysisType`` 先例一致）。
@@ -47,6 +48,11 @@ from calliodesmo.stores.visibility import visible_to
 GRAPH_CONTEXT_TYPES: frozenset[AnalysisType] = frozenset(
     {AnalysisType.ENTITY_RECOGNITION, AnalysisType.RELATION_MAPPING}
 )
+
+#: 图谱上下文伪材料块的 chunk_id（``fold_graph_context`` 折入标记）。关系映射等图谱
+#: 复用类型把 ``gather_materials`` 采集的实体 / 关系序列化为一条追加的伪材料块，
+#: 使模板渲染（``{materials}``）天然携带图谱数据——非真实落库块，仅提示词装配用。
+GRAPH_CONTEXT_CHUNK_ID = "graph-context"
 
 
 @dataclass(frozen=True)
@@ -230,9 +236,70 @@ async def gather_materials(
     )
 
 
+def format_graph_context(
+    entities: Sequence[EntityRecord], relations: Sequence[RelationRecord]
+) -> str:
+    """把图谱实体 / 关系序列化为确定性文本块（字段内容原样复用，不重新抽取）。
+
+    段落标记固定（``【图谱上下文 · 实体】`` / ``【图谱上下文 · 关系】``），空段不渲染；
+    每条实体 / 关系以 ``- `` 起行，非空字段以「 | 」分隔（空类型 / 空描述不落空值段）。
+    供 ``fold_graph_context`` 折入材料，关系映射等图谱复用类型的提示词装配消费。
+    """
+    lines: list[str] = []
+    if entities:
+        lines.append("【图谱上下文 · 实体】")
+        for e in entities:
+            parts = [f"实体：{e.name}"]
+            if e.type:
+                parts.append(f"类型：{e.type}")
+            if e.description:
+                parts.append(f"描述：{e.description}")
+            lines.append("- " + " | ".join(parts))
+    if relations:
+        lines.append("【图谱上下文 · 关系】")
+        for r in relations:
+            parts = [f"关系：{r.source} -> {r.target}"]
+            if r.type:
+                parts.append(f"类型：{r.type}")
+            if r.description:
+                parts.append(f"描述：{r.description}")
+            lines.append("- " + " | ".join(parts))
+    return "\n".join(lines)
+
+
+def fold_graph_context(gathered: GatheredMaterials) -> tuple[AnalysisMaterial, ...]:
+    """图谱上下文折入材料：实体 / 关系序列化为追加伪材料块后返回（否则原样返回）。
+
+    关系映射等图谱复用类型（``GRAPH_CONTEXT_TYPES``）经 ``gather_materials`` 采集
+    图谱实体 / 关系后，由本函数折入材料末尾（``GRAPH_CONTEXT_CHUNK_ID`` 伪块），
+    引擎（``analysis/engine.py``）经统一的 ``{materials}`` 渲染消费——**保引擎纯逻辑，
+    不读 ``graph_store``**；LLM 只组织、不重新抽取。密级继承与块计数仍只认真材料块
+    （``compute_report_access_level`` / ``source_chunk_count`` 消费 ``gathered.materials``，
+    不含伪块）；伪块 ``access_level`` 取实体 / 关系各级最大值（保守方向，仅升不降）。
+    """
+    if not gathered.entities and not gathered.relations:
+        return gathered.materials
+    levels = [e.access_level for e in gathered.entities] + [
+        r.access_level for r in gathered.relations
+    ]
+    pseudo = AnalysisMaterial(
+        chunk_id=GRAPH_CONTEXT_CHUNK_ID,
+        doc_id=GRAPH_CONTEXT_CHUNK_ID,
+        source_label="图谱上下文",
+        text=format_graph_context(gathered.entities, gathered.relations),
+        access_level=max(levels) if levels else ClearanceLevel.INTERNAL,
+        library_scope=LibraryScope.PERSONAL,
+        owner_id=None,
+    )
+    return (*gathered.materials, pseudo)
+
+
 __all__ = [
+    "GRAPH_CONTEXT_CHUNK_ID",
     "GRAPH_CONTEXT_TYPES",
     "AnalysisMaterial",
     "GatheredMaterials",
+    "fold_graph_context",
+    "format_graph_context",
     "gather_materials",
 ]

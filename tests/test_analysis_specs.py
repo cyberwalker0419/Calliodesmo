@@ -8,9 +8,9 @@
 - 时间线 ``date_normalized`` ISO 8601 校验（宽松年 / 月精度，拒非法历法与非 ISO 格式）、
   ``granularity`` 三值枚举、exact / approximate 必须给归一化日期、relative 允许缺省
   （模糊时间不得臆造精确日期）；
-- ``AnalysisTaskSpec`` 注册表：本批注册 5 类（summary / key_information / timeline /
-  entity_recognition / qa），未注册类型（第二批 3 类 + custom）``get_spec`` 抛 ``KeyError``
-  （API 层转 400，未交付类型天然不可提交）；
+- ``AnalysisTaskSpec`` 注册表：第一批 5 类（Task 5）+ 第二批 3 类（关系映射 / 任务 /
+  概念，Task 21 接线）均已注册；``custom`` 仍待 ``build_custom_spec``（Task 22），
+  未注册类型 ``get_spec`` 抛 ``KeyError``（API 层转 400，未交付类型天然不可提交）；
 - ``build_custom_spec`` 仅声明 / 占位，实现留 Task 22（2026-W44）。
 """
 
@@ -90,12 +90,26 @@ _FIRST_BATCH = [
     AnalysisType.QA,
 ]
 
+#: 第二批 3 类（关系映射 / 任务 / 概念，Task 21 接线；「任务」类输出模型为
+#: ActionItemReport，避免与 Job 混淆）
+_SECOND_BATCH = [
+    AnalysisType.RELATION_MAPPING,
+    AnalysisType.TASKS,
+    AnalysisType.CONCEPTS,
+]
+
+#: 两批合计 8 类模板驱动 / 检索驱动类型（custom 仍留 Task 22 动态构造）
+_ALL_REGISTERED = _FIRST_BATCH + _SECOND_BATCH
+
 _EXPECTED_OUTPUT_CLS = {
     AnalysisType.SUMMARY: SummaryReport,
     AnalysisType.KEY_INFORMATION: KeyInfoReport,
     AnalysisType.TIMELINE: TimelineReport,
     AnalysisType.ENTITY_RECOGNITION: EntityRecognitionReport,
     AnalysisType.QA: QAReport,
+    AnalysisType.RELATION_MAPPING: RelationMappingReport,
+    AnalysisType.TASKS: ActionItemReport,
+    AnalysisType.CONCEPTS: ConceptReport,
 }
 
 
@@ -456,11 +470,11 @@ class TestAnalysisTaskSpec:
 
 
 class TestRegistry:
-    def test_first_batch_registered_exactly(self):
-        """本批只注册 5 类（契约完整、交付分批）；第二批与 custom 未注册。"""
-        assert set(BUILTIN_ANALYSIS_SPECS) == set(_FIRST_BATCH)
+    def test_two_batches_registered_exactly(self):
+        """第一批 5 类 + 第二批 3 类均已注册；custom 仍留 Task 22 动态构造。"""
+        assert set(BUILTIN_ANALYSIS_SPECS) == set(_ALL_REGISTERED)
 
-    @pytest.mark.parametrize("task_type", _FIRST_BATCH)
+    @pytest.mark.parametrize("task_type", _ALL_REGISTERED)
     def test_get_spec_fields(self, task_type):
         spec = get_spec(task_type)
         assert isinstance(spec, AnalysisTaskSpec)
@@ -473,24 +487,14 @@ class TestRegistry:
     def test_get_spec_accepts_str(self):
         assert get_spec("summary").type is AnalysisType.SUMMARY
 
-    @pytest.mark.parametrize(
-        "task_type",
-        [
-            AnalysisType.RELATION_MAPPING,
-            AnalysisType.TASKS,
-            AnalysisType.CONCEPTS,
-            AnalysisType.CUSTOM,
-        ],
-    )
-    def test_unregistered_raises_key_error(self, task_type):
-        """未注册类型抛 KeyError（API 层转 400）——未交付类型天然不可提交。"""
+    def test_unregistered_raises_key_error(self):
+        """custom 未注册抛 KeyError（API 层转 400）——未交付类型天然不可提交。"""
         with pytest.raises(KeyError):
-            get_spec(task_type)
+            get_spec(AnalysisType.CUSTOM)
 
-    @pytest.mark.parametrize("value", ["relation_mapping", "tasks", "concepts", "custom"])
-    def test_unregistered_str_raises_key_error(self, value):
+    def test_unregistered_str_raises_key_error(self):
         with pytest.raises(KeyError):
-            get_spec(value)
+            get_spec("custom")
 
     def test_invalid_type_str_raises_value_error(self):
         with pytest.raises(ValueError):

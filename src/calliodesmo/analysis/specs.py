@@ -3,8 +3,8 @@
 注册表 / 解析 / 评估 / 前端渲染四方共用的契约锚点，类型无关：加类型 = 加一条
 spec + 一份模板，引擎不改（见计划「注册表与提示词」）。
 
-- ``BUILTIN_ANALYSIS_SPECS``：本批（Task 5）注册第一批 5 类；第二批 3 类
-  （relation_mapping / tasks / concepts）接线留 Task 21（2026-W44）；
+- ``BUILTIN_ANALYSIS_SPECS``：第一批 5 类（Task 5）+ 第二批 3 类
+  （relation_mapping / tasks / concepts，Task 21 接线）均已注册；
   ``custom`` 经 ``build_custom_spec`` 动态构造（Task 22）。
 - ``get_spec``：未注册抛 ``KeyError``（API 层转 400）——未交付类型天然不可提交，
   无需额外开关。
@@ -15,10 +15,13 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from calliodesmo.analysis.schemas import (
+    ActionItemReport,
     AnalysisType,
+    ConceptReport,
     EntityRecognitionReport,
     KeyInfoReport,
     QAReport,
+    RelationMappingReport,
     SummaryReport,
     TimelineReport,
 )
@@ -51,8 +54,8 @@ def _builtin(task_type: AnalysisType, output_cls: type[BaseModel]) -> AnalysisTa
     )
 
 
-#: 内置规格注册表：本批注册第一批 5 类（契约完整、交付分批）；
-#: 第二批 3 类追加留 Task 21（2026-W44）；custom 经 build_custom_spec（Task 22）。
+#: 内置规格注册表：第一批 5 类 + 第二批 3 类（关系映射 / 任务 / 概念）均已注册
+#: （契约完整、交付分批）；custom 经 build_custom_spec（Task 22）。
 BUILTIN_ANALYSIS_SPECS: dict[AnalysisType, AnalysisTaskSpec] = {
     spec.type: spec
     for spec in (
@@ -61,6 +64,9 @@ BUILTIN_ANALYSIS_SPECS: dict[AnalysisType, AnalysisTaskSpec] = {
         _builtin(AnalysisType.TIMELINE, TimelineReport),
         _builtin(AnalysisType.ENTITY_RECOGNITION, EntityRecognitionReport),
         _builtin(AnalysisType.QA, QAReport),
+        _builtin(AnalysisType.RELATION_MAPPING, RelationMappingReport),
+        _builtin(AnalysisType.TASKS, ActionItemReport),
+        _builtin(AnalysisType.CONCEPTS, ConceptReport),
     )
 }
 
@@ -69,7 +75,7 @@ def get_spec(task_type: AnalysisType | str) -> AnalysisTaskSpec:
     """取指定分析类型的规格；未注册抛 ``KeyError``（API 层转 400）。
 
     接受枚举或其字符串值：非法类型字符串经枚举转换抛 ``ValueError``；
-    合法但未注册的类型（第二批 3 类 / custom）抛 ``KeyError``——
+    合法但未注册的类型（``custom``，动态构造留 Task 22）抛 ``KeyError``——
     未交付类型天然不可提交。
     """
     key = AnalysisType(task_type)
