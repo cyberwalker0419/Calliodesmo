@@ -40,7 +40,7 @@ created: 2026-08-30
 ### 质量轨（--real 真模型；原 2026-W45 锚点提前于 2026-08-30 执行完毕）
 
 - **执行环境**：用户本机真模型 `Qwen3.8-27B-Q4_K_M`（GGUF Q4_K_M 量化，LM Studio 服务 @ 192.168.50.97:8081，thinking 禁，32768 上下文约束）；执行日期 **2026-08-30**（原锚点 2026-W45 提前至 2026-W35 执行完毕）。
-- **P6**（`scripts/eval_p6.py --real`，证据 `p6-real-Qwen3.8-27B-Q4_K_M.json`）：15 例全 `ok`；MEAN field_f1 **0.1136** / tuple_f1 **0.5643** / judge_overall **4.4000**（judge 维度均值：completeness 4.0 / evidence_support 4.3333 / no_fabrication 5.0 / structure 4.2667；单例 judge 均分区间 2.0–5.0）。亮点单例：实体识别 tuple_f1 0.60（rare-earth）/ 0.8571（nightingale），关系映射 nightingale tuple_f1 0.80（全篇最高），tasks-nightingale field_f1 1.0。
+- **P6**（`scripts/eval_p6.py --real`，证据 `p6-real-Qwen3.8-27B-Q4_K_M.json`）：15 例全 `ok`；MEAN field_f1 **0.1136** / tuple_f1 **0.5643** / judge_overall **4.4000**（judge 维度均值：completeness 4.0 / evidence_support 4.3333 / no_fabrication 5.0 / structure 4.2667；单例 judge 均分区间 2.0–5.0）。亮点单例：实体识别 tuple_f1 0.60（rare-earth）/ 0.8571（nightingale，全篇最高），关系映射 nightingale tuple_f1 0.80，tasks-nightingale field_f1 1.0。
 - **P5**（`scripts/eval_p5.py --real`，证据 `p5-real-Qwen3.8-27B-Q4_K_M.json`）：9 例 × 6 配置（baseline / multi_query / contextual / crag / selfcheck / all），ctx_recall / faithfulness / answer_relevance 三指标全部 **1.0000**。
 - **口径解读（双轨纪律不破）**：
   - P5 六配置全 1.0000 系 9 例 × 3 文档小语料下真模型易饱和所致，各配置间无区分度——与 [[docs/verification/P5-verification|P5 验证报告]] 既有口径一致（离线基线 ctx_recall 0.4444 为小语料确定性基线；`answer_relevance` 恒分无区分度），不构成检索质量结论。
