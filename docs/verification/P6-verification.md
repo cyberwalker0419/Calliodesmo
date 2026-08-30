@@ -102,13 +102,13 @@ created: 2026-08-30
 | ~~移动端固定侧栏挤压~~ ✅ 已修复 | P7 T1（2026-08-30，`b58cb76`） | `<md` 改汉堡抽屉（遮罩 + 左滑面板），桌面侧栏不变 |
 | ~~logout 方法不匹配（DELETE vs POST 405）~~ ✅ 已修复 | P7 T1（2026-08-30，`0016e7a`） | 前端改 `api.post`；同验 cookie 失效（logout 后 `/auth/me` 401，后端契约测试锁定） |
 | GLM-EYE 识图复跑 | 2026-W38 | 2026-W36（P7 T1）复跑仍 401（MiniMax 亦配额上限），顺延留痕；回退会话内视觉口径不变 |
-| 团队级自定义模板注册表 + 完整 jsonschema | 2026-W47 | P7 评估（仿 ExtractionTemplateRegistry） |
+| ~~团队级自定义模板注册表 + 完整 jsonschema~~ 评估完成 | 2026-W49（原 W47→W44 评估，结论顺延 P9） | P7 T17 备忘录：轻量版无 team 隔离/写审计、ORM 版范围膨胀 → 整体顺延 P9 重评（[[docs/plans/analysis-template-registry-eval]]） |
 | Alembic 复杂迁移 | 2026-W49 | 现 `db/migrate.py` 承接幂等补列 |
 | `api/deps.py:89` ProfileCard/BM25 改 PG + 三 store 谓词下推 | 2026-W49 | P9 同批 |
 | L2 主题摘要改道 | 2026-W49 | P9 重评（P2 原指派 P6，此处显式改道） |
 | 报告删除/版本化/复核流、置信度校准 ECE | P8 | 见 roadmap P8 段 |
 | 多轮对话状态 | P7 | LangGraph 宿主 |
-| e2e 链路补建（frontend/e2e 空目录） | 2026-W47 起 | 随 P7 |
+| ~~e2e 链路补建（frontend/e2e 空目录）~~ 补建完成 | 2026-W44（原 W47 重锚） | P7 T16：六组 spec + README 启动顺序；本地绿、不进 CI（留痕 2026-W49 随审计硬化重评） |
 
 ## 证据
 
