@@ -26,8 +26,8 @@ created: 2026-08-30
 | Task 20 | 前端报告渲染 + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ `9ae1666` + 审查修复 `a3fd42e`（cookie 会话回退） |
 | Task 21 | 第二批接线（关系映射 / 任务 / 概念，图谱复用） | ✅ `14627e7`（基线重落 15 例全 ok，972 passed） |
 | Task 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ `7f319ed`（全量 1008 passed） |
-| Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ✅ 完成（提交 SHA 随下次交接刷新补齐；见 [[docs/verification/P6-verification|P6 验证]]） |
-| Task 24（可选） | `analyze` CLI | ⏭️ 视工时 |
+| Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ✅ `4c08a55` `29e9dfd`（见 [[docs/verification/P6-verification|P6 验证]]） |
+| Task 24（可选） | `analyze` CLI | 🔄 进行中（余量充足，按计划启动） |
 
 ## 续接方法（新会话按序执行）
 
