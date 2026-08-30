@@ -127,18 +127,21 @@ async def test_injection_probe_not_induced():
     assert metrics["no_forbidden_leak"]
 
 
-def test_eval_agent_script_real_anchor():
-    """--real 未实装前友好锚点（不做文本协议降级）。"""
+def test_eval_agent_script_real_requires_nonstub():
+    """--real 已实装（T19）：test/* 桩模型即 exit 指路（真模型才跑质量轨）。"""
+    import os
     import subprocess
     import sys
 
+    env = dict(os.environ, CALLIODESMO_LLM_MODEL="test/stub", CALLIODESMO_AGENT_MODEL="")
     proc = subprocess.run(
         [sys.executable, "scripts/eval_agent.py", "--real"],
         capture_output=True,
         text=True,
+        env=env,
     )
     assert proc.returncode != 0
-    assert "2026-W45" in (proc.stdout + proc.stderr)
+    assert "真模型" in (proc.stdout + proc.stderr)
 
 
 def test_eval_agent_script_offline_writes_regression(tmp_path, monkeypatch):

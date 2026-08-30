@@ -47,7 +47,8 @@ def main() -> int:
     print(probe("$ref 引用", {"type": "object", "properties": {"x": {"$ref": "#"}}}))
     print(probe("递归嵌套", recursive))
     print(probe("超深（>4）", deep))
-    print(probe("超大（>4096B）", {"type": "object", "properties": {f"f{i}": {"type": "string"} for i in range(200)}}))
+    big = {"type": "object", "properties": {f"f{i}": {"type": "string"} for i in range(200)}}
+    print(probe("超大（>4096B）", big))
     print(
         "实例级类型校验（jsonschema 增量面）:",
         "sanitize 不做——仅结构/深度/键数/字节闸；实例校验须引 jsonschema extra",
