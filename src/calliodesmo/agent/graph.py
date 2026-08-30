@@ -16,6 +16,7 @@ from typing import TypedDict
 
 from calliodesmo.agent.budget import BudgetLimits
 from calliodesmo.agent.extras import require_langgraph
+from calliodesmo.agent.history import truncate_history
 from calliodesmo.agent.registry import DefaultToolRegistry
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.interfaces.agent import (
@@ -43,6 +44,7 @@ class ReActAgentEngine(AgentEngine):
         *,
         checkpointer=None,
         limits: BudgetLimits | None = None,
+        history_window: int = 8,
     ) -> None:
         require_langgraph()
         from typing import Annotated
@@ -68,6 +70,7 @@ class ReActAgentEngine(AgentEngine):
         self.provider = provider
         self.registry = registry
         self.limits = limits or BudgetLimits()
+        self.history_window = history_window
         self.model = build_langgraph_chat_model(provider)
         self._turn_started = 0.0
 
@@ -77,12 +80,20 @@ class ReActAgentEngine(AgentEngine):
             access: AccessContext = config["configurable"]["access"]
             specs = engine.registry.list_for(access)
             bound = engine.model.bind_tools(specs)
-            ai = await bound.ainvoke(list(state["messages"]))
+            # 历史滑动窗口（系统提示恒留 + 最近 N 回合，T12）
+            history, truncated = truncate_history(
+                list(state["messages"]), window=engine.history_window
+            )
+            warnings = state["warnings"]
+            if truncated and "history_truncated" not in warnings:
+                warnings = [*warnings, "history_truncated"]
+            ai = await bound.ainvoke(history)
             usage = ai.additional_kwargs.get("usage") or {}
             return {
                 "messages": [ai],
                 "steps": state["steps"] + 1,
                 "tokens": state["tokens"] + int(usage.get("total_tokens", 0)),
+                "warnings": warnings,
             }
 
         def should_continue(state, config) -> str:
