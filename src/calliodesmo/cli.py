@@ -1,4 +1,4 @@
-"""Calliodesmo CLI（Typer）：db init / db seed / serve / ingest。"""
+"""Calliodesmo CLI（Typer）：db init / db seed / serve / ingest / ask / analyze。"""
 
 import asyncio
 import json
@@ -51,12 +51,17 @@ async def _create_all(database_url: str) -> None:
     engine = create_async_engine(database_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # P6 Task 11：create_all 不给既有表加列 / 改列型 -> 幂等补齐（jobs 补列 +
+    # contributions 时间列型回填）；全新库直出完整结构，此路径纯 no-op。
+    from calliodesmo.db.migrate import ensure_missing_columns
+
+    await ensure_missing_columns(engine)
     await engine.dispose()
 
 
 @db_app.command("init")
 def db_init() -> None:
-    """按 Base.metadata 建表（幂等；未来迁移到 Alembic）。"""
+    """按 Base.metadata 建表 + 幂等补齐既有库结构（未来迁移到 Alembic）。"""
     settings = get_settings()
     asyncio.run(_create_all(settings.database_url))
     typer.echo("数据库表已创建。")
@@ -419,6 +424,268 @@ def ask(
         typer.echo(f"[来源] {', '.join(answer.source_chunk_ids)}")
     else:
         typer.echo("[来源] 无")
+
+
+# ---- P6 Task 24：analyze CLI（仿 ask；提交 + barrier 同步等待 + 打印报告摘要） ----
+
+#: 终端摘要截断预算：单条文本上限与条目列表展示条数（可读性优先，全文看落库报告）
+_ANALYZE_SUMMARY_MAX_CHARS = 100
+_ANALYZE_SUMMARY_MAX_ITEMS = 3
+_ANALYZE_SUMMARY_MAX_SCALARS = 5
+
+
+def _analyze_truncate(value: object, limit: int = _ANALYZE_SUMMARY_MAX_CHARS) -> str:
+    """展示文本截断：超长以省略号收尾（终端摘要用，不改动落库内容）。"""
+    text = str(value)
+    return text if len(text) <= limit else text[:limit] + "…"
+
+
+def _format_report_payload(payload: dict) -> list[str]:
+    """报告载荷 -> 终端摘要行（截断展示；条目列表只展示前若干条）。
+
+    结构化映射（与 ``api/analysis.render_report_markdown`` 同纪律，不重写为自由文本）：
+    标量直出；标量列表分号串接；条目列表前 ``_ANALYZE_SUMMARY_MAX_ITEMS`` 条展开；
+    嵌套 dict 内联 JSON 截断。全文与完整证据见落库报告（导出经 API /analysis/reports）。
+    """
+    lines: list[str] = []
+    for key, value in (payload or {}).items():
+        if isinstance(value, list):
+            if not value:
+                lines.append(f"{key}: （空）")
+            elif all(v is None or isinstance(v, (str, int, float, bool)) for v in value):
+                shown = "；".join(
+                    _analyze_truncate(v) for v in value[:_ANALYZE_SUMMARY_MAX_SCALARS]
+                )
+                more = (
+                    f"（等 {len(value)} 条）" if len(value) > _ANALYZE_SUMMARY_MAX_SCALARS else ""
+                )
+                lines.append(f"{key}: {shown}{more}")
+            else:
+                lines.append(f"{key}（{len(value)} 条）:")
+                for index, item in enumerate(value[:_ANALYZE_SUMMARY_MAX_ITEMS], 1):
+                    if isinstance(item, dict):
+                        fields = " | ".join(
+                            f"{k}={_analyze_truncate(v, 40)}"
+                            for k, v in item.items()
+                            if v is None or isinstance(v, (str, int, float, bool))
+                        )
+                        lines.append(f"  {index}. {_analyze_truncate(fields) or '（无标量字段）'}")
+                    else:
+                        lines.append(
+                            f"  {index}. {_analyze_truncate(json.dumps(item, ensure_ascii=False))}"
+                        )
+                if len(value) > _ANALYZE_SUMMARY_MAX_ITEMS:
+                    lines.append(
+                        f"  （余 {len(value) - _ANALYZE_SUMMARY_MAX_ITEMS} 条，见落库报告）"
+                    )
+        elif isinstance(value, dict):
+            lines.append(f"{key}: {_analyze_truncate(json.dumps(value, ensure_ascii=False))}")
+        else:
+            lines.append(f"{key}: {_analyze_truncate(value)}")
+    return lines or ["（空载荷）"]
+
+
+async def _run_analyze(
+    settings,
+    task_type,
+    doc_ids: list[str],
+    question: str,
+    instruction: str,
+    top_k: int,
+) -> dict:
+    """提交 analyze job 并同步等待完成：管理员校验 -> 提交 -> worker -> 读报告摘要。
+
+    提交者为管理员（``settings.admin_username``，须先 ``db seed``）——worker 自库重建
+    其上下文二次把关（``get_access_context``），材料全程经 ``visible_to``（红线，见
+    ``analysis/materials.py``）。执行链复用既有组件：``build_analysis_engine`` +
+    ``run_analysis_job`` + barrier 同步等待（与 ``tests/test_analysis_job_worker``
+    同范式；worker 吞全部异常落终态，barrier 必置位，等待有界）。
+    """
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.analysis.factory import build_analysis_engine
+    from calliodesmo.analysis.job_worker import run_analysis_job
+    from calliodesmo.analysis.report_store import AnalysisReportStore
+    from calliodesmo.analysis.schemas import AnalysisType
+    from calliodesmo.api.deps import get_app_stores
+    from calliodesmo.audit.service import record_audit
+    from calliodesmo.auth.models import Permission, User
+    from calliodesmo.auth.service import get_access_context
+    from calliodesmo.db.models_job import Job, JobStatus
+    from calliodesmo.stores.visibility import visible_to
+    from calliodesmo.utils.json import json_safe
+
+    db_engine = create_async_engine(settings.database_url)
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    try:
+        # 1) 提交者 = 管理员：须存在且激活，并持 analyze 权限（缺则可读失败）
+        async with factory() as session:
+            admin = (
+                await session.execute(select(User).where(User.username == settings.admin_username))
+            ).scalar_one_or_none()
+        if admin is None or not admin.is_active:
+            raise RuntimeError(
+                f"管理员 {settings.admin_username} 不存在或已停用（先运行 `calliodesmo db seed`）"
+            )
+        async with factory() as session:
+            access = await get_access_context(session, admin.id)
+        if access is None or not access.has_permission(Permission.ANALYZE):
+            raise RuntimeError(
+                f"管理员 {settings.admin_username} 缺少 analyze 权限（检查角色种子与授权）"
+            )
+
+        stores = get_app_stores()
+        # 2) doc_ids 可见性预检（仿 API 提交侧 400 契约：仅成员筛选，不豁免可见性）
+        if doc_ids:
+            chunks = await stores.vector_store.list_chunks(access=access)
+            visible_docs = {c.doc_id for c in chunks if visible_to(c, access)}
+            if any(doc_id not in visible_docs for doc_id in doc_ids):
+                raise ValueError("doc_ids 含不可见文档，请核对选择范围")
+
+        # 3) 引擎请求边界构建（同 ingest / API 惯例）：QA 才注入 SearchEngine
+        #    （经共享 stores 单例装配，仿 api/deps.get_search_engine；非 QA 不拉嵌入依赖）
+        search_engine = None
+        if task_type is AnalysisType.QA:
+            from calliodesmo.retrieval.factory import build_default_search_engine, build_reranker
+
+            search_engine = build_default_search_engine(
+                settings,
+                vector_store=stores.vector_store,
+                graph_store=stores.graph_store,
+                community_store=stores.community_store,
+                sparse_index=stores.sparse_index,
+                reranker=build_reranker(settings),
+            )
+        engine = build_analysis_engine(settings, search_engine=search_engine)
+
+        # 4) 提交：建 job 行（pending）+ 审计受理（先落库后调度，同 API 提交侧）
+        payload = json_safe(
+            {
+                "task_type": task_type.value,
+                "doc_ids": list(doc_ids),
+                "question": question,
+                "custom_instruction": instruction if task_type is AnalysisType.CUSTOM else "",
+                "custom_schema": None,  # CLI 最小集不暴露用户 schema（留痕见计划 Task 24）
+                "top_k": top_k,
+            }
+        )
+        async with factory() as session:
+            job = Job(user_id=admin.id, task_type="analyze", task_payload=payload)
+            session.add(job)
+            await session.flush()
+            await record_audit(
+                session,
+                user_id=admin.id,
+                action="analyze_submit",
+                resource_type="job",
+                resource_id=str(job.id),
+                detail={"task_type": task_type.value, "doc_ids_count": len(doc_ids)},
+                source="cli",
+            )
+            await session.commit()
+            job_id = job.id
+
+        # 5) barrier 同步等待（测试同范式）：完成（含失败）后 barrier 置位
+        barrier = asyncio.Event()
+        worker = asyncio.create_task(
+            run_analysis_job(job_id, engine=engine, session_factory=factory, barrier=barrier)
+        )
+        await barrier.wait()
+        await worker  # worker 内部吞全部异常落终态，此处仅确认协程收敛
+
+        # 6) 读终态 -> 报告摘要（报告固定 personal / owner=提交者，管理员读自身报告）
+        async with factory() as session:
+            job_row = (await session.execute(select(Job).where(Job.id == job_id))).scalar_one()
+            result: dict = {
+                "job_id": str(job_id),
+                "status": job_row.status.value,
+                "error": job_row.error,
+                "report": None,
+            }
+            if job_row.status is JobStatus.SUCCEEDED and job_row.result:
+                report_id = uuid.UUID(str(job_row.result["report_id"]))
+                report = await AnalysisReportStore().get(session, report_id, access=access)
+                if report is None:
+                    raise RuntimeError(f"报告 {report_id} 不存在或不可见（管理员上下文异常）")
+                envelope = report.payload or {}
+                result["report"] = {
+                    "id": str(report.id),
+                    "task_type": report.task_type,
+                    "status": report.status,
+                    "subject_label": report.subject_label,
+                    "model": report.model,
+                    "source_doc_ids": list(report.source_doc_ids or []),
+                    "source_chunk_count": report.source_chunk_count,
+                    "warnings": list(envelope.get("warnings") or []),
+                    "payload": envelope.get("payload")
+                    if isinstance(envelope.get("payload"), dict)
+                    else {},
+                }
+        return result
+    finally:
+        await db_engine.dispose()
+
+
+@app.command()
+def analyze(
+    task_type: str = typer.Option(
+        ...,
+        "--task-type",
+        help="分析类型：summary / key_information / timeline / entity_recognition / "
+        "relation_mapping / tasks / concepts / qa / custom。",
+    ),
+    doc_ids: str = typer.Option(
+        "", "--doc-ids", help="文档成员筛选（逗号分隔；空 = 全可见范围）。"
+    ),
+    question: str = typer.Option("", "--question", help="问题文本（qa 类必填）。"),
+    instruction: str = typer.Option("", "--instruction", help="自定义分析指令（custom 类必填）。"),
+    top_k: int = typer.Option(10, "--top-k", help="qa 类检索候选数。"),
+) -> None:
+    """LLM 分析命令：以管理员提交 analyze job -> 同步等待完成 -> 打印报告摘要。
+
+    材料全经可见性过滤；ok / partial 报告落 analysis_reports（历史 / 导出经 API
+    /analysis/reports），完全失败不落空报告并以非零退出码给出可读原因。
+    离线冒烟：CALLIODESMO_LLM_MODEL=test/stub（桩输出仅验证管线，不代表分析质量）。
+    """
+    from calliodesmo.analysis.schemas import AnalysisType
+
+    try:
+        t = AnalysisType(task_type)
+    except ValueError:
+        options = " / ".join(member.value for member in AnalysisType)
+        typer.echo(f"错误：未注册的分析类型 {task_type}（可选 {options}）", err=True)
+        raise typer.Exit(code=1) from None
+    if t is AnalysisType.QA and not question.strip():
+        typer.echo("错误：qa 分析需要 --question（不得为空）", err=True)
+        raise typer.Exit(code=1)
+    if t is AnalysisType.CUSTOM and not instruction.strip():
+        typer.echo("错误：custom 分析需要 --instruction（不得为空）", err=True)
+        raise typer.Exit(code=1)
+
+    settings = get_settings()
+    ids = [d.strip() for d in doc_ids.split(",") if d.strip()]
+    try:
+        result = asyncio.run(_run_analyze(settings, t, ids, question, instruction, top_k))
+    except (ValueError, RuntimeError) as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"[任务] {result['job_id']}")
+    if result["status"] != "succeeded" or result["report"] is None:
+        typer.echo(f"分析失败：{result['error'] or '无可读原因'}", err=True)
+        raise typer.Exit(code=1)
+    report = result["report"]
+    typer.echo(f"[报告] id={report['id']} type={report['task_type']} status={report['status']}")
+    typer.echo(f"[对象] {report['subject_label']}")
+    typer.echo(f"[模型] {report['model']}")
+    if report["source_doc_ids"]:
+        docs_text = ", ".join(report["source_doc_ids"])
+        typer.echo(f"[材料] {report['source_chunk_count']} 块 / 源文档：{docs_text}")
+    for warning in report["warnings"]:
+        typer.echo(f"[告警] {warning}")
+    typer.echo("[内容]")
+    for line in _format_report_payload(report["payload"]):
+        typer.echo(f"  {line}")
+    typer.echo(f"[报告已落库] analysis_reports id={report['id']}（完全失败的分析不落空报告）")
 
 
 # ---- P3 用户/团队管理命令 ----

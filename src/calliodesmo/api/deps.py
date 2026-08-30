@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,11 @@ from calliodesmo.auth.service import get_access_context
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
 from calliodesmo.interfaces.retriever import SearchEngine
+
+#: JWT httpOnly 会话 cookie 名（SameSite=Lax；防 XSS 读 token）。P3 设计：
+#: cookie 为前端会话主路径，Bearer 仅 CLI/脚本（见 phases/P3-web-ui.md Task 5）。
+#: 登录写入（app.py ``_set_session_cookie``）；``get_current_context`` 消费。
+SESSION_COOKIE = "calliodesmo_session"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
@@ -86,7 +91,8 @@ class AppStores:
                 self.community_store = PgCommunityStore(SessionLocal)
             else:
                 self.community_store = InMemoryCommunityStore()
-        # TODO(P4.5 Task 2 Step 5, 2026-W33)：ProfileCard 与 BM25 改 PG 数据源
+        # TODO(P9, 2026-W49)：ProfileCard 与 BM25 改 PG 数据源——与三 store list 谓词下推同批。
+        # （原锚点 2026-W33 逾期，P6 Task 1 显式顺延：P6 材料路径不依赖 BM25。）
         if self.profile_card_store is None:
             self.profile_card_store = InMemoryProfileCardStore()
         if self.sparse_index is None:
@@ -111,10 +117,17 @@ def reset_app_stores() -> None:
 
 
 async def get_current_context(
+    request: Request,
     token: str | None = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> AccessContext:
+    if not token:
+        # 无 Bearer 头时回退同源会话 cookie（P3 设计 cookie 为前端主路径）：
+        # 裸 ``<a href>`` 附件下载等浏览器导航不带 Authorization 头，仅携
+        # httpOnly cookie（SameSite=Lax 防跨站子资源 CSRF）。Bearer 优先，
+        # 二者皆无 / 无效 -> 401。
+        token = request.cookies.get(SESSION_COOKIE)
     if not token:
         raise _CREDENTIALS_EXCEPTION
     try:

@@ -1,5 +1,17 @@
 /** 后端 API 响应类型（与 src/calliodesmo/api/schemas.py 对齐）。 */
 
+import {
+  CalendarRange,
+  FileText,
+  KeyRound,
+  Lightbulb,
+  ListTodo,
+  MessageCircleQuestion,
+  Network,
+  ScanSearch,
+  Settings2,
+} from "lucide-react";
+
 export interface MeResponse {
   user_id: string;
   username: string;
@@ -229,6 +241,217 @@ export interface JobOut {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  // P6 Task 11 泛化兼容扩展（后端带默认值，旧响应不破坏）：
+  // task_type 为 "ingest" | "analyze"（默认 ingest）；
+  // report_id 仅 analyze 终态成功时指向报告行（ingest 恒 null）。
+  task_type?: string;
+  report_id?: string | null;
+}
+
+// ---- P6 分析域（与 src/calliodesmo/api/schemas.py · analysis/schemas.py 逐字段对齐）----
+
+/** 9 类分析任务类型（Task 21-22 接线完成后九类全部可提交）。 */
+export type AnalysisTaskType =
+  | "summary"
+  | "key_information"
+  | "timeline"
+  | "entity_recognition"
+  | "relation_mapping"
+  | "tasks"
+  | "concepts"
+  | "qa"
+  | "custom";
+
+/**
+ * 9 类分析元数据（选择器数据源，克隆 AskPanel MODES 范式）。
+ * Task 21-22 接线完成后九类全部可提交，「即将上线」批次门控已移除（Task 23）。
+ */
+export const ANALYSIS_TASK_TYPES: {
+  value: AnalysisTaskType;
+  label: string;
+  icon: typeof FileText;
+}[] = [
+  { value: "summary", label: "摘要", icon: FileText },
+  { value: "key_information", label: "关键信息", icon: KeyRound },
+  { value: "timeline", label: "时间线", icon: CalendarRange },
+  { value: "entity_recognition", label: "实体识别", icon: ScanSearch },
+  { value: "qa", label: "问答", icon: MessageCircleQuestion },
+  { value: "relation_mapping", label: "关系映射", icon: Network },
+  { value: "tasks", label: "任务", icon: ListTodo },
+  { value: "concepts", label: "概念", icon: Lightbulb },
+  { value: "custom", label: "自定义", icon: Settings2 },
+];
+
+/** POST /analysis/tasks 请求体（doc_ids 空 = 全可见范围；qa 需 question）。 */
+export interface AnalysisJobRequest {
+  task_type: AnalysisTaskType;
+  doc_ids?: string[];
+  question?: string | null;
+  custom?: { instruction: string; schema?: Record<string, unknown> } | null;
+  top_k?: number;
+}
+
+/** POST /analysis/tasks 202 响应（task_type 回显提交的分析类型）。 */
+export interface AnalysisAccepted {
+  job_id: string;
+  status: string;
+  task_type: string;
+}
+
+/** 报告公共信封（九字段；payload 按 task_type 判别，逐类对齐 analysis/schemas.py）。 */
+export interface AnalysisEnvelope {
+  task_type: AnalysisTaskType;
+  status: "ok" | "partial" | "failed";
+  generated_at: string;
+  model: string;
+  prompt_version: string;
+  usage: Record<string, number>;
+  warnings: string[];
+  source_chunk_ids: string[];
+  payload: Record<string, unknown>;
+}
+
+/** 证据引用条目（与 analysis/schemas.py Evidence 逐字段对齐）。 */
+export interface EvidenceItem {
+  chunk_id: string;
+  quote: string;
+  confidence?: number;
+}
+
+/** 摘要报告 payload（聚合形态：置信与证据在顶层）。 */
+export interface SummaryPayload {
+  summary: string;
+  key_points: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关键信息条目（条目形态：置信与证据在条目上）。 */
+export interface KeyInfoItemPayload {
+  label: string;
+  value: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关键信息报告 payload。 */
+export interface KeyInfoPayload {
+  items: KeyInfoItemPayload[];
+}
+
+/** 时间线条目（与 TimelineEvent 对齐；relative 时 date_normalized 缺省）。 */
+export interface TimelineEventPayload {
+  date_raw: string;
+  date_normalized?: string | null;
+  granularity: "exact" | "approximate" | "relative";
+  description?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 时间线报告 payload。 */
+export interface TimelinePayload {
+  items: TimelineEventPayload[];
+}
+
+/** 实体识别条目。 */
+export interface RecognizedEntityPayload {
+  name: string;
+  type?: string;
+  description?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 实体识别报告 payload。 */
+export interface EntityRecognitionPayload {
+  items: RecognizedEntityPayload[];
+}
+
+/** 问答报告 payload（聚合形态；citations 为引用的材料块 ID 列表）。 */
+export interface QAPayload {
+  question: string;
+  answer: string;
+  citations?: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关系映射条目（头 / 尾 / 类型 / 描述，与 RelationItem 对齐）。 */
+export interface RelationItemPayload {
+  head: string;
+  tail: string;
+  type: string;
+  description?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关系映射报告 payload。 */
+export interface RelationMappingPayload {
+  items: RelationItemPayload[];
+}
+
+/** 任务（行动项）条目（与 ActionItem 对齐；责任方 / 期限为源文原始表述，可缺失）。 */
+export interface ActionItemPayload {
+  action: string;
+  owner_raw?: string;
+  deadline_raw?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 任务报告 payload。 */
+export interface TasksPayload {
+  items: ActionItemPayload[];
+}
+
+/** 概念条目（与 ConceptItem 对齐）。 */
+export interface ConceptItemPayload {
+  name: string;
+  definition?: string;
+  related?: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 概念报告 payload。 */
+export interface ConceptPayload {
+  items: ConceptItemPayload[];
+}
+
+/** 自定义报告 payload（聚合形态：置信与证据在顶层；fields 为用户 schema 驱动的开放字典）。 */
+export interface CustomPayload {
+  fields: Record<string, unknown>;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 报告历史列表项（GET /analysis/reports 的 items 元素）。 */
+export interface ReportListItem {
+  id: string;
+  task_type: AnalysisTaskType;
+  status: string;
+  subject_label: string;
+  access_level: string;
+  library_scope: string;
+  model: string;
+  created_at: string;
+  source_chunk_count: number;
+}
+
+/** GET /analysis/reports 响应（total 为过滤后可见总行数，供分页器）。 */
+export interface ReportListOut {
+  items: ReportListItem[];
+  total: number;
+}
+
+/** GET /analysis/documents 可见文档聚合项（Task 19 MaterialPicker 数据源）。 */
+export interface AnalysisDocumentOut {
+  doc_id: string;
+  label: string;
+  access_level: string;
+  chunk_count: number;
 }
 
 export type SearchMode = "native_rag" | "local" | "global";
@@ -246,6 +469,7 @@ export const PERMISSIONS = {
   EXPORT: "export",
   PUSH: "push",
   APPROVE: "approve",
+  ANALYZE: "analyze", // P6：提交 LLM 分析任务（与后端 Permission.ANALYZE 对齐）
   MANAGE_USERS: "manage_users",
   MANAGE_COMMUNITY: "manage_community",
 } as const;

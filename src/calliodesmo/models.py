@@ -13,6 +13,7 @@ from calliodesmo.auth.models import (
 )
 from calliodesmo.collab.community_version import CommunityVersion
 from calliodesmo.collab.models import Contribution
+from calliodesmo.db.models_analysis import AnalysisReportORM
 from calliodesmo.db.models_job import Job, JobStatus
 
 # 内容层 ORM（P4.5 Task 2）需 pgvector 扩展（uv sync --extra persistence）。
@@ -31,6 +32,7 @@ except ImportError:  # pragma: no cover - 仅缺 pgvector 时触发
     EntityRecordORM = ProfileCardORM = RelationRecordORM = None  # type: ignore[assignment,misc]
 
 __all__ = [
+    "AnalysisReportORM",
     "AuditLog",
     "ChunkRecordORM",
     "CommunityRecordORM",

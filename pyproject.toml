@@ -46,6 +46,11 @@ search-rerank = ["FlagEmbedding>=1.3"]  # bge-reranker-v2-m3（与 embedding-loc
 search-bm25 = ["rank_bm25>=0.2.2"]  # 可选 BM25 库（默认用自建倒排）
 eval-ragas = ["ragas>=0.2"]  # 可选评估库（默认自建轻量指标）
 
+# P6 结构化解析链（按需安装）：轻量 JSON 修复库，运行时懒加载，
+# 缺依赖回退正则花括号抢救（两条路径均有测试）。
+# 引入前核对（2026-08-29，PyPI JSON API）：最新版 0.63.4、MIT 许可、纯 Python 零必装依赖。
+analysis = ["json-repair>=0.63"]
+
 [dependency-groups]
 dev = [
     "pytest>=8",

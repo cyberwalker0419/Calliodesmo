@@ -12,7 +12,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Enum, ForeignKey, String, Text, Uuid, func
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from calliodesmo.auth.models import LibraryScope
@@ -82,11 +82,16 @@ class Contribution(Base):
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    merged_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # 时间列统一 TIMESTAMPTZ（P6 Task 1 闭环 2026-W31 逾期 TODO）；服务层写 aware UTC。
+    # 既有库列型回填（ALTER ... TYPE TIMESTAMPTZ USING <col> AT TIME ZONE 'UTC'）由
+    # P6 Task 11 db/migrate.py 承接；全新库经 create_all 直出。
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    merged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # 【修订】并发：乐观锁版本号，状态机流转事务内校验，防并发重复 approve/merge
     version: Mapped[int] = mapped_column(default=1, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

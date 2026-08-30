@@ -152,18 +152,33 @@ async def remove_project_member(
 
 
 async def seed_default_roles(session: AsyncSession) -> list[Role]:
-    """幂等写入 analyst / reviewer / admin 内置角色及细粒度权限。"""
-    existing = set((await session.execute(select(Role.name))).scalars())
+    """幂等写入 analyst / reviewer / admin 内置角色及细粒度权限。
+
+    已存在角色走**差集回填**：比对 ``DEFAULT_ROLE_PERMISSIONS`` 补缺失的
+    ``RolePermission`` 行（P6 Task 2 修复——原实现对已存在角色直接 ``continue``，
+    新增权限后既有部署重跑 ``db seed`` 不回填、全员 403）。只增不删：
+    撤销既有权限会把既有部署锁死，回滚只撤代码不撤已写权限数据。
+    重复执行不产生重复行（``(role_id, permission)`` 复合主键兜底）。
+
+    返回本次**新建**的角色列表（仅新建；回填不改变返回语义）。
+    """
+    result = await session.execute(select(Role).options(selectinload(Role.permissions)))
+    existing = {role.name: role for role in result.scalars()}
     created: list[Role] = []
     for name, permissions in DEFAULT_ROLE_PERMISSIONS.items():
-        if name in existing:
+        role = existing.get(name)
+        if role is None:
+            role = Role(name=name, description=f"内置角色：{name}")
+            role.permissions = [
+                RolePermission(permission=p) for p in sorted(permissions, key=lambda p: p.value)
+            ]
+            session.add(role)
+            created.append(role)
             continue
-        role = Role(name=name, description=f"内置角色：{name}")
-        role.permissions = [
-            RolePermission(permission=p) for p in sorted(permissions, key=lambda p: p.value)
-        ]
-        session.add(role)
-        created.append(role)
+        # 差集回填：补缺失权限行，不删既有权限行（幂等，重跑安全）
+        have = {rp.permission for rp in role.permissions}
+        for p in sorted(permissions - have, key=lambda p: p.value):
+            role.permissions.append(RolePermission(permission=p))
     await session.flush()
     return created
 

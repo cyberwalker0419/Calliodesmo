@@ -14,8 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo import __version__
 from calliodesmo.api.admin import router as admin_router
+from calliodesmo.api.analysis import router as analysis_router
 from calliodesmo.api.collab import router as collab_router
-from calliodesmo.api.deps import get_current_context, get_search_engine
+from calliodesmo.api.deps import SESSION_COOKIE, get_current_context, get_search_engine
 from calliodesmo.api.ingest import router as ingest_router
 from calliodesmo.api.jobs import router as jobs_router
 from calliodesmo.api.library import router as library_router
@@ -36,9 +37,6 @@ from calliodesmo.auth.service import authenticate, change_password, create_user
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
 from calliodesmo.interfaces.retriever import SearchEngine, SearchMode
-
-#: JWT httpOnly cookie 名（SameSite=Lax；防 XSS 读 token）
-SESSION_COOKIE = "calliodesmo_session"
 
 
 class SPAStaticFiles(StaticFiles):
@@ -217,6 +215,7 @@ def create_app() -> FastAPI:
     core = build_router()
     app.include_router(core)
     app.include_router(admin_router)
+    app.include_router(analysis_router)
     app.include_router(collab_router)
     app.include_router(ingest_router)
     app.include_router(jobs_router)
@@ -225,6 +224,7 @@ def create_app() -> FastAPI:
     # 双挂 /api 前缀：前端 baseURL 固定 /api（dev proxy 去前缀转发 / 生产同源）
     app.include_router(core, prefix="/api", include_in_schema=False)
     app.include_router(admin_router, prefix="/api", include_in_schema=False)
+    app.include_router(analysis_router, prefix="/api", include_in_schema=False)
     app.include_router(collab_router, prefix="/api", include_in_schema=False)
     app.include_router(ingest_router, prefix="/api", include_in_schema=False)
     app.include_router(jobs_router, prefix="/api", include_in_schema=False)

@@ -1,0 +1,499 @@
+{
+  "mode": "offline-stub(hash+StubLLM)",
+  "generated_at": "2026-08-30T07:10:23.095858+00:00",
+  "disclaimer": "离线证据≠质量证据：桩对生成质量零区分度（固定分析输出 + 固定 judge 分），本基线只承诺结构 / 契约；质量证据由 eval_p6.py --real 承担（锚点 2026-W45，用户本机）。",
+  "golden_file": "config/golden_analysis.yaml",
+  "total": 15,
+  "mean_field_f1": 0.0,
+  "mean_tuple_f1": 0.0,
+  "mean_judge_overall": 3.0,
+  "judge_dimension_means": {
+    "completeness": 3.0,
+    "evidence_support": 3.0,
+    "no_fabrication": 3.0,
+    "structure": 3.0
+  },
+  "cases": [
+    {
+      "case_id": "summary-rare-earth",
+      "task_type": "summary",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "confidence": 0.3,
+        "evidence": [],
+        "summary": "离线桩占位摘要：由 StubLLM 固定输出，仅验证分析管线联通，不代表真实分析质量。",
+        "key_points": [
+          "离线桩占位要点一",
+          "离线桩占位要点二"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "summary-nightingale",
+      "task_type": "summary",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "confidence": 0.3,
+        "evidence": [],
+        "summary": "离线桩占位摘要：由 StubLLM 固定输出，仅验证分析管线联通，不代表真实分析质量。",
+        "key_points": [
+          "离线桩占位要点一",
+          "离线桩占位要点二"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "key-information-rare-earth",
+      "task_type": "key_information",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "label": "时间",
+            "value": "2026年8月29日（离线桩占位）"
+          },
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "label": "当事方",
+            "value": "示例组织（离线桩占位）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "key-information-apt28",
+      "task_type": "key_information",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "label": "时间",
+            "value": "2026年8月29日（离线桩占位）"
+          },
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "label": "当事方",
+            "value": "示例组织（离线桩占位）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "timeline-nightingale",
+      "task_type": "timeline",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "date_raw": "2026年8月29日",
+            "date_normalized": "2026-08-29",
+            "granularity": "exact",
+            "description": "离线桩占位事件（精确日期）"
+          },
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "date_raw": "上个月",
+            "date_normalized": "2026-07",
+            "granularity": "approximate",
+            "description": "离线桩占位事件（约略时间）"
+          },
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "date_raw": "会后不久",
+            "date_normalized": null,
+            "granularity": "relative",
+            "description": "离线桩占位事件（模糊时间不臆造精确日期）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "timeline-apt28",
+      "task_type": "timeline",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "date_raw": "2026年8月29日",
+            "date_normalized": "2026-08-29",
+            "granularity": "exact",
+            "description": "离线桩占位事件（精确日期）"
+          },
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "date_raw": "上个月",
+            "date_normalized": "2026-07",
+            "granularity": "approximate",
+            "description": "离线桩占位事件（约略时间）"
+          },
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "date_raw": "会后不久",
+            "date_normalized": null,
+            "granularity": "relative",
+            "description": "离线桩占位事件（模糊时间不臆造精确日期）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "entity-recognition-rare-earth",
+      "task_type": "entity_recognition",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "name": "示例组织",
+            "type": "organization",
+            "description": "离线桩占位实体（图谱数据组织而来，不重新抽取）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "entity-recognition-nightingale",
+      "task_type": "entity_recognition",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "name": "示例组织",
+            "type": "organization",
+            "description": "离线桩占位实体（图谱数据组织而来，不重新抽取）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "relation-mapping-rare-earth",
+      "task_type": "relation_mapping",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "head": "示例组织",
+            "tail": "示例产品",
+            "type": "developed",
+            "description": "离线桩占位关系（图谱数据组织而来，不重新抽取）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "relation-mapping-nightingale",
+      "task_type": "relation_mapping",
+      "status": "ok",
+      "field_scores": null,
+      "tuple_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "head": "示例组织",
+            "tail": "示例产品",
+            "type": "developed",
+            "description": "离线桩占位关系（图谱数据组织而来，不重新抽取）"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "tasks-rare-earth",
+      "task_type": "tasks",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "action": "离线桩占位行动项",
+            "owner_raw": "示例责任方",
+            "deadline_raw": "2026年9月1日前"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "tasks-nightingale",
+      "task_type": "tasks",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "action": "离线桩占位行动项",
+            "owner_raw": "示例责任方",
+            "deadline_raw": "2026年9月1日前"
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "concepts-apt28",
+      "task_type": "concepts",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "items": [
+          {
+            "confidence": 0.3,
+            "evidence": [],
+            "name": "示例概念",
+            "definition": "离线桩占位定义（仅验证管线联通）",
+            "related": [
+              "相关概念一"
+            ]
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "qa-rare-earth",
+      "task_type": "qa",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "confidence": 0.3,
+        "evidence": [],
+        "question": "北方稀土总部位于哪里？",
+        "answer": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "citations": [
+          "internal__apt28-tracking.md#0",
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0",
+          "confidential__nightingale-assessment.md#0"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "case_id": "qa-apt28",
+      "task_type": "qa",
+      "status": "ok",
+      "field_scores": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "tuple_scores": null,
+      "judge_scores": {
+        "completeness": 3,
+        "evidence_support": 3,
+        "no_fabrication": 3,
+        "structure": 3
+      },
+      "payload": {
+        "confidence": 0.3,
+        "evidence": [],
+        "question": "APT28 擅长什么攻击手段？",
+        "answer": "{\"entities\": [{\"name\": \"OpenAI\", \"type\": \"organization\", \"description\": \"AI 研究与部署公司\"}, {\"name\": \"GPT-4\", \"type\": \"model\", \"description\": \"大规模语言模型\"}], \"relations\": [{\"source\": \"OpenAI\", \"target\": \"GPT-4\", \"type\": \"developed\", \"description\": \"OpenAI 开发了 GPT-4\"}], \"claims\": [{\"text\": \"GPT-4 由 OpenAI 开发\", \"entity_name\": \"GPT-4\"}], \"covariates\": []}",
+        "citations": [
+          "seed-cache.json#0",
+          "public__rare-earth-brief.md#0",
+          "internal__apt28-tracking.md#0",
+          "confidential__nightingale-assessment.md#0"
+        ]
+      },
+      "warnings": []
+    }
+  ]
+}

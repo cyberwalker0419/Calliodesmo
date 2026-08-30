@@ -23,6 +23,7 @@ export function makeAccess(me: MeResponse | null) {
     canQuery: () => perms.has(PERMISSIONS.QUERY),
     canPush: () => perms.has(PERMISSIONS.PUSH),
     canApprove: () => perms.has(PERMISSIONS.APPROVE),
+    canAnalyze: () => perms.has(PERMISSIONS.ANALYZE), // P6：分析提交/导航门控（导航项归 Task 19）
     clearanceAtLeast: (level: string) =>
       (CLEARANCE_RANK[level] ?? 0) <= clearance,
     hasScope: (scope: string) => scopes.has(scope),

@@ -397,6 +397,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+analysis = [
+    { name = "json-repair" },
+]
 documents-email = [
     { name = "extract-msg" },
 ]
@@ -459,6 +462,7 @@ requires-dist = [
     { name = "flagembedding", marker = "extra == 'embedding-local'", specifier = ">=1.3" },
     { name = "flagembedding", marker = "extra == 'search-rerank'", specifier = ">=1.3" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "json-repair", marker = "extra == 'analysis'", specifier = ">=0.63" },
     { name = "litellm", specifier = ">=1.85,<1.91" },
     { name = "nbformat", marker = "extra == 'documents-notebooks'", specifier = ">=5.10" },
     { name = "neo4j", marker = "extra == 'persistence'", specifier = ">=5.14" },
@@ -484,7 +488,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
-provides-extras = ["embedding-local", "documents-pdf", "documents-office", "documents-opendocument", "documents-rich", "documents-email", "documents-notebooks", "documents-ocr", "graph-analytics", "persistence", "search-rerank", "search-bm25", "eval-ragas"]
+provides-extras = ["embedding-local", "documents-pdf", "documents-office", "documents-opendocument", "documents-rich", "documents-email", "documents-notebooks", "documents-ocr", "graph-analytics", "persistence", "search-rerank", "search-bm25", "eval-ragas", "analysis"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1698,6 +1702,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/41/f2/d34e8b3a08a9cc79a50b2208a93dce981fe615b64d5a4d4abee421d898df/joblib-1.5.3.tar.gz", hash = "sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3", size = 331603, upload-time = "2025-12-15T08:41:46.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl", hash = "sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713", size = 309071, upload-time = "2025-12-15T08:41:44.973Z" },
+]
+
+[[package]]
+name = "json-repair"
+version = "0.63.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/72/4ec122befe7c2091ba7370d985cf0a3d4dbeccc2f832898ddb7921b4ab94/json_repair-0.63.4.tar.gz", hash = "sha256:77aa642193d62b02b889e8ce0df33898d3ea87282f0b9d8653f8ce8772c642b4", size = 52906, upload-time = "2026-08-25T07:39:02.725Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/ea/1a7b47196b0d03f59a80f5218b2a34160587c84ca8b0bcb56cb4ee93834e/json_repair-0.63.4-py3-none-any.whl", hash = "sha256:0f374f3eee21454aef0a5d72c06b8689b660a1788f80ab392639e3f7d5c5d458", size = 51295, upload-time = "2026-08-25T07:39:01.259Z" },
 ]
 
 [[package]]
