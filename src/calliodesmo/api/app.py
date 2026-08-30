@@ -216,13 +216,13 @@ async def _lifespan(app: FastAPI):
     """PG checkpointer 生命周期（P7 T11，决策 2 检查单）：lifespan 内 setup() +
     保活 + 关闭回收。缺 agent extra 时 checkpointer=None——agent 端点 503，其余面照常。
     """
-    from calliodesmo.agent.checkpoint import build_checkpointer
+    from calliodesmo.agent.checkpoint import build_runtime_checkpointer
 
     settings = get_settings()
     pool = None
     checkpointer = None
     try:
-        checkpointer = build_checkpointer(settings.database_url)
+        checkpointer = build_runtime_checkpointer(settings.database_url)
         pool = getattr(checkpointer, "conn", None)
         if pool is not None and hasattr(pool, "open"):
             await pool.open()

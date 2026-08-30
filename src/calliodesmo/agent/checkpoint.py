@@ -23,8 +23,28 @@ def selector_loop_factory(use_subprocess: bool = False):
 
 
 def serve_loop_kwargs() -> dict:
-    """serve 装配：win32 需 selector loop，其余平台走 uvicorn 默认。"""
-    return {"loop": f"{__name__}:selector_loop_factory"} if sys.platform == "win32" else {}
+    """serve 装配：loop 走 uvicorn 平台默认（Windows Proactor 服务 asyncpg 主库；
+    Linux 默认 selector 同时兼容 asyncpg 与 psycopg）。"""
+    return {}
+
+
+def build_runtime_checkpointer(database_url: str, *, schema: str | None = None):
+    """运行态 checkpointer 平台路由（P7 T11 决策 2 的 Windows 兼容注记）。
+
+    - Linux：selector loop 同时兼容 asyncpg（主库）与 psycopg（checkpointer）->
+      AsyncPostgresSaver（执行态跨重启持久）。
+    - Windows：asyncpg 需 Proactor 而 psycopg 需 Selector，单 loop 不可兼得——
+      开发态降级 InMemorySaver（多轮在单进程内仍续接；ORM 三表恒为 system of
+      record，重启续接留痕未竟：锚点 2026-W49 压测批同评跨 loop 桥接方案）。
+    """
+    if sys.platform == "win32":
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Windows 单 loop 不可兼得 asyncpg/psycopg——agent checkpointer 降级 InMemory"
+        )
+        return build_checkpointer(None)
+    return build_checkpointer(database_url, schema=schema)
 
 
 def conninfo_from_database_url(url: str) -> str:

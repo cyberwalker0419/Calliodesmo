@@ -149,9 +149,8 @@ def serve(
     from calliodesmo.ecl.job_worker import reset_stale_running_jobs
 
     reset_stale_running_jobs()
-    # P7 T11：psycopg 异步（agent PG checkpointer）不支持 ProactorEventLoop——
-    # Windows 下 uvicorn 硬编码 Proactor，经 loop= 注入 selector 工厂
-    # （asyncpg / uvicorn 同兼容 selector）
+    # P7 T11：loop 走 uvicorn 平台默认（Windows Proactor 服务 asyncpg 主库；
+    # agent PG checkpointer 在 Windows 开发态经 build_runtime_checkpointer 降级 InMemory）
     from calliodesmo.agent.checkpoint import serve_loop_kwargs
 
     uvicorn.run(
