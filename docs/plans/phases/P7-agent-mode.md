@@ -103,7 +103,7 @@ created: 2026-08-30
 5. **团队级自定义分析模板注册表：先评估后决定**——评估 ✅ 必做（T17，锚点 2026-W47 → 重锚 2026-W44），实现 🔁 评估门控（T18）。评估口径五项：① Agent 消费是否依赖注册表（BUILTIN 9 类已可经 `run_analysis` 消费，借 `config/golden_analysis.yaml` 案例量化覆盖缺口）；② `jsonschema` 完整校验与 `sanitize_user_schema` 衔接（拒 `$ref` / 递归 / 超深 / 超大）；③ 持久化形态（纯 YAML 仿 `ecl/extraction_template.py` `ExtractionTemplateRegistry` + 每调用点重建、无 ORM 无持久化权限，vs 升 ORM + 五 access 字段 + team scope，`ChunkRecordORM` 先例）；④ 与内置九类冲突语义（覆盖 / 禁止）；⑤ 多用户写审计需求。产出备忘录 + 决策记录；结论为缓则整体顺延 P9 留痕。理由：P6 移交原文即「评估」而非实现；直接上 ORM 有范围膨胀风险；重锚理由同重锚说明。`jsonschema` 若需要，走 extra + 懒加载 + 缺依赖友好报错。
 6. **e2e 补建：建 `frontend/e2e/` 六组用例**——登录（错 / 对凭据）、QA 冒烟（三模式 + 来源展开）、分析（提交 → 轮询 → 报告）、admin 越权 403 探测、agent（会话多轮 + 工具轨迹）、logout + cookie 失效断言；双视口（现有 `playwright.config.ts` 已配）。本地 `npm run e2e` 绿（前置 `serve --seed-demo --port 8200`，README 固化启动顺序 + `/healthz` 等待）；**不进 CI**（需真 PG+Neo4j，与 CI `-m "not db"` 纪律冲突），留痕锚点 2026-W49 随审计硬化重评；顺带清理 git 已追踪的 `playwright.config.js/.d.ts` 等编译产物副本（见 T16）。锚点 2026-W47 → 重锚 2026-W44。理由：移交原话是「链路补建」，playwright config 已是可跑的空壳（`testDir "./e2e"` 目录缺失、`npm run e2e` 报 no tests found），补的只是目录与用例，成本低；CI 装 playwright 浏览器下载重且需真库——先进本地纪律，等证据再入 CI。
 7. **工具集圈定（v1 只读 + 分析桥，写工具整体划出）**：`search_knowledge`（SearchEngine 三模式）/ `graph_neighbors`（neighbors + subgraph）/ `list_entities` / `entity_profile` / `list_documents` / `list_communities` / `get_chunk` → `query` 权限；`reports_list` / `reports_get` → `query` + 报告可见语义；`run_analysis` → `analyze`，走 job 范式异步返回 `job_id`/`report_id` 指针、不内联明文（复用 `gather_materials` / `compute_report_access_level` 纯函数，P6 语义零修改）。每工具三道闸：权限门（`list_for(access)` 预过滤）+ 参数 JSON Schema 校验 + 数据层 `visible_to`；越权与不存在返回同一错误消息（不区分、不泄漏存在性）+ 每次 `record_audit`。**`get_chunk` 必须在工具层自补 `visible_to`**——`VectorStore.get_chunks_by_ids` 接口无 access 过滤，是跨密级泄漏通道。工具只包 store 接口，不碰内存态 BM25（`api/deps.py` TODO，P9）。理由：roadmap 红线「权限内行动、越权工具结果不得泄漏存在性」落到派发层与数据层双保险——注入防御不寄托提示词；只读起步把提示注入放大面压到最小；`run_analysis` 兑现 P6 移交承诺（报告契约被 Agent 直接消费、无返工），异步指针避免分析耗时阻塞循环。
-8. **依赖形态：新增 extra `agent`**：`langgraph>=1.2,<2` + `langgraph-checkpoint-postgres>=3.1,<4` + `psycopg[binary]>=3.2` + `psycopg-pool`；运行时懒导入 + 缺依赖友好报错（503 同 ingest 惯例）；CI 后端 job 改 `uv sync --frozen --extra agent`，保证 agent 离线测试（核心能力）CI 可跑。langchain-core 由 langgraph 硬依赖带入（`>=1.4.7,<2`），**显式不装 langchain / langchain-community / langchain-litellm**（与 P6 拒 LangChain 主体一致）。litellm `>=1.85,<1.91` 不动。钉版纪律同 litellm：**禁裸 psycopg**（Windows 无系统 libpq）与 `psycopg[c]`（无 Windows wheel 触发源码编译），安装前先审 `uv lock` 的 httpx / requests / pydantic 解析。理由：项目纪律——重型依赖一律走 `optional-dependencies` + 懒加载（persistence / analysis extra 先例，即使是运行必需）；langgraph 全链虽为纯 Python wheel（orjson / ormsgpack / psycopg[binary] 均有 cp311 win_amd64 预编译），但依赖树不小，主依赖会强迫所有安装者吃下；extra + CI 装上两头兼顾；LangChain 边界集中在一个适配器文件，可审计、可替换。
+8. **依赖形态：新增 extra `agent`**：`langgraph>=1.2,<2` + `langgraph-checkpoint-postgres>=3.1.1,<4`（下限 = CVE-2026-71433 修复版，见 T2 调研证据）+ `psycopg[binary]>=3.2,<3.4` + `psycopg-pool>=3.2,<3.4`；运行时懒导入 + 缺依赖友好报错（503 同 ingest 惯例）；CI 后端 job 改 `uv sync --frozen --extra agent`，保证 agent 离线测试（核心能力）CI 可跑。langchain-core 由 langgraph 硬依赖带入（`>=1.4.7,<2`），**显式不装 langchain / langchain-community / langchain-litellm**（与 P6 拒 LangChain 主体一致）。litellm `>=1.85,<1.91` 不动。钉版纪律同 litellm：**禁裸 psycopg**（Windows 无系统 libpq）与 `psycopg[c]`（无 Windows wheel 触发源码编译）；checkpoint-postgres 自身依赖裸 psycopg，须以 `[binary]` 覆盖；安装前先审 `uv lock` 的 httpx / requests / pydantic 解析。理由：项目纪律——重型依赖一律走 `optional-dependencies` + 懒加载（persistence / analysis extra 先例，即使是运行必需）；langgraph 全链虽为纯 Python wheel（orjson / ormsgpack / psycopg[binary] 均有 cp311 win_amd64 预编译），但依赖树不小，主依赖会强迫所有安装者吃下；extra + CI 装上两头兼顾；LangChain 边界集中在一个适配器文件，可审计、可替换。
 
 ## 前置条件（开工前确认）
 
@@ -303,7 +303,7 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 | 类别 | 追加 | 说明 |
 |:--|:--|:--|
 | Agent 编排 | extra `agent`：`langgraph>=1.2,<2`（现 1.2.11，1.0 GA 后原语稳定） | 手写 StateGraph；不用 `create_react_agent`（2.0 移除）/ `create_agent` / middleware；langchain-core 由硬依赖带入，不装 langchain 主体 |
-| 状态持久化 | `langgraph-checkpoint-postgres>=3.1,<4` + `psycopg[binary]>=3.2` + `psycopg-pool` | 禁裸 psycopg（Windows 无 libpq）与 `psycopg[c]`（无 Windows wheel）；orjson / ormsgpack 均有 cp311 win_amd64 wheel |
+| 状态持久化 | `langgraph-checkpoint-postgres>=3.1.1,<4` + `psycopg[binary]>=3.2,<3.4` + `psycopg-pool>=3.2,<3.4` | 禁裸 psycopg（Windows 无 libpq）与 `psycopg[c]`（无 Windows wheel）；checkpoint-postgres 依赖裸 psycopg 须 `[binary]` 覆盖；orjson / ormsgpack 均有 cp311 win_amd64 wheel |
 | 工具调用 | LiteLLM 原生 OpenAI 格式 `tools` / `tool_calls`（钉版 `>=1.85,<1.91` 不动） | 文本协议仅留痕为降级预案；`--real` 预检后端能力 |
 | 桩 | StubLLM `[AGENT:*]` 标记脚本化 `tool_calls` 序列 | 与 `[ANALYSIS:*]` 分发同范式；未知标记显式 `ValueError` |
 | 评估 | 轨迹指标（工具集匹配 / 轨迹有效 / 边界泄漏=0 / 预算内）+ golden 轨迹集 | 离线只证结构；`--real` 才证质量，口径与 P5/P6 一致 |
@@ -335,10 +335,17 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 
 - [ ] **Step 1:** 查证（tavily）：`langgraph` / `langgraph-checkpoint-postgres` / `psycopg[binary]` 稳定版与 cp311 win_amd64 wheel 矩阵，理由落本计划文档。
 - [ ] **Step 2:** 写失败测试：agent extra 懒导入守卫（缺依赖友好报错；装齐后 `import langgraph` / `AsyncPostgresSaver` 成功 + 版本断言）。
-- [ ] **Step 3:** 跑确认失败 → 改 `pyproject.toml`：`agent = ["langgraph>=1.2,<2", "langgraph-checkpoint-postgres>=3.1,<4", "psycopg[binary]>=3.2", "psycopg-pool"]`（注释写明不装 langchain 主体；禁裸 psycopg 与 `psycopg[c]`）。
+- [ ] **Step 3:** 跑确认失败 → 改 `pyproject.toml`：`agent = ["langgraph>=1.2,<2", "langgraph-checkpoint-postgres>=3.1.1,<4", "psycopg[binary]>=3.2,<3.4", "psycopg-pool>=3.2,<3.4"]`（下限 3.1.1 = CVE-2026-71433 修复版，见 T2 调研证据；注释写明不装 langchain 主体；禁裸 psycopg 与 `psycopg[c]`）。
 - [ ] **Step 4:** `uv lock` + `uv sync --extra agent`：确认 orjson / ormsgpack / psycopg 全 wheel 安装、无源码编译；审 httpx / requests / pydantic 与 litellm 解析无冲突。
 - [ ] **Step 5:** CI 后端 job 改 `uv sync --frozen --extra agent`（保持 `pytest -m "not db"`）→ 跑绿：ruff + pytest 双绿。
 - [ ] **Step 6:** 提交：`chore(deps): 引入 agent extra 并钉版（langgraph>=1.2,<2，P7 Agent 模式）`。
+
+> [!note] T2 调研证据（2026-08-31 依赖调研工作流：PyPI JSON/文件列表 + 官方文档对抗性核对）
+> - `langgraph` 现稳定 1.2.x（调研时点 1.2.11，本机 lock 解析 1.2.9），纯 Python wheel；`>=1.2,<2` 成立；`create_react_agent` 弃用属实（1.0 起每次调用发 DeprecationWarning，2.0 移除）——手写 StateGraph 决策不变。
+> - `langgraph-checkpoint-postgres` 现稳定 3.1.2；**下限抬至 >=3.1.1**：CVE-2026-71433 / GHSA-47pj-3jcm-6whg（namespace 前缀越段读取，多租户/scope 隔离实质影响），3.1.1 为修复版。
+> - `psycopg[binary]` 3.3.4 有 cp311 win_amd64 wheel 且与 psycopg 同版锁定；`psycopg-pool` 3.3.1；均加 `<3.4` 上限。该包自身依赖**裸 psycopg**，extra 须以 `[binary]` 覆盖（本机 lock 已验：psycopg-binary==psycopg==3.3.4）。
+> - 依赖树 C 扩展（xxhash / uuid-utils / ormsgpack / orjson / pydantic-core）全有 cp311 win_amd64 wheel，零源码编译；与 litellm（lock 1.90.6，钉版区间内）/ pydantic / httpx 解析零冲突。
+> - AsyncPostgresSaver 内部 `asyncio.Lock` 串行化为源码级事实（单用户规模接受，留痕锚点 2026-W49 压测批，与风险表一致）。
 
 ---
 
