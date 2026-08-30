@@ -7,12 +7,12 @@ created: 2026-08-30
 ---
 # P6 进度快照与新会话交接
 
-> 快照时间：2026-08-30（2026-W35，Task 23 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
+> 快照时间：2026-08-30（2026-W35，可选 Task 24 补做收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
 
-## 总进度：23/23 必做 Task 完成
+## 总进度：23/23 必做 + 可选 #24 完成
 
 - 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
-- 测试基线：**1008 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475；Task 22 自定义分析 +36）；前端 vitest **62 passed**（Task 18 +9 / Task 19 +11 / Task 20 +17 / Task 23 +10；开工前 15）
+- 测试基线：**1015 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475；Task 22 自定义分析 +36；Task 24 analyze CLI +7）；前端 vitest **62 passed**（Task 18 +9 / Task 19 +11 / Task 20 +17 / Task 23 +10；开工前 15）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
 | 批次 | 范围 | 状态 |
@@ -27,7 +27,7 @@ created: 2026-08-30
 | Task 21 | 第二批接线（关系映射 / 任务 / 概念，图谱复用） | ✅ `14627e7`（基线重落 15 例全 ok，972 passed） |
 | Task 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ `7f319ed`（全量 1008 passed） |
 | Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ✅ `4c08a55` `29e9dfd`（见 [[docs/verification/P6-verification|P6 验证]]） |
-| Task 24（可选） | `analyze` CLI | 🔄 进行中（余量充足，按计划启动） |
+| Task 24（可选） | `analyze` CLI | ✅ `86ca6a8`（2026-08-30 补做：管理员提交 + barrier 同步等待 + 报告摘要；7 例测试） |
 
 ## 续接方法（新会话按序执行）
 

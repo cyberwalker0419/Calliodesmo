@@ -74,7 +74,7 @@ created: 2026-08-29
 | 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | ✅ 完成 |
 | 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | ✅ 完成 |
 | 23 | 第二批前端 + 验证报告 + 文档同步 + `--real` 补跑锚点 | ✅ 必做 | ✅ 完成（`--real` 质量补跑留痕 2026-W45） |
-| 24 | `calliodesmo analyze` CLI（仿 `ask`） | 🔁 可选 | 未开始 |
+| 24 | `calliodesmo analyze` CLI（仿 `ask`） | 🔁 可选 | ✅ 完成（`86ca6a8`，2026-08-30 补做） |
 | 25 | provider 原生结构化输出能力探测 | 🔁 可选 | 未开始（锚点 2026-W49，P9 模型层清单） |
 | 26 | 多轮对话状态 | ⏸ 暂缓 | 移交 P7 |
 | 27 | L2 全库主题摘要 | ⏸ 暂缓 | 移交 P9（2026-W49） |
@@ -722,13 +722,15 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 ---
 
-## Task 24（🔁 可选）: calliodesmo analyze CLI
+## Task 24（🔁 可选）: calliodesmo analyze CLI ✅ 已补做
 
 **启用条件:** Task 14 完成后视剩余工时启动；非承诺，不做不欠。
 
 **Files:** 改 `src/calliodesmo/cli.py`（子命令仿 `ask`：`--task-type` / `--doc-ids` / `--question` → 提交 + barrier 同步等待 + 打印报告摘要）· 测试（`cli_db` 夹具）。
 
-- [ ] 写失败测试 → 跑确认失败 → 实现 → 跑绿 → 提交 `feat(cli): analyze 子命令`。若不做：留痕于验证报告未竟清单。
+- [x] 写失败测试 → 跑确认失败 → 实现 → 跑绿 → 提交 `feat(cli): analyze 子命令`。若不做：留痕于验证报告未竟清单。
+
+**落地注记（2026-08-30，`86ca6a8`）：** 子命令 `calliodesmo analyze --task-type <9 类> [--doc-ids 逗号分隔] [--question] [--instruction] [--top-k]`。执行路径取「提交 + barrier 同步等待」全 job 路径（与 `tests/test_analysis_job_worker` 同范式，报告自然落库）：提交者为**管理员**（`settings.admin_username`，须先 `db seed`；系统账户 `is_active=False` 过不了 worker 的 `get_access_context` 重建，故不用）→ 建 job 行 + 审计 `analyze_submit`（source=cli）→ `run_analysis_job` + barrier 等待 → 读终态打印报告摘要（类型 / 状态 / 载荷条目截断展示 + `[报告已落库]` 说明；完全失败不落空报告、非零退出码可读原因）。边界校验仿 API 400 契约：未注册类型 / qa 缺 `--question` / custom 缺 `--instruction` / `--doc-ids` 含不可见文档（预检）；无可见材料经 worker 终态回流可读错误。**留痕**：① `--instruction` 为计划最小集外的可用性问题补项（custom 无指令即 400，不加则 CLI 不可用该类型）；② custom 用户 `--schema` 未暴露（最小集，`custom_schema` 恒 `None`，完整自定义走 API / 前端）；③ QA 的 SearchEngine 经共享 stores 单例按 `api/deps.get_search_engine` 同形装配（仅 qa 类构建，非 QA 不拉嵌入依赖）。新增 7 例测试（`tests/test_analyze_cli.py`，cli_db + env 覆盖 test/stub 离线桩，不依赖 `.env` 真模型）；全量 1015 passed, 1 skipped。
 
 ---
 

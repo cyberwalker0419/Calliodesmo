@@ -14,7 +14,7 @@ created: 2026-08-30
 
 ### 后端（离线轨，全量）
 
-- `uv run pytest -q`：**1008 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475 → Task 22 后 1008；本会话后端零改动，基线维持）。
+- `uv run pytest -q`：**1008 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475 → Task 22 后 1008）。2026-08-30 补做可选 Task 24（analyze CLI）后重落 **1015 passed, 1 skipped**（+7，`86ca6a8`，cli_db 夹具 + test/stub 离线桩）。
 - `uv run ruff format .` / `ruff check .`：270 files unchanged / All checks passed。
 - `uv run python scripts/eval_p6.py`：15 例全 `ok`，mean_field_f1 0.0 / mean_tuple_f1 0.0 / mean_judge_overall 3.0，落盘 `p6-regression.json`（结构 / 契约证据，非质量结论；解析失败率 0）。
 
@@ -78,7 +78,7 @@ created: 2026-08-30
 | 21 | 第二批接线 | ✅ | `14627e7` |
 | 22 | 自定义分析（注入防御） | ✅ | `7f319ed` |
 | 23 | 第二批前端 + 验证报告 + 文档收尾 | ✅ | 本会话两笔提交 |
-| 24 | `analyze` CLI（可选） | ⏭️ 不做 | 视工时本会话未做，留痕未竟清单（不欠） |
+| 24 | `analyze` CLI（可选） | ✅ 完成 | `86ca6a8`（2026-08-30 补做：管理员提交 + barrier 同步等待 + 报告摘要；7 例 cli_db 测试，离线桩） |
 | 25 | provider 能力探测（可选） | ⏭️ 顺延 | 2026-W49（P9 模型层清单） |
 | 26 | 多轮对话状态 | ⏸ 移交 | P7 |
 | 27 | L2 全库主题摘要 | ⏸ 移交 | P9（2026-W49，显式改道） |
@@ -103,6 +103,6 @@ created: 2026-08-30
 ## 证据
 
 - `p6-regression.json`（离线基线 15 例全 ok；结构/契约证据，非质量结论）· `p6-real-<模型名>.json`（**待补**，2026-W45 用户本机）。
-- `pytest` 1008 passed / ruff clean / 前端三件套绿（本会话门槛输出）。
+- `pytest` 1008 passed（Task 23 门槛）→ 1015 passed（Task 24 补做，`86ca6a8`）/ ruff clean / 前端三件套绿。
 - `data/verification/p6/t23-*.png`（preview 截图，不入库）· `data/serve-preview-p6-t23.log`（serve 日志，不入库）· `data/verification/p6/t23-capture.cjs`（截图脚本，不入库）。
-- 提交链：`b066e8e`…`7f319ed` + 本会话 `feat(frontend)` / `docs(verification)` 两笔。
+- 提交链：`b066e8e`…`7f319ed` + `feat(frontend)` / `docs(verification)` 两笔 + Task 24 补做 `86ca6a8`。
