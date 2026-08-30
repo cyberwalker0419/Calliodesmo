@@ -160,14 +160,21 @@ def serve(
 
 def _seed_demo_for_serve() -> None:
     """serve --seed-demo：确保演示团队 + 管理员成员，然后注入演示数据到 stores 单例。"""
-    from calliodesmo.api.deps import get_app_stores
-
     settings = get_settings()
     report = asyncio.run(_seed_demo_async(settings))
-    stores = get_app_stores()
+    # 真后端：seed 在临时 loop 建的 stores/连接不可复用于 serve 主循环——重置单例，
+    # app 请求时按主 loop 懒重建（内存后端保留单例，seed 数据即在进程内可见）
+    if (
+        settings.vector_store_backend != "memory"
+        or settings.graph_store_backend != "memory"
+        or settings.community_store_backend != "memory"
+    ):
+        from calliodesmo.api.deps import reset_app_stores
+
+        reset_app_stores()
     typer.echo(
         f"演示数据已注入（{report.source}）：文档 {report.documents} / 块 {report.chunks} / "
-        f"档案卡 {len(stores.profile_card_store)} / 社区 {len(stores.community_store)}"
+        f"档案卡 {report.profile_cards} / 社区 {report.communities}"
     )
 
 
@@ -215,13 +222,19 @@ async def _seed_demo_async(settings):
         permissions=frozenset(set(Permission)),
         team_ids=frozenset({team_id}),
     )
-    return await seed_demo_stores(
+    result = await seed_demo_stores(
         get_app_stores(),
         settings,
         demo_dir=Path(settings.demo_dir),
         cache_file=Path(settings.demo_cache_file),
         access=access,
     )
+    # 真后端下 seed 经共享 SessionLocal 在本临时 loop 建连；dispose 共享 engine
+    # 防连接池绑死已关闭 loop（serve 主循环重建连接，修 Event loop is closed 500）
+    from calliodesmo.db.session import engine as _shared_engine
+
+    await _shared_engine.dispose()
+    return result
 
 
 def _system_access():

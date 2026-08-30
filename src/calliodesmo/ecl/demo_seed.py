@@ -87,9 +87,16 @@ async def seed_demo_stores(
     缓存失效（P7 T1）：缓存载荷携带 ``seed_key`` 指纹（team / 语料清单
     相对路径+大小+mtime 的 sha256）；语料或 team 漂移 → 旧缓存迁移为 ``*.stale``
     留痕并重建；遗留缓存（无 ``seed_key``）同迁。
+
+    真后端（postgres/neo4j）兼容（P7 T16）：缓存与 level-0 社区 id 重写为内存
+    stores 专属（``_records`` 鸭子字段）；真后端直接落库、跳过缓存与重写（演示
+    场景接受 level-0 comm-N 跨批撞 id 覆盖）。
     """
+    is_mem = hasattr(stores.vector_store, "_records") and hasattr(
+        stores.community_store, "_records"
+    )
     seed_key = _seed_key(access, demo_dir, exclude=_cache_artifacts(cache_file))
-    if _cache_exists(cache_file):
+    if is_mem and _cache_exists(cache_file):
         raw = _read_cache(cache_file)
         if raw.get("version") == 1 and raw.get("seed_key") == seed_key:
             await _load_cache(stores, cache_file)
@@ -121,12 +128,17 @@ async def seed_demo_stores(
     total_chunks = 0
     for path in files:
         slug = path.stem.replace("__", "-")
-        before = set(stores.community_store._records.keys())
+        before = (
+            set(stores.community_store._records.keys())
+            if is_mem
+            else set()
+        )
         stats = await engine.ingest(path, access=access)
         total_chunks += stats.chunks
         # level-0 实体社区：cognify 派生的 access_level 恒 INTERNAL 且 comm-N 跨批次
         # 撞 id——按本批次重写：id 加文档 slug 前缀 + access_level 对齐文档梯度
-        for cid in set(stores.community_store._records.keys()) - before:
+        # （内存 stores 专属；真后端跳过，见模块口径）
+        for cid in set(stores.community_store._records.keys()) - before if is_mem else set():
             rec = stores.community_store._records[cid]
             if rec.level != 0:
                 continue  # level-1 文档社区已从 chunk 继承正确梯度，id 按 doc 唯一
@@ -139,16 +151,24 @@ async def seed_demo_stores(
             )
 
     # 稀疏索引随 seed 构建（native_rag 混合路召回可用）
-    await stores.sparse_index.index(list(stores.vector_store._records.values()))
-
-    _write_cache(cache_file, _dump_cache(stores, seed_key=seed_key))
+    if is_mem:
+        await stores.sparse_index.index(list(stores.vector_store._records.values()))
+        _write_cache(cache_file, _dump_cache(stores, seed_key=seed_key))
     return DemoSeedReport(
         documents=len(files),
         chunks=total_chunks,
-        profile_cards=len(stores.profile_card_store),
-        communities=len(stores.community_store),
+        profile_cards=_safe_len(stores.profile_card_store),
+        communities=_safe_len(stores.community_store),
         source="pipeline",
     )
+
+
+def _safe_len(obj) -> int:
+    """len() 兼容（真后端 store 无 __len__ 时回退 0，仅演示报告用）。"""
+    try:
+        return len(obj)
+    except TypeError:
+        return 0
 
 
 # ---- 缓存序列化 ----
