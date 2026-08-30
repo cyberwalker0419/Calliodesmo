@@ -208,3 +208,10 @@ def test_permission_matrix_list_for(role, clearance, scope):
     if Permission.ANALYZE in perms:
         expected.add("run_analysis")
     assert visible == expected
+
+
+async def test_validate_arguments_enum():
+    """参数门 enum 校验（P8 T8 补：task_type 枚举外拒收）。"""
+    schema = {"type": "object", "properties": {"t": {"type": "string", "enum": ["a", "b"]}}}
+    assert validate_arguments(schema, {"t": "a"}) is None
+    assert validate_arguments(schema, {"t": "zz"}) is not None

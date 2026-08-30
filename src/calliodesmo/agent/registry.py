@@ -52,6 +52,9 @@ def validate_arguments(schema: dict, arguments: Any) -> str | None:
             return f"参数 {name} 类型须为 {expected}"
         if not isinstance(value, py):
             return f"参数 {name} 类型须为 {expected}"
+        enum = prop.get("enum") if isinstance(prop, dict) else None
+        if enum is not None and value not in enum:
+            return f"参数 {name} 须为枚举之一：{', '.join(str(e) for e in enum)}"
     return None
 
 
