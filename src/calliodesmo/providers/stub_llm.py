@@ -31,7 +31,13 @@ import json
 import re
 from typing import Any
 
-from calliodesmo.interfaces.llm import LLMMessage, LLMProvider, LLMResponse
+from calliodesmo.interfaces.llm import (
+    LLMMessage,
+    LLMProvider,
+    LLMResponse,
+    ToolCall,
+    ToolSpec,
+)
 
 # 抽取示例：固定实体/关系（演示用，与输入文本无关）
 _EXTRACTION = {
@@ -162,6 +168,43 @@ _ANALYSIS_PAYLOADS: dict[str, dict[str, Any]] = {
 #: 分析标记形状：``[ANALYSIS:<type>]``（系统段，模板首行标记，见 config/analysis_prompts/）
 _ANALYSIS_MARKER_RE = re.compile(r"\[ANALYSIS:([^\]]*)\]")
 
+#: P7 T4：agent 脚本标记形状 ``[AGENT:<script>]``（系统段），分发脚本化 tool_calls 序列——
+#: 离线桩驱动工具调用循环的地基（全部 agent 离线测试依赖；桩对工具选择恰当性零区分度，
+#: 质量证据由 scripts/eval_agent.py --real 承担，锚点 2026-W45）。
+_AGENT_MARKER_RE = re.compile(r"\[AGENT:([^\]]*)\]")
+
+#: 脚本化轨迹：steps 为逐回合 tool_calls 清单（按 messages 中已有 assistant tool_calls
+#: 轮数取步序，纯函数无状态）；steps 耗尽后回 final 收尾。三基线场景：
+#: 两步检索 / 越权工具探测（脚本化调用未授权工具，注册表拒派）/ 证据不足直答。
+_AGENT_PAYLOADS: dict[str, dict[str, Any]] = {
+    "two_step_search": {
+        "steps": [
+            [
+                {
+                    "name": "search_knowledge",
+                    "arguments": {"question": "GPT-4 由谁开发", "mode": "native_rag"},
+                }
+            ],
+        ],
+        "final": "根据检索结果：GPT-4 由 OpenAI 开发（离线桩固定轨迹）。",
+    },
+    "forbidden_probe": {
+        "steps": [
+            [
+                {
+                    "name": "run_analysis",
+                    "arguments": {"task_type": "summary", "subject": "越权探测"},
+                }
+            ],
+        ],
+        "final": "探测结束（离线桩固定轨迹）。",
+    },
+    "insufficient_direct": {
+        "steps": [],
+        "final": "证据不足，无法回答（离线桩直答，不调用工具）。",
+    },
+}
+
 
 class StubLLMProvider(LLMProvider):
     """离线桩 LLM：按系统提示的 ``[ANALYSIS:<type>]`` 标记与关键词分发固定响应。"""
@@ -175,13 +218,23 @@ class StubLLMProvider(LLMProvider):
         *,
         temperature: float = 0.2,
         max_tokens: int | None = None,
+        tools: list[ToolSpec] | None = None,
     ) -> LLMResponse:
         system = next((m.content for m in messages if m.role == "system"), "")
         marker = _ANALYSIS_MARKER_RE.search(system)
+        agent_marker = _AGENT_MARKER_RE.search(system)
         if marker is not None:
             # 分析标记分发优先：分析提示词含「摘要 / 抽取」等裸词，须先于关键词分支
             payload = self._analysis_payload(marker.group(1))
-        elif "知识图谱抽取引擎" in system or ("抽取" in system and "entities" in system):
+            return LLMResponse(
+                content=json.dumps(payload, ensure_ascii=False),
+                model=self.model,
+                usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            )
+        if agent_marker is not None:
+            # P7 T4：agent 脚本化 tool_calls 序列（先于关键词分支；未知标记显式报错）
+            return self._agent_response(agent_marker.group(1), messages)
+        if "知识图谱抽取引擎" in system or ("抽取" in system and "entities" in system):
             payload = _EXTRACTION
         elif "文档摘要引擎" in system or "摘要" in system:
             payload = _SUMMARY
@@ -193,6 +246,33 @@ class StubLLMProvider(LLMProvider):
             model=self.model,
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         )
+
+    def _agent_response(self, script: str, messages: list[LLMMessage]) -> LLMResponse:
+        """按 ``[AGENT:<script>]`` 取脚本化轨迹；步序 = 已有 assistant tool_calls 轮数（无状态）。
+
+        钉死的坑同分析标记：未知脚本显式 ValueError，不静默回退——脚本名拼错若静默
+        走旧分发，agent 离线轨迹测试全失真而不红。
+        """
+        payload = _AGENT_PAYLOADS.get(script)
+        if payload is None:
+            supported = ", ".join(sorted(_AGENT_PAYLOADS))
+            raise ValueError(
+                f"StubLLM 收到未知 agent 标记 [AGENT:{script}]，支持的脚本: {supported}"
+            )
+        steps: list[list[dict[str, Any]]] = payload["steps"]
+        done_rounds = sum(1 for m in messages if m.role == "assistant" and m.tool_calls)
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        if done_rounds < len(steps):
+            calls = tuple(
+                ToolCall(
+                    id=f"call-{script}-{done_rounds}-{i}",
+                    name=step["name"],
+                    arguments=dict(step["arguments"]),
+                )
+                for i, step in enumerate(steps[done_rounds])
+            )
+            return LLMResponse(content="", model=self.model, usage=usage, tool_calls=calls)
+        return LLMResponse(content=payload["final"], model=self.model, usage=usage)
 
     @staticmethod
     def _analysis_payload(marker_type: str) -> dict[str, Any]:
