@@ -698,6 +698,26 @@ async def test_export_requires_auth_and_export_permission(session):
         ).status_code == 200
 
 
+async def test_export_via_session_cookie(session):
+    """浏览器真实点击口径（Task 20 审查修复）：裸 ``<a href>`` 附件下载导航
+    无 Authorization 头，仅同源 ``calliodesmo_session`` cookie 鉴权 -> 200 附件。
+    """
+    from calliodesmo.api.app import SESSION_COOKIE
+
+    user, token = await _seed_actor(
+        session, "export-cookie", {Permission.ANALYZE, Permission.EXPORT}
+    )
+    report = await _create_report_row(session, user_id=user.id)
+    async with _make_client(session) as c:
+        c.cookies.set(SESSION_COOKIE, token)
+        resp = await c.get(f"/analysis/reports/{report.id}/export")
+    assert resp.status_code == 200, resp.text
+    disposition = resp.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert f'filename="analysis_report_summary_{report.id}.json"' in disposition
+    assert resp.json()["task_type"] == "summary"
+
+
 async def test_export_invisible_or_missing_404(session):
     """不可见 / 不存在 -> 404（不泄漏存在性）：他人报告 / 随机 UUID / 低 clearance 本人报告。"""
     user_a, _ = await _seed_actor(session, "exportA", {Permission.ANALYZE, Permission.EXPORT})

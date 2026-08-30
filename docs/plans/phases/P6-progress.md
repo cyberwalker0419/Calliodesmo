@@ -12,7 +12,7 @@ created: 2026-08-30
 ## 总进度：20/23 必做 Task 完成
 
 - 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
-- 测试基线：**933 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）；前端 vitest **52 passed**（Task 18 新增 9 例 + Task 19 新增 11 例 + Task 20 新增 17 例；开工前 15）
+- 测试基线：**936 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475；Task 20 审查修复 +3：cookie 消费回归）；前端 vitest **52 passed**（Task 18 新增 9 例 + Task 19 新增 11 例 + Task 20 新增 17 例；开工前 15）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
 | 批次 | 范围 | 状态 |
@@ -23,7 +23,7 @@ created: 2026-08-30
 | Task 16–17 | 评估两件套 + 离线基线（**第二批门槛之一已达成**） | ✅ `07272de` `17acae4` |
 | Task 18 | 前端数据层（types / API 客户端 / `useAnalysis` hook + vitest） | ✅ `4d09e56` |
 | Task 19 | 前端提交页 + 轮询（preview 闭环） | ✅ `2b57b77` |
-| Task 20 | 前端报告渲染 + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅（SHA 随下次交接刷新补齐） |
+| Task 20 | 前端报告渲染 + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ `9ae1666`（审查修复随 `fix(frontend)` 一笔跟进） |
 | Task 21–22 | 第二批接线 + 自定义分析 | ⏭️ 未开始（门槛：#17 基线绿 ✅ + #20 矩阵过 ✅） |
 | Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ⏭️ 未开始 |
 | Task 24（可选） | `analyze` CLI | ⏭️ 视工时 |
@@ -49,5 +49,6 @@ created: 2026-08-30
 - **移动端布局**（P3 既有，锚点 2026-W37 评估）：App 固定 `w-56` 侧栏在 <md 视口挤压内容列（全站页面同症，非 Task 19 引入），候选折叠侧栏 / 抽屉导航。
 - **外部识图 MCP 不可用**（Task 19/20 会话均复现）：GLM-EYE 401 / MiniMax 配额上限；preview 截图改以会话内视觉逐张分析（存 `data/verification/p6/t19-*.png` / `t20-*.png`），GLM-EYE 复跑锚点 2026-W36。
 - **Task 20 三角色矩阵 dev 用户**（2026-W35 创建，dev 库本地测试用）：`p6analyst`（analyst / SECRET，密码 `P6-Analyst-2026`）与 `p6reviewer`（reviewer / SECRET，密码 `P6-Reviewer-2026`），均已加入示例团队（team scope 可见演示语料；不加入则分析提交报「无可见材料」）。admin 凭据仍取 `.env`（不回显）。
-- **logout 方法不匹配**（P3 既有欠账，Task 20 闭环发现，锚点 2026-W37）：前端 `AuthContext.logout` 走 `DELETE /auth/logout`，后端 `api/app.py:106` 为 `POST /auth/logout` → 405；客户端 catch ApiError 后仍本地清会话，登出 UX 不受影响，但 cookie 模式（若启用）服务端清 cookie 不生效。修法：前端改 `api.post` 或后端补 DELETE 别名。
+- **Task 20 审查修复——导出 401**（2026-08-30，`fix(frontend): 修复 Task 20 审查问题`）：报告导出裸 `<a href download>` 导航无 Authorization 头，旧 `get_current_context` 只收 Bearer -> 401。修法取审查二选一之「兑现 cookie 为主设计」：`api/deps.py::get_current_context` 增 cookie 消费（Bearer 优先、无则回退 `calliodesmo_session`；SameSite=Lax 限跨站子资源携带，状态变更端点均 POST 不受 CSRF 影响），`SESSION_COOKIE` 常量落 `deps.py`、`app.py` 改导入；前端零改动。新增 3 例后端回归（cookie 过 `/auth/me` 200 / 伪造 cookie 401 / cookie 过导出 200+附件头）。preview 实点导出 json/md 均 200 + `report_export` 审计，serve 日志佐证留 `data/serve-preview-p6-t20-fix.log`（不入库）；本会话截图以会话内视觉分析（preview_* 无落盘能力，同前会话回退口径）。
+- **logout 方法不匹配**（P3 既有欠账，Task 20 闭环发现，锚点 2026-W37）：前端 `AuthContext.logout` 走 `DELETE /auth/logout`，后端 `api/app.py:106` 为 `POST /auth/logout` -> 405；客户端 catch ApiError 后仍本地清会话，登出 UX 不受影响。**cookie 消费启用后影响面升格**：登出仅清客户端 token，httpOnly cookie 服务端不删、JWT 过期前仍有效——修 logout（前端改 `api.post` 或后端补 DELETE 别名）时须同验 cookie 失效。
 - 中断史：会话重启会杀掉后台工作流，但每 Task 完成即提交，工作树半成品可核查后验证提交，恢复零损失——遇中断按「续接方法」第 1 步处理即可。

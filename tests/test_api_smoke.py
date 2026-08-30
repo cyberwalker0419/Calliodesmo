@@ -49,3 +49,37 @@ async def test_auth_wrong_password(client, session):
 async def test_me_requires_token(client):
     resp = await client.get("/auth/me")
     assert resp.status_code == 401
+
+
+async def test_me_via_session_cookie(client, session):
+    """cookie 会话为主路径（P3 设计：Bearer 仅 CLI/脚本，不作前端主路径）。
+
+    /auth/token 下发 httpOnly cookie 后，无 Authorization 头的同源请求
+    （如裸 ``<a href>`` 附件下载导航）经 ``calliodesmo_session`` cookie 鉴权。
+    """
+    from calliodesmo.api.app import SESSION_COOKIE
+
+    await seed_default_roles(session)
+    user = await create_user(
+        session, username="gina", password="pw123", clearance=ClearanceLevel.CONFIDENTIAL
+    )
+    await assign_role(session, user=user, role_name="analyst", scope=LibraryScope.TEAM)
+    await session.commit()
+
+    resp = await client.post("/auth/token", data={"username": "gina", "password": "pw123"})
+    assert resp.status_code == 200
+    assert SESSION_COOKIE in resp.cookies
+
+    # 无 Authorization 头：cookie jar 自动携带会话 cookie -> 200
+    me = await client.get("/auth/me")
+    assert me.status_code == 200
+    assert me.json()["username"] == "gina"
+
+
+async def test_me_bad_session_cookie(client):
+    """伪造 / 篡改的会话 cookie -> 401（与无效 Bearer 同口径）。"""
+    from calliodesmo.api.app import SESSION_COOKIE
+
+    client.cookies.set(SESSION_COOKIE, "forged.token.value")
+    resp = await client.get("/auth/me")
+    assert resp.status_code == 401

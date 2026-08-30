@@ -16,7 +16,7 @@ from calliodesmo import __version__
 from calliodesmo.api.admin import router as admin_router
 from calliodesmo.api.analysis import router as analysis_router
 from calliodesmo.api.collab import router as collab_router
-from calliodesmo.api.deps import get_current_context, get_search_engine
+from calliodesmo.api.deps import SESSION_COOKIE, get_current_context, get_search_engine
 from calliodesmo.api.ingest import router as ingest_router
 from calliodesmo.api.jobs import router as jobs_router
 from calliodesmo.api.library import router as library_router
@@ -37,9 +37,6 @@ from calliodesmo.auth.service import authenticate, change_password, create_user
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
 from calliodesmo.interfaces.retriever import SearchEngine, SearchMode
-
-#: JWT httpOnly cookie 名（SameSite=Lax；防 XSS 读 token）
-SESSION_COOKIE = "calliodesmo_session"
 
 
 class SPAStaticFiles(StaticFiles):
