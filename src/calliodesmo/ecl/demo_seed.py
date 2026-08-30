@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from dataclasses import asdict, dataclass, replace
@@ -81,16 +82,26 @@ async def seed_demo_stores(
     cache_file: Path,
     access: AccessContext,
 ) -> DemoSeedReport:
-    """演示数据注入 stores 单例：缓存命中直接加载，否则跑 ECL 管线并落盘缓存。"""
+    """演示数据注入 stores 单例：缓存命中直接加载，否则跑 ECL 管线并落盘缓存。
+
+    缓存失效（P7 T1）：缓存载荷携带 ``seed_key`` 指纹（team / 语料清单
+    相对路径+大小+mtime 的 sha256）；语料或 team 漂移 → 旧缓存迁移为 ``*.stale``
+    留痕并重建；遗留缓存（无 ``seed_key``）同迁。
+    """
+    seed_key = _seed_key(access, demo_dir, exclude=_cache_artifacts(cache_file))
     if _cache_exists(cache_file):
-        await _load_cache(stores, cache_file)
-        return DemoSeedReport(
-            documents=len({c.doc_id for c in stores.vector_store._records.values()}),
-            chunks=len(stores.vector_store),
-            profile_cards=len(stores.profile_card_store),
-            communities=len(stores.community_store),
-            source="cache",
-        )
+        raw = _read_cache(cache_file)
+        if raw.get("version") == 1 and raw.get("seed_key") == seed_key:
+            await _load_cache(stores, cache_file)
+            return DemoSeedReport(
+                documents=len({c.doc_id for c in stores.vector_store._records.values()}),
+                chunks=len(stores.vector_store),
+                profile_cards=len(stores.profile_card_store),
+                communities=len(stores.community_store),
+                source="cache",
+            )
+        # 漂移或遗留缓存：迁移 .stale 后重建（不改原文件内容，便于排障回溯）
+        _migrate_stale_cache(cache_file)
 
     from calliodesmo.ecl.engine import build_default_indexing_engine
 
@@ -103,7 +114,7 @@ async def seed_demo_stores(
     )
     engine.loader = _DemoAccessLoader(engine.loader, access=access)
 
-    files = _list_demo_files(demo_dir)
+    files = _list_demo_files(demo_dir, exclude=_cache_artifacts(cache_file))
     if not files:
         raise FileNotFoundError(f"演示目录无 .md/.txt 文档：{demo_dir}")
 
@@ -130,7 +141,7 @@ async def seed_demo_stores(
     # 稀疏索引随 seed 构建（native_rag 混合路召回可用）
     await stores.sparse_index.index(list(stores.vector_store._records.values()))
 
-    _write_cache(cache_file, _dump_cache(stores))
+    _write_cache(cache_file, _dump_cache(stores, seed_key=seed_key))
     return DemoSeedReport(
         documents=len(files),
         chunks=total_chunks,
@@ -150,13 +161,36 @@ def _cache_exists(cache_file: Path) -> bool:
     return cache_file.exists()
 
 
-def _list_demo_files(demo_dir: Path) -> list[Path]:
-    """列出演示目录下所有文档文件（按加载器注册表分发：.md/.txt/.docx/.pdf 等）。
+def _list_demo_files(demo_dir: Path, *, exclude: set[Path]) -> list[Path]:
+    """递归列出演示目录下所有文档文件（按加载器注册表分发：.md/.txt/.docx/.pdf 等）。
 
-    仅 glob 文件，后缀分发由 ``LoaderRegistry.resolve`` 负责；未注册后缀会在
-    ingest 时抛 ValueError 提示安装对应 extra（与 CLI ingest 一致）。
+    嵌套语料经 ``rglob`` 递归发现（P7 T1：顶层 glob 缺口修复）；仅取文件，
+    后缀分发由 ``LoaderRegistry.resolve`` 负责；未注册后缀会在 ingest 时抛
+    ValueError 提示安装对应 extra（与 CLI ingest 一致）。``exclude`` 用于剔除
+    落在语料目录内的缓存及其迁移产物（默认配置缓存在语料目录内）。
     """
-    return sorted(p for p in demo_dir.glob("*") if p.is_file())
+    excluded = {p.resolve() for p in exclude}
+    return sorted(p for p in demo_dir.rglob("*") if p.is_file() and p.resolve() not in excluded)
+
+
+def _cache_artifacts(cache_file: Path) -> set[Path]:
+    """缓存本体与迁移产物（``*.stale``）：语料列举与指纹计算均须剔除。"""
+    return {cache_file, cache_file.with_name(cache_file.name + ".stale")}
+
+
+def _migrate_stale_cache(cache_file: Path) -> None:
+    """漂移/遗留缓存迁移为 ``*.stale`` 留痕（覆盖旧迁移产物，同步 IO 规避 ASYNC240）。"""
+    cache_file.replace(cache_file.with_name(cache_file.name + ".stale"))
+
+
+def _seed_key(access: AccessContext, demo_dir: Path, *, exclude: set[Path]) -> str:
+    """缓存失效指纹：team / 语料清单（相对路径+大小+mtime）漂移即重建（P7 T1 口径）。"""
+    team_id = next(iter(access.team_ids), None)
+    parts = [f"team={team_id}"]
+    for p in _list_demo_files(demo_dir, exclude=exclude):
+        st = p.stat()
+        parts.append(f"{p.relative_to(demo_dir).as_posix()}:{st.st_size}:{st.st_mtime_ns}")
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
 def _write_cache(cache_file: Path, payload: dict) -> None:
@@ -211,9 +245,10 @@ def _field_in(raw: dict[str, Any] | None) -> ProfileField | None:
     )
 
 
-def _dump_cache(stores) -> dict[str, Any]:
+def _dump_cache(stores, *, seed_key: str) -> dict[str, Any]:
     return {
         "version": 1,
+        "seed_key": seed_key,
         "chunks": [
             {
                 "chunk_id": c.chunk_id,
