@@ -489,3 +489,51 @@ class AnalysisDocumentOut(BaseModel):
     label: str
     access_level: str
     chunk_count: int
+
+
+# ---- P7 Agent 模式（T14）：会话 / 执行 / 消息 ----
+
+
+class AgentSessionCreate(BaseModel):
+    """POST /agent/sessions 请求体：mode 未注册 400（v1 仅 react）。"""
+
+    mode: str = "react"
+    label: str = ""
+
+
+class AgentSessionOut(BaseModel):
+    """会话对外形态（前端 types.ts 对齐）。"""
+
+    id: uuid.UUID
+    mode: str
+    label: str
+    access_level: str
+    library_scope: str
+    created_at: datetime
+
+
+class AgentSessionListOut(BaseModel):
+    items: list[AgentSessionOut]
+    total: int
+
+
+class AgentRunRequest(BaseModel):
+    """POST /agent/sessions/{id}/runs 请求体。"""
+
+    question: str = Field(min_length=1, max_length=4000)
+
+
+class AgentRunAccepted(BaseModel):
+    """202 受理：job 范式最小指针（轮询 /jobs/{job_id}）。"""
+
+    job_id: uuid.UUID
+    status: str
+
+
+class AgentMessageOut(BaseModel):
+    id: uuid.UUID
+    session_id: uuid.UUID
+    role: str
+    content: str
+    run_id: uuid.UUID | None
+    created_at: datetime
