@@ -20,7 +20,7 @@ tags:
 | [[docs/verification/full-chain-simulation|全链路仿真]] | P4.5 真后端 HTTP 全链路 | ✅ 22 步全绿 / 修复 2 处 `/ingest` bug | 2026-07-31 |
 | [[docs/verification/OCR-vision-verification|OCR/识图]] | P4.5 Task 7 多模态 | ✅ **423 passed** / 1 skipped | 2026-08-14 |
 | [[docs/verification/P5-verification|P5]] | 高级 RAG | ✅ 32 检索用例 + 9 golden × 6 配置回归（baseline 0.4444）/ Task 6 按证据跳过 | 2026-08-19 |
-| [[docs/verification/P6-verification|P6]] | LLM 分析任务 | ✅ 1008 passed / 前端 62 vitest / 15 例离线基线全 ok（结构·契约证据）/ --real 质量证据已登记（2026-08-30，Qwen3.8-27B-Q4_K_M，P5+P6 同批）/ 第二批前端+三角色 preview 闭环 | 2026-08-30 |
+| [[docs/verification/P6-verification|P6]] | LLM 分析任务 | ✅ 1015 passed（Task 24 补做后基线）/ 前端 62 vitest / 15 例离线基线全 ok（结构·契约证据）/ --real 质量证据已登记（2026-08-30，Qwen3.8-27B-Q4_K_M，P5+P6 同批）/ 第二批前端+三角色 preview 闭环 | 2026-08-30 |
 
 ## 验证标准
 
