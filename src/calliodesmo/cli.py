@@ -149,7 +149,14 @@ def serve(
     from calliodesmo.ecl.job_worker import reset_stale_running_jobs
 
     reset_stale_running_jobs()
-    uvicorn.run("calliodesmo.api.app:app", host=host, port=port, reload=reload)
+    # P7 T11：psycopg 异步（agent PG checkpointer）不支持 ProactorEventLoop——
+    # Windows 下 uvicorn 硬编码 Proactor，经 loop= 注入 selector 工厂
+    # （asyncpg / uvicorn 同兼容 selector）
+    from calliodesmo.agent.checkpoint import serve_loop_kwargs
+
+    uvicorn.run(
+        "calliodesmo.api.app:app", host=host, port=port, reload=reload, **serve_loop_kwargs()
+    )
 
 
 def _seed_demo_for_serve() -> None:

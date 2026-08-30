@@ -5,6 +5,7 @@
 根路径保留兼容 CLI/脚本直连。
 """
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response, status
@@ -209,8 +210,39 @@ def build_router() -> APIRouter:
     return router
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """PG checkpointer 生命周期（P7 T11，决策 2 检查单）：lifespan 内 setup() +
+    保活 + 关闭回收。缺 agent extra 时 checkpointer=None——agent 端点 503，其余面照常。
+    """
+    from calliodesmo.agent.checkpoint import build_checkpointer
+
+    settings = get_settings()
+    pool = None
+    checkpointer = None
+    try:
+        checkpointer = build_checkpointer(settings.database_url)
+        pool = getattr(checkpointer, "conn", None)
+        if pool is not None and hasattr(pool, "open"):
+            await pool.open()
+        if hasattr(checkpointer, "setup"):
+            await checkpointer.setup()  # 幂等（checkpoint_migrations 版本表驱动）
+    except RuntimeError:
+        checkpointer = None  # 缺 agent extra：agent 端点 503，其余面照常
+    except Exception as exc:  # 平台/连接异常不杀 serve（agent 面降级，其余面照常）
+        import logging
+
+        logging.getLogger(__name__).warning("agent checkpointer 装配失败，降级为 None：%s", exc)
+        checkpointer = None
+        pool = None
+    app.state.agent_checkpointer = checkpointer
+    yield
+    if pool is not None and hasattr(pool, "close"):
+        await pool.close()
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Calliodesmo", version=__version__)
+    app = FastAPI(title="Calliodesmo", version=__version__, lifespan=_lifespan)
 
     core = build_router()
     app.include_router(core)

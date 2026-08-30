@@ -13,6 +13,7 @@ from calliodesmo.auth.models import (
 )
 from calliodesmo.collab.community_version import CommunityVersion
 from calliodesmo.collab.models import Contribution
+from calliodesmo.db.models_agent import AgentMessageORM, AgentRunORM, AgentSessionORM
 from calliodesmo.db.models_analysis import AnalysisReportORM
 from calliodesmo.db.models_job import Job, JobStatus
 
@@ -32,6 +33,9 @@ except ImportError:  # pragma: no cover - 仅缺 pgvector 时触发
     EntityRecordORM = ProfileCardORM = RelationRecordORM = None  # type: ignore[assignment,misc]
 
 __all__ = [
+    "AgentMessageORM",
+    "AgentRunORM",
+    "AgentSessionORM",
     "AnalysisReportORM",
     "AuditLog",
     "ChunkRecordORM",
