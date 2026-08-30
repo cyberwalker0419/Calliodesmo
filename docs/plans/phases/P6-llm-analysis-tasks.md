@@ -70,7 +70,7 @@ created: 2026-08-29
 | 17 | 评估 II：G-Eval judge + harness 扩展 + `scripts/eval_p6.py` + 离线基线 | ✅ 必做 | ✅ 完成 |
 | 18 | 前端 I：types / API 客户端 / `useAnalysis` hook + vitest | ✅ 必做 | ✅ 完成 |
 | 19 | 前端 II：AnalysisPage 提交侧 + job 轮询（preview 闭环） | ✅ 必做 | ✅ 完成 |
-| 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | 未开始 |
+| 20 | 前端 III：ReportViewer + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅ 必做 | ✅ 完成 |
 | 21 | 第二批接线：关系映射 / 任务 / 概念（图谱复用） | ✅ 必做 | 未开始 |
 | 22 | 自定义分析：用户 schema sanitize + 动态 spec + 注入防御 | ✅ 必做 | 未开始 |
 | 23 | 第二批前端 + 验证报告 + 文档同步 + `--real` 补跑锚点 | ✅ 必做 | 未开始 |
@@ -662,11 +662,11 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 
 **Files:** 新 `frontend/src/features/analysis/ReportViewer.tsx`（Radix Tabs 分节 + StatCard 克隆 + 时间线有序列表（granularity 标注）+ 关系条目 + 证据 chips 展开 quote（克隆 AnswerCard 模式）+ 置信标记 + partial 状态横幅）· `frontend/src/features/analysis/ReportsHistory.tsx` · 组件 vitest。
 
-- [ ] **Step 1:** 写失败测试：各节渲染存在性、证据展开、状态横幅、导出按钮对无 export 权限者禁用。
-- [ ] **Step 2:** 跑确认失败。
-- [ ] **Step 3:** 实现组件。
-- [ ] **Step 4:** 跑绿三件套 → **preview 闭环**：提交 → 轮询 → 报告分节 / 证据展开 / 导出下载；**三角色矩阵**（analyst 可提交可见自己报告 / reviewer 可提交（决策 1）/ admin 全集），与后端 `DEFAULT_ROLE_PERMISSIONS` 对齐；无权限场景（导航隐藏 / 直访 403 / 导出禁用）按 Task 19 口径——后端自定义角色断言为准，preview 抽查 + 留痕；桌面 + 移动视口截图 + GLM-EYE 归档。
-- [ ] **Step 5:** 提交：`feat(frontend): 报告渲染、历史与导出（三角色矩阵通过）`。
+- [x] **Step 1:** 写失败测试：各节渲染存在性、证据展开、状态横幅、导出按钮对无 export 权限者禁用。
+- [x] **Step 2:** 跑确认失败。
+- [x] **Step 3:** 实现组件。
+- [x] **Step 4:** 跑绿三件套 → **preview 闭环**：提交 → 轮询 → 报告分节 / 证据展开 / 导出下载；**三角色矩阵**（analyst 可提交可见自己报告 / reviewer 可提交（决策 1）/ admin 全集），与后端 `DEFAULT_ROLE_PERMISSIONS` 对齐；无权限场景（导航隐藏 / 直访 403 / 导出禁用）按 Task 19 口径——后端自定义角色断言为准，preview 抽查 + 留痕；桌面 + 移动视口截图 + GLM-EYE 归档。
+- [x] **Step 5:** 提交：`feat(frontend): 报告渲染、历史与导出（三角色矩阵通过）`。
 
 ---
 

@@ -1,4 +1,5 @@
-// 分析提交页（P6 Task 19）：选类型 -> 选材料 -> 提交 -> 轮询进度 -> 终态。
+// 分析提交页（P6 Task 19；Task 20 接入报告入口）：选类型 -> 选材料 -> 提交 ->
+// 轮询进度 -> 终态（查看报告 / 报告历史）。
 // 克隆三组既有范式（计划「UI 克隆三组既有资产」，不新增前端依赖）：
 // - TaskTypePicker：features/qa/AskPanel.tsx 手写分段按钮组（{value, label, icon}
 //   数组 + cn() 高亮），数据源 ANALYSIS_TASK_TYPES（九类，第二批灰显「即将上线」）；
@@ -7,9 +8,10 @@
 //   STAGE_LABEL 阶段文案 -> 终态），阶段词对齐 analysis/job_worker.py 进度分段；
 // - 材料清单 / 空态 / Skeleton：沿用既有手写替代（无 table 依赖）。
 // 权限：导航由 App.tsx access.can(ANALYZE) 隐藏式门控；页内提交禁用为双保险。
-// 报告详情 / 历史页归 P6 Task 20（ReportViewer / ReportsHistory），成功态先给占位。
-import { RotateCcw, Send } from "lucide-react";
+// 成功态报告入口（Task 20）：ReportDialog 懒加载详情 + 跳转报告历史页。
+import { History, RotateCcw, Send } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAccess } from "@/auth/useAccess";
 import {
   ANALYSIS_TASK_TYPES,
@@ -22,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { ReportDialog } from "./ReportViewer";
 import { useAnalysisDocuments, useAnalysisJob, useSubmitAnalysis } from "./useAnalysis";
 
 /**
@@ -138,13 +141,17 @@ function MaterialPicker({
 
 export function AnalysisPage() {
   const access = useAccess();
+  const navigate = useNavigate();
   const canAnalyze = access.can(PERMISSIONS.ANALYZE);
+  const canExport = access.can(PERMISSIONS.EXPORT);
   const [taskType, setTaskType] = useState<AnalysisTaskType>("summary");
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
   const [questionError, setQuestionError] = useState<string | null>(null);
   // 提交时锁定类型标签（进度/终态展示不随用户后续切换漂移）
   const [submittedType, setSubmittedType] = useState<AnalysisTaskType | null>(null);
+  // 成功态报告详情 Dialog 门控（Task 20：ReportDialog 懒加载信封）
+  const [reportOpen, setReportOpen] = useState(false);
   const submit = useSubmitAnalysis();
   const job = useAnalysisJob(submit.data?.job_id ?? null);
 
@@ -171,6 +178,7 @@ export function AnalysisPage() {
   const onReset = () => {
     submit.reset();
     setSubmittedType(null);
+    setReportOpen(false);
   };
 
   const status = job.data?.status ?? (submit.isPending ? "pending" : null);
@@ -281,7 +289,7 @@ export function AnalysisPage() {
         </div>
       )}
 
-      {/* 终态成功：报告入口占位（报告详情 / 历史页归 P6 Task 20） */}
+      {/* 终态成功：报告入口（Task 20：ReportDialog 懒加载详情 + 报告历史跳转） */}
       {job.data?.status === "succeeded" && (
         <div className="space-y-3 rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between">
@@ -293,12 +301,23 @@ export function AnalysisPage() {
               报告 ID：<span className="font-mono">{job.data.report_id}</span>
             </p>
           )}
-          <p className="text-xs text-muted-foreground">
-            报告详情与历史页建设中（P6 Task 20 交付）。
-          </p>
-          <Button variant="outline" size="sm" onClick={onReset}>
-            <RotateCcw className="h-3.5 w-3.5" /> 再来一单
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {job.data.report_id && (
+              <Button size="sm" onClick={() => setReportOpen(true)}>
+                查看报告
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/app/analysis/reports")}
+            >
+              <History className="h-3.5 w-3.5" /> 报告历史
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onReset}>
+              <RotateCcw className="h-3.5 w-3.5" /> 再来一单
+            </Button>
+          </div>
         </div>
       )}
 
@@ -314,6 +333,14 @@ export function AnalysisPage() {
           <p className="break-all text-sm text-destructive">{job.data.error ?? "未知错误"}</p>
         </div>
       )}
+
+      {/* 报告详情 Dialog（Task 20）：懒加载信封，导出权限透传 */}
+      <ReportDialog
+        reportId={job.data?.report_id ?? null}
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        canExport={canExport}
+      />
     </div>
   );
 }

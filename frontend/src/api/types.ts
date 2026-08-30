@@ -313,6 +313,72 @@ export interface AnalysisEnvelope {
   payload: Record<string, unknown>;
 }
 
+/** 证据引用条目（与 analysis/schemas.py Evidence 逐字段对齐）。 */
+export interface EvidenceItem {
+  chunk_id: string;
+  quote: string;
+  confidence?: number;
+}
+
+/** 摘要报告 payload（聚合形态：置信与证据在顶层）。 */
+export interface SummaryPayload {
+  summary: string;
+  key_points: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关键信息条目（条目形态：置信与证据在条目上）。 */
+export interface KeyInfoItemPayload {
+  label: string;
+  value: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关键信息报告 payload。 */
+export interface KeyInfoPayload {
+  items: KeyInfoItemPayload[];
+}
+
+/** 时间线条目（与 TimelineEvent 对齐；relative 时 date_normalized 缺省）。 */
+export interface TimelineEventPayload {
+  date_raw: string;
+  date_normalized?: string | null;
+  granularity: "exact" | "approximate" | "relative";
+  description?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 时间线报告 payload。 */
+export interface TimelinePayload {
+  items: TimelineEventPayload[];
+}
+
+/** 实体识别条目。 */
+export interface RecognizedEntityPayload {
+  name: string;
+  type?: string;
+  description?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 实体识别报告 payload。 */
+export interface EntityRecognitionPayload {
+  items: RecognizedEntityPayload[];
+}
+
+/** 问答报告 payload（聚合形态；citations 为引用的材料块 ID 列表）。 */
+export interface QAPayload {
+  question: string;
+  answer: string;
+  citations?: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
 /** 报告历史列表项（GET /analysis/reports 的 items 元素）。 */
 export interface ReportListItem {
   id: string;

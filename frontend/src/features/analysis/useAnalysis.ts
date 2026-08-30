@@ -43,13 +43,19 @@ export function useAnalysisJob(jobId: string | null) {
   });
 }
 
-/** 报告历史：GET /analysis/reports（三维可见性过滤 + 分页；默认 limit=20 offset=0）。 */
-export function useReports(params: { limit?: number; offset?: number } = {}) {
+/** 报告历史：GET /analysis/reports（三维可见性过滤 + 分页；默认 limit=20 offset=0）。
+ *
+ * ``enabled`` 门控（Task 20）：无 analyze 权限的页面守卫场景不发起查询。
+ */
+export function useReports(
+  params: { limit?: number; offset?: number; enabled?: boolean } = {}
+) {
   const limit = params.limit ?? 20;
   const offset = params.offset ?? 0;
   return useQuery({
     queryKey: ["analysis-reports", limit, offset],
     queryFn: () => listReports({ limit, offset }),
+    enabled: params.enabled ?? true,
   });
 }
 

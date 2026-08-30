@@ -11,6 +11,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import type { MeResponse } from "@/api/types";
 
 // ---- useAuth 桩：权限矩阵经 mockMeRef.current 注入 ----
@@ -46,13 +47,34 @@ const DOCS = [
   { doc_id: "d-2", label: "示例文档B", access_level: "CONFIDENTIAL", chunk_count: 5 },
 ];
 
-/** 后端 stub：documents / tasks / jobs 三端点 URL 路由；jobs 先 running 后 succeeded。 */
+/** 后端 stub：documents / tasks / jobs / 报告详情四端点；jobs 先 running 后 succeeded。 */
 function mockBackend(opts: { jobsFailed?: boolean; submitStatus?: number } = {}) {
   mockFetch.mockReset();
   let jobPolls = 0;
   mockFetch.mockImplementation(async (url: string, init?: RequestInit) => {
     if (url === "/api/analysis/documents") {
       return new Response(JSON.stringify(DOCS), { status: 200 });
+    }
+    if (url === "/api/analysis/reports/r-1") {
+      // Task 20：成功态「查看报告」经 ReportDialog 懒加载信封
+      return new Response(
+        JSON.stringify({
+          task_type: "summary",
+          status: "ok",
+          generated_at: "2026-08-30T10:00:00Z",
+          model: "test/stub",
+          prompt_version: "summary.v1",
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+          warnings: [],
+          source_chunk_ids: ["d-1#0"],
+          payload: {
+            summary: "报告 r-1 的摘要正文。",
+            key_points: ["要点一"],
+            confidence: 0.9,
+          },
+        }),
+        { status: 200 }
+      );
     }
     if (url === "/api/analysis/tasks" && init?.method === "POST") {
       if (opts.submitStatus && opts.submitStatus >= 400) {
@@ -117,7 +139,12 @@ function wrap(children: React.ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return createElement(QueryClientProvider, { client }, children);
+  // Task 20 起 AnalysisPage 经 useNavigate 提供报告历史跳转，需 Router 上下文
+  return createElement(
+    MemoryRouter,
+    null,
+    createElement(QueryClientProvider, { client }, children)
+  );
 }
 
 async function renderPage() {
@@ -245,16 +272,23 @@ describe("提交参数组装", () => {
 });
 
 describe("进度轮询与终态", () => {
-  it("提交 -> 进度条 + 阶段文案 -> 成功提示（含报告入口）", async () => {
+  it("提交 -> 进度条 + 阶段文案 -> 成功提示（含报告入口）-> 查看报告懒加载信封", async () => {
     const user = userEvent.setup();
     await renderPage();
     await user.click(screen.getByLabelText(/示例文档A/));
     await user.click(screen.getByRole("button", { name: /提交分析/ }));
     // 首查 running：阶段文案「构造提示」（STAGE_LABEL prompt）出现
     expect(await screen.findByText(/构造提示/, {}, { timeout: 4000 })).toBeInTheDocument();
-    // 轮询至 succeeded：成功提示 + 报告入口（报告详情 UI 归 Task 20，此处为占位）
+    // 轮询至 succeeded：成功提示 + 报告入口（Task 20：查看报告 / 报告历史按钮）
     expect(await screen.findByText("分析完成", {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText(/r-1/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /查看报告/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /报告历史/ })).toBeEnabled();
+    // 点「查看报告」：ReportDialog 懒加载信封并渲染摘要正文
+    await user.click(screen.getByRole("button", { name: /查看报告/ }));
+    expect(
+      await screen.findByText(/报告 r-1 的摘要正文/, {}, { timeout: 4000 })
+    ).toBeInTheDocument();
   });
 
   it("job failed -> destructive 错误盒 + 重试面板", async () => {

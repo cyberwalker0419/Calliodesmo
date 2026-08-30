@@ -1,4 +1,4 @@
-import { Library, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest, FileUp, Sparkles } from "lucide-react";
+import { Library, MessageSquareText, Settings, Users, Network, FolderKanban, GitPullRequest, FileUp, Sparkles, History } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAccess } from "@/auth/useAccess";
@@ -8,10 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
-function NavItem({ to, icon: Icon, label }: { to: string; icon: typeof Users; label: string }) {
+function NavItem({
+  to,
+  icon: Icon,
+  label,
+  end,
+}: {
+  to: string;
+  icon: typeof Users;
+  label: string;
+  end?: boolean;
+}) {
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) =>
         cn(
           "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -58,7 +69,11 @@ export default function AppLayout() {
           )}
           {/* P6：分析入口（access.can(ANALYZE) 隐藏式门控，与 Task 2 常量在此会合） */}
           {access.can(PERMISSIONS.ANALYZE) && (
-            <NavItem to="/app/analysis" icon={Sparkles} label="分析" />
+            <NavItem to="/app/analysis" icon={Sparkles} label="分析" end />
+          )}
+          {/* P6 Task 20：报告历史（ANALYZE 门控，与 /analysis 列表/详情端点同口径） */}
+          {access.can(PERMISSIONS.ANALYZE) && (
+            <NavItem to="/app/analysis/reports" icon={History} label="报告历史" />
           )}
           {access.canPush() && (
             <NavItem to="/app/collab" icon={GitPullRequest} label="协作推送" />

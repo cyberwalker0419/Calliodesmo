@@ -7,12 +7,12 @@ created: 2026-08-30
 ---
 # P6 进度快照与新会话交接
 
-> 快照时间：2026-08-30（2026-W35，Task 19 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
+> 快照时间：2026-08-30（2026-W35，Task 20 收口后刷新）。**新会话先读本文件**，再按 [[docs/plans/phases/P6-llm-analysis-tasks|P6 计划]] 从断点续做。主线文档的 checkbox 与「顺序总览」状态列已随提交同步，是唯一权威口径；本文件只做交接索引。
 
-## 总进度：19/23 必做 Task 完成
+## 总进度：20/23 必做 Task 完成
 
 - 分支：`feat/p6-llm-analysis-tasks`（全部本地提交，未 push / 未开 PR）
-- 测试基线：**933 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）；前端 vitest **35 passed**（Task 18 新增 9 例 + Task 19 新增 11 例；开工前 15）
+- 测试基线：**933 passed, 1 skipped**（真实 PG+pgvector+Neo4j；开工前 475）；前端 vitest **52 passed**（Task 18 新增 9 例 + Task 19 新增 11 例 + Task 20 新增 17 例；开工前 15）
 - 执行纪律：每 Task TDD 五连 + 独立审查；提交信息用计划指定中文 Conventional Commit + `Co-Authored-By: Claude <noreply@anthropic.com>` 尾行
 
 | 批次 | 范围 | 状态 |
@@ -22,9 +22,9 @@ created: 2026-08-30
 | Task 11–15 | Job 泛化 + migrate / 报告 ORM / worker / 分析 API / 导出 | ✅ `ee47783`…`88aa23c` |
 | Task 16–17 | 评估两件套 + 离线基线（**第二批门槛之一已达成**） | ✅ `07272de` `17acae4` |
 | Task 18 | 前端数据层（types / API 客户端 / `useAnalysis` hook + vitest） | ✅ `4d09e56` |
-| Task 19 | 前端提交页 + 轮询（preview 闭环） | ✅（SHA 随下次交接刷新补齐） |
-| Task 20 | 前端报告渲染 + 历史 / 导出 + 三角色矩阵（preview 闭环） | 🔄 进行中 |
-| Task 21–22 | 第二批接线 + 自定义分析 | ⏭️ 未开始（门槛：#17 基线绿 ✅ + #20 矩阵过） |
+| Task 19 | 前端提交页 + 轮询（preview 闭环） | ✅ `2b57b77` |
+| Task 20 | 前端报告渲染 + 历史 / 导出 + 三角色矩阵（preview 闭环） | ✅（SHA 随下次交接刷新补齐） |
+| Task 21–22 | 第二批接线 + 自定义分析 | ⏭️ 未开始（门槛：#17 基线绿 ✅ + #20 矩阵过 ✅） |
 | Task 23 | 第二批前端 + 验证报告 + 文档收尾（含新建 2026-09/10/11 月计划） | ⏭️ 未开始 |
 | Task 24（可选） | `analyze` CLI | ⏭️ 视工时 |
 
@@ -47,5 +47,7 @@ created: 2026-08-30
 - litellm 钉版 `>=1.85,<1.91` 不动；`data/` `.env` `.obsidian/` 不入库。
 - **dev 演示种子工具缺口**（Task 19 闭环发现，锚点 2026-W36）：`ecl/demo_seed._list_demo_files` 仅顶层 glob，用户把 `data/demo-docs` 改嵌套语料后 `serve --seed-demo` 直接 FileNotFoundError；seed-cache 无失效标记，dev 库团队重建后缓存 chunk 的 team_id 漂移致 `visible_to` 全过滤（本会话以 `CALLIODESMO_DEMO_DIR=data/demo` + 新缓存路径环境覆盖绕过，旧缓存改名 `.stale` 保留）。修法候选：`rglob` 递归 + 缓存记 team_id/demo_dir 哈希失效。
 - **移动端布局**（P3 既有，锚点 2026-W37 评估）：App 固定 `w-56` 侧栏在 <md 视口挤压内容列（全站页面同症，非 Task 19 引入），候选折叠侧栏 / 抽屉导航。
-- **外部识图 MCP 不可用**（本会话）：GLM-EYE 401 / MiniMax 配额上限；preview 截图改以会话内视觉逐张分析（存 `data/verification/p6/t19-*.png`），GLM-EYE 复跑锚点 2026-W36。
+- **外部识图 MCP 不可用**（Task 19/20 会话均复现）：GLM-EYE 401 / MiniMax 配额上限；preview 截图改以会话内视觉逐张分析（存 `data/verification/p6/t19-*.png` / `t20-*.png`），GLM-EYE 复跑锚点 2026-W36。
+- **Task 20 三角色矩阵 dev 用户**（2026-W35 创建，dev 库本地测试用）：`p6analyst`（analyst / SECRET，密码 `P6-Analyst-2026`）与 `p6reviewer`（reviewer / SECRET，密码 `P6-Reviewer-2026`），均已加入示例团队（team scope 可见演示语料；不加入则分析提交报「无可见材料」）。admin 凭据仍取 `.env`（不回显）。
+- **logout 方法不匹配**（P3 既有欠账，Task 20 闭环发现，锚点 2026-W37）：前端 `AuthContext.logout` 走 `DELETE /auth/logout`，后端 `api/app.py:106` 为 `POST /auth/logout` → 405；客户端 catch ApiError 后仍本地清会话，登出 UX 不受影响，但 cookie 模式（若启用）服务端清 cookie 不生效。修法：前端改 `api.post` 或后端补 DELETE 别名。
 - 中断史：会话重启会杀掉后台工作流，但每 Task 完成即提交，工作树半成品可核查后验证提交，恢复零损失——遇中断按「续接方法」第 1 步处理即可。
