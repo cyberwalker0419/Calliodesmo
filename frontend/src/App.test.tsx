@@ -74,4 +74,17 @@ describe("AppLayout 移动端折叠侧栏", () => {
     await userEvent.click(screen.getByTestId("drawer-backdrop"));
     expect(screen.queryByRole("dialog", { name: "导航菜单" })).toBeNull();
   });
+
+  it("顶栏副标题与密级徽标窄视口隐藏（防挤压竖排）", () => {
+    const { container } = render(createElement(AppLayout));
+    const sub = [...container.querySelectorAll("span")].find(
+      (s) => s.textContent === "情报分析平台"
+    );
+    expect(sub?.className).toContain("hidden");
+    expect(sub?.className).toContain("sm:inline");
+    const clearance = [...container.querySelectorAll("div")].find(
+      (d) => d.textContent === "INTERNAL"
+    );
+    expect(clearance?.className).toContain("hidden sm:inline-flex");
+  });
 });

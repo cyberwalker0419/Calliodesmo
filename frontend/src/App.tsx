@@ -84,8 +84,8 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-3">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4">
+        <div className="flex min-w-0 items-center gap-3">
           {/* P7 T1：移动端汉堡按钮（<md 可见），展开抽屉导航 */}
           <Button
             variant="ghost"
@@ -96,14 +96,21 @@ export default function AppLayout() {
           >
             <Menu className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-6">
-            <span className="text-base font-semibold tracking-tight">Calliodesmo</span>
-            <span className="text-xs text-muted-foreground">情报分析平台</span>
+          <div className="flex min-w-0 items-center gap-6">
+            <span className="whitespace-nowrap text-base font-semibold tracking-tight">
+              Calliodesmo
+            </span>
+            {/* 窄视口隐藏副标题与密级徽标，防顶栏挤压竖排（P7 T1 移动闭环） */}
+            <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
+              情报分析平台
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <Badge variant="secondary">{me?.username}</Badge>
-          <Badge variant="outline">{me?.clearance}</Badge>
+          <Badge variant="outline" className="hidden sm:inline-flex">
+            {me?.clearance}
+          </Badge>
           <Button variant="ghost" size="sm" onClick={onLogout}>
             登出
           </Button>

@@ -98,10 +98,10 @@ created: 2026-08-30
 | 事项 | 锚点 | 说明 |
 | --- | --- | --- |
 | ~~`eval_p6.py --real` + `eval_p5.py --real` 质量补跑~~ ✅ 已完成 | 2026-08-30（原锚点 2026-W45 提前） | 用户本机真模型 `Qwen3.8-27B-Q4_K_M` 执行完毕；证据 `p6-real-Qwen3.8-27B-Q4_K_M.json` / `p5-real-Qwen3.8-27B-Q4_K_M.json` 已入库（口径：离线≠质量，质量分数仅为参考分，见「质量轨」小节） |
-| demo_seed 顶层 glob 缺口 + seed-cache 失效 | 2026-W36 | 现以 `CALLIODESMO_DEMO_DIR` 环境覆盖绕过 |
-| 移动端固定侧栏挤压 | 2026-W37 | P3 既有，候选折叠侧栏/抽屉 |
-| logout 方法不匹配（DELETE vs POST 405） | 2026-W37 | cookie 启用后影响面升格，修时须同验 cookie 失效 |
-| GLM-EYE 识图复跑 | 2026-W36 | 本会话 401，回退会话内视觉 |
+| ~~demo_seed 顶层 glob 缺口 + seed-cache 失效~~ ✅ 已修复 | P7 T1（2026-08-30，`88380f8`） | `_list_demo_files` 改 `rglob` 递归发现 + `seed_key` 指纹（team/语料清单）漂移即重建、旧缓存迁移 `*.stale` |
+| ~~移动端固定侧栏挤压~~ ✅ 已修复 | P7 T1（2026-08-30，`b58cb76`） | `<md` 改汉堡抽屉（遮罩 + 左滑面板），桌面侧栏不变 |
+| ~~logout 方法不匹配（DELETE vs POST 405）~~ ✅ 已修复 | P7 T1（2026-08-30，`0016e7a`） | 前端改 `api.post`；同验 cookie 失效（logout 后 `/auth/me` 401，后端契约测试锁定） |
+| GLM-EYE 识图复跑 | 2026-W38 | 2026-W36（P7 T1）复跑仍 401（MiniMax 亦配额上限），顺延留痕；回退会话内视觉口径不变 |
 | 团队级自定义模板注册表 + 完整 jsonschema | 2026-W47 | P7 评估（仿 ExtractionTemplateRegistry） |
 | Alembic 复杂迁移 | 2026-W49 | 现 `db/migrate.py` 承接幂等补列 |
 | `api/deps.py:89` ProfileCard/BM25 改 PG + 三 store 谓词下推 | 2026-W49 | P9 同批 |
