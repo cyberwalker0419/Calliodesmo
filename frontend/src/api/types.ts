@@ -250,7 +250,7 @@ export interface JobOut {
 
 // ---- P6 分析域（与 src/calliodesmo/api/schemas.py · analysis/schemas.py 逐字段对齐）----
 
-/** 9 类分析任务类型（第一批 5 类可提交；第二批 4 类待 Task 21-22 接线）。 */
+/** 9 类分析任务类型（Task 21-22 接线完成后九类全部可提交）。 */
 export type AnalysisTaskType =
   | "summary"
   | "key_information"
@@ -263,25 +263,23 @@ export type AnalysisTaskType =
   | "custom";
 
 /**
- * 9 类分析元数据（选择器数据源，克隆 AskPanel MODES 范式）：
- * batch=1 为第一批 5 类（可提交）；batch=2 为第二批 4 类，
- * Task 19 依此灰显「即将上线」（后端未注册类型提交即 400）。
+ * 9 类分析元数据（选择器数据源，克隆 AskPanel MODES 范式）。
+ * Task 21-22 接线完成后九类全部可提交，「即将上线」批次门控已移除（Task 23）。
  */
 export const ANALYSIS_TASK_TYPES: {
   value: AnalysisTaskType;
   label: string;
   icon: typeof FileText;
-  batch: 1 | 2;
 }[] = [
-  { value: "summary", label: "摘要", icon: FileText, batch: 1 },
-  { value: "key_information", label: "关键信息", icon: KeyRound, batch: 1 },
-  { value: "timeline", label: "时间线", icon: CalendarRange, batch: 1 },
-  { value: "entity_recognition", label: "实体识别", icon: ScanSearch, batch: 1 },
-  { value: "qa", label: "问答", icon: MessageCircleQuestion, batch: 1 },
-  { value: "relation_mapping", label: "关系映射", icon: Network, batch: 2 },
-  { value: "tasks", label: "任务", icon: ListTodo, batch: 2 },
-  { value: "concepts", label: "概念", icon: Lightbulb, batch: 2 },
-  { value: "custom", label: "自定义", icon: Settings2, batch: 2 },
+  { value: "summary", label: "摘要", icon: FileText },
+  { value: "key_information", label: "关键信息", icon: KeyRound },
+  { value: "timeline", label: "时间线", icon: CalendarRange },
+  { value: "entity_recognition", label: "实体识别", icon: ScanSearch },
+  { value: "qa", label: "问答", icon: MessageCircleQuestion },
+  { value: "relation_mapping", label: "关系映射", icon: Network },
+  { value: "tasks", label: "任务", icon: ListTodo },
+  { value: "concepts", label: "概念", icon: Lightbulb },
+  { value: "custom", label: "自定义", icon: Settings2 },
 ];
 
 /** POST /analysis/tasks 请求体（doc_ids 空 = 全可见范围；qa 需 question）。 */
@@ -375,6 +373,56 @@ export interface QAPayload {
   question: string;
   answer: string;
   citations?: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关系映射条目（头 / 尾 / 类型 / 描述，与 RelationItem 对齐）。 */
+export interface RelationItemPayload {
+  head: string;
+  tail: string;
+  type: string;
+  description?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 关系映射报告 payload。 */
+export interface RelationMappingPayload {
+  items: RelationItemPayload[];
+}
+
+/** 任务（行动项）条目（与 ActionItem 对齐；责任方 / 期限为源文原始表述，可缺失）。 */
+export interface ActionItemPayload {
+  action: string;
+  owner_raw?: string;
+  deadline_raw?: string;
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 任务报告 payload。 */
+export interface TasksPayload {
+  items: ActionItemPayload[];
+}
+
+/** 概念条目（与 ConceptItem 对齐）。 */
+export interface ConceptItemPayload {
+  name: string;
+  definition?: string;
+  related?: string[];
+  confidence?: number;
+  evidence?: EvidenceItem[];
+}
+
+/** 概念报告 payload。 */
+export interface ConceptPayload {
+  items: ConceptItemPayload[];
+}
+
+/** 自定义报告 payload（聚合形态：置信与证据在顶层；fields 为用户 schema 驱动的开放字典）。 */
+export interface CustomPayload {
+  fields: Record<string, unknown>;
   confidence?: number;
   evidence?: EvidenceItem[];
 }

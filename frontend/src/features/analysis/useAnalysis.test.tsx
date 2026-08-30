@@ -32,16 +32,23 @@ function wrap() {
   };
 }
 
-describe("ANALYSIS_TASK_TYPES（九类元数据批次契约）", () => {
-  it("九类齐备：第一批 5 类 + 第二批 4 类（第二批供 Task 19 灰显「即将上线」）", () => {
+describe("ANALYSIS_TASK_TYPES（九类元数据契约）", () => {
+  it("九类齐备且全部可选（Task 21-22 接线后「即将上线」批次门控已移除）", () => {
     expect(ANALYSIS_TASK_TYPES).toHaveLength(9);
-    const batch1 = ANALYSIS_TASK_TYPES.filter((t) => t.batch === 1).map((t) => t.value);
-    const batch2 = ANALYSIS_TASK_TYPES.filter((t) => t.batch === 2).map((t) => t.value);
-    expect(batch1.sort()).toEqual(
-      ["entity_recognition", "key_information", "qa", "summary", "timeline"].sort()
+    expect(ANALYSIS_TASK_TYPES.map((t) => t.value).sort()).toEqual(
+      [
+        "concepts",
+        "custom",
+        "entity_recognition",
+        "key_information",
+        "qa",
+        "relation_mapping",
+        "summary",
+        "tasks",
+        "timeline",
+      ].sort()
     );
-    expect(batch2.sort()).toEqual(["concepts", "custom", "relation_mapping", "tasks"].sort());
-    // 每项 label / icon 齐备（icon 为 lucide-react 既有图标组件，渲染可用性由 Task 19 preview 闭环验证）
+    // 每项 label / icon 齐备（icon 为 lucide-react 既有图标组件，渲染可用性由 preview 闭环验证）
     for (const t of ANALYSIS_TASK_TYPES) {
       expect(t.label.trim().length).toBeGreaterThan(0);
       expect(t.icon).toBeTruthy();

@@ -1,10 +1,11 @@
-// 报告渲染组件（P6 Task 20）：ReportViewer 纯展示 + ReportDialog 懒加载 Dialog。
+// 报告渲染组件（P6 Task 20；Task 23 补第二批 4 类分节）：
+// ReportViewer 纯展示 + ReportDialog 懒加载 Dialog。
 // 克隆三组既有范式（计划「UI 克隆三组既有资产」，不新增前端依赖）：
 // - StatCard 元信息卡 + Radix Tabs 分节：features/collab/ContributionDetail.tsx；
 // - 证据 chips 点击展开 quote：features/qa/AnswerCard.tsx 来源标注模式；
 // - 懒加载详情：ContributionDetail 的 open 门控 useQuery（ReportDialog）。
-// payload 按 task_type 分型渲染（第一批 5 类逐类组件；第二批 / 未知类型走通用
-// GenericValue 渲染，Task 21-22 接线后天然可显）。信封元信息（model /
+// payload 按 task_type 分型渲染（九类逐类组件，Task 23 补齐关系映射 / 任务 /
+// 概念 / 自定义；未知类型走通用 GenericValue 渲染）。信封元信息（model /
 // prompt_version / usage / generated_at）以 StatCard 风格卡片展示；
 // partial 状态横幅 + warnings 展示；导出按钮消费 export 端点（附件下载），
 // 无 export 权限者禁用（守卫口径与后端 api/analysis.py export_report 一致）。
@@ -24,11 +25,15 @@ import {
 import {
   ANALYSIS_TASK_TYPES,
   type AnalysisEnvelope,
+  type ConceptPayload,
+  type CustomPayload,
   type EntityRecognitionPayload,
   type EvidenceItem,
   type KeyInfoPayload,
   type QAPayload,
+  type RelationMappingPayload,
   type SummaryPayload,
+  type TasksPayload,
   type TimelineEventPayload,
   type TimelinePayload,
 } from "@/api/types";
@@ -315,6 +320,120 @@ function QASection({ payload }: { payload: Partial<QAPayload> }) {
   );
 }
 
+/** 关系映射节（第二批）：头 / 尾 / 类型 / 描述条目集（图谱数据组织而来）。 */
+function RelationSection({ payload }: { payload: Partial<RelationMappingPayload> }) {
+  const items = payload.items ?? [];
+  if (items.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">（无条目）</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i} className="space-y-1 rounded-md border p-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">{item.head}</span>
+            <Badge variant="secondary" className="text-[10px]">
+              {item.type}
+            </Badge>
+            <span className="text-muted-foreground">→</span>
+            <span className="font-medium">{item.tail}</span>
+            <ConfidenceBadge value={item.confidence} />
+          </div>
+          {item.description ? (
+            <p className="text-sm text-muted-foreground">{item.description}</p>
+          ) : null}
+          <EvidenceChips evidence={item.evidence ?? []} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 任务节（第二批）：行动项 + 责任方 / 期限原始表述（缺省留空占位，不臆造）。 */
+function TasksSection({ payload }: { payload: Partial<TasksPayload> }) {
+  const items = payload.items ?? [];
+  if (items.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">（无条目）</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i} className="space-y-1 rounded-md border p-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">{item.action}</span>
+            <ConfidenceBadge value={item.confidence} />
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span>责任方：{item.owner_raw?.trim() ? item.owner_raw : "（源文未提及）"}</span>
+            <span>期限：{item.deadline_raw?.trim() ? item.deadline_raw : "（源文未提及）"}</span>
+          </div>
+          <EvidenceChips evidence={item.evidence ?? []} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 概念节（第二批）：名称 / 定义 / 相关概念条目集。 */
+function ConceptsSection({ payload }: { payload: Partial<ConceptPayload> }) {
+  const items = payload.items ?? [];
+  if (items.length === 0) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">（无条目）</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i} className="space-y-1 rounded-md border p-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium">{item.name}</span>
+            <ConfidenceBadge value={item.confidence} />
+          </div>
+          {item.definition ? (
+            <p className="text-sm text-muted-foreground">{item.definition}</p>
+          ) : null}
+          {(item.related ?? []).length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">相关概念：</span>
+              {(item.related ?? []).map((r) => (
+                <Badge key={r} variant="outline" className="text-[10px]">
+                  {r}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <EvidenceChips evidence={item.evidence ?? []} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 自定义节（第二批）：用户 schema 驱动的开放字段按键值渲染（聚合形态：顶层置信与证据）。 */
+function CustomSection({ payload }: { payload: Partial<CustomPayload> }) {
+  const fields = payload.fields ?? {};
+  const entries = Object.entries(fields);
+  return (
+    <div className="space-y-3">
+      {entries.length === 0 ? (
+        <p className="py-4 text-center text-sm text-muted-foreground">（无字段）</p>
+      ) : (
+        <div className="space-y-2">
+          {entries.map(([key, value]) => (
+            <div key={key} className="space-y-0.5 rounded-md border p-2 text-sm">
+              <div className="font-medium">{key}</div>
+              <GenericValue value={value} />
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <ConfidenceBadge value={payload.confidence} />
+      </div>
+      <EvidenceChips evidence={payload.evidence ?? []} />
+    </div>
+  );
+}
+
 /** dict 条目 -> 「键：值」字段行（嵌套对象内联 JSON，保确定性）。 */
 function EntryFields({ entry }: { entry: Record<string, unknown> }) {
   return (
@@ -385,7 +504,7 @@ interface Section {
   node: ReactNode;
 }
 
-/** payload 按 task_type 分型建节（第一批 5 类逐类；其余走通用渲染）+ 固定材料节。 */
+/** payload 按 task_type 分型建节（九类逐类组件；未知类型走通用渲染）+ 固定材料节。 */
 function buildSections(envelope: AnalysisEnvelope): Section[] {
   const payload = (envelope.payload ?? {}) as Record<string, unknown>;
   let sections: Section[];
@@ -430,8 +549,44 @@ function buildSections(envelope: AnalysisEnvelope): Section[] {
         { value: "answer", label: "答案", node: <QASection payload={payload as Partial<QAPayload>} /> },
       ];
       break;
+    case "relation_mapping":
+      sections = [
+        {
+          value: "items",
+          label: "关系条目",
+          node: <RelationSection payload={payload as Partial<RelationMappingPayload>} />,
+        },
+      ];
+      break;
+    case "tasks":
+      sections = [
+        {
+          value: "items",
+          label: "任务列表",
+          node: <TasksSection payload={payload as Partial<TasksPayload>} />,
+        },
+      ];
+      break;
+    case "concepts":
+      sections = [
+        {
+          value: "items",
+          label: "概念",
+          node: <ConceptsSection payload={payload as Partial<ConceptPayload>} />,
+        },
+      ];
+      break;
+    case "custom":
+      sections = [
+        {
+          value: "fields",
+          label: "自定义字段",
+          node: <CustomSection payload={payload as Partial<CustomPayload>} />,
+        },
+      ];
+      break;
     default: {
-      // 第二批（关系映射 / 任务 / 概念 / 自定义）与未知类型：按顶层键通用渲染
+      // 未知类型兜底：按顶层键通用渲染
       const entries = Object.entries(payload);
       sections =
         entries.length > 0

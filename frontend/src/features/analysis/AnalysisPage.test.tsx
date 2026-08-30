@@ -1,13 +1,15 @@
-// AnalysisPage 测试（P6 Task 19）。
+// AnalysisPage 测试（P6 Task 19；Task 23 第二批扩展）。
 // 克隆 useIngest.test.tsx / ContributionDetail.test.tsx 范式：
 //   vi.stubGlobal('fetch') + URL 路由 mock + QueryClientProvider + userEvent。
 // useAuth 经 vi.mock 桩注入（页面经 useAccess -> useAuth 取权限）。
-// 覆盖：九类选择器（第一批可选 / 第二批灰显「即将上线」）；MaterialPicker 消费
-// GET /analysis/documents 出参；提交 mutation 参数组装（summary + doc_ids /
-// qa + question）；qa 空问题前端校验拦截；进度与阶段文案 -> 终态成功提示；
+// 覆盖：九类选择器（Task 21-22 接线后全部可选，「即将上线」门控移除）；MaterialPicker
+// 消费 GET /analysis/documents 出参；提交 mutation 参数组装（summary + doc_ids /
+// qa + question / 第二批类型直提 / custom 指令 + 可选 schema）；qa 空问题与
+// custom 缺指令校验拦截；custom schema JSON 客户端预校验友好报错；
+// 「指令将发给 LLM，勿含敏感信息」提示；进度与阶段文案 -> 终态成功提示；
 // failed job 错误盒 + 重试；提交错误（400）错误盒；无 analyze 权限提交禁用。
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
@@ -159,17 +161,40 @@ beforeEach(() => {
 });
 
 describe("TaskTypePicker（九类选择器）", () => {
-  it("第一批 5 类可选；第二批 4 类灰显「即将上线」且不可点", async () => {
+  it("九类全部可选（第二批 4 类接线后「即将上线」门控移除）", async () => {
     await renderPage();
-    // 第一批：可选（非 disabled）
-    for (const label of ["摘要", "关键信息", "时间线", "实体识别", "问答"]) {
+    for (const label of [
+      "摘要",
+      "关键信息",
+      "时间线",
+      "实体识别",
+      "问答",
+      "关系映射",
+      "任务",
+      "概念",
+      "自定义",
+    ]) {
       expect(screen.getByRole("button", { name: new RegExp(label) })).toBeEnabled();
     }
-    // 第二批：禁用 + 「即将上线」角标 ×4
-    for (const label of ["关系映射", "任务", "概念", "自定义"]) {
-      expect(screen.getByRole("button", { name: new RegExp(label) })).toBeDisabled();
-    }
-    expect(screen.getAllByText("即将上线")).toHaveLength(4);
+    expect(screen.queryByText("即将上线")).toBeNull();
+  });
+
+  it("第二批类型可选中并提交（关系映射 -> POST task_type=relation_mapping）", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+    const relation = screen.getByRole("button", { name: /关系映射/ });
+    await user.click(relation);
+    expect(relation).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: /提交分析/ }));
+    await waitFor(() => {
+      const call = mockFetch.mock.calls.find(
+        ([u, init]) => u === "/api/analysis/tasks" && init?.method === "POST"
+      );
+      expect(call).toBeTruthy();
+    });
+    const call = mockFetch.mock.calls.find(([u]) => u === "/api/analysis/tasks");
+    const body = JSON.parse(call?.[1]?.body);
+    expect(body.task_type).toBe("relation_mapping");
   });
 
   it("选中类型高亮切换（点「时间线」后高亮迁移）", async () => {
@@ -265,6 +290,97 @@ describe("提交参数组装", () => {
     await user.click(screen.getByRole("button", { name: /问答/ }));
     await user.click(screen.getByRole("button", { name: /提交分析/ }));
     expect(await screen.findByText(/问答分析需要填写问题/)).toBeInTheDocument();
+    expect(
+      mockFetch.mock.calls.find(([u]) => u === "/api/analysis/tasks")
+    ).toBeUndefined();
+  });
+});
+
+describe("custom 自定义表单（Task 23）", () => {
+  async function selectCustom() {
+    const user = userEvent.setup();
+    await renderPage();
+    await user.click(screen.getByRole("button", { name: /自定义/ }));
+    return user;
+  }
+
+  it("选中自定义：指令输入 + 可选 schema + 「指令将发给 LLM，勿含敏感信息」提示", async () => {
+    await selectCustom();
+    expect(screen.getByPlaceholderText(/输入自定义分析指令/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/可选：输出 schema/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/指令将发给 LLM，请勿包含敏感信息/)
+    ).toBeInTheDocument();
+  });
+
+  it("缺失指令：提交按钮禁用（点击不发 POST）", async () => {
+    const user = await selectCustom();
+    const submit = screen.getByRole("button", { name: /提交分析/ });
+    expect(submit).toBeDisabled();
+    await user.click(submit).catch(() => {});
+    expect(
+      mockFetch.mock.calls.find(([u]) => u === "/api/analysis/tasks")
+    ).toBeUndefined();
+  });
+
+  it("指令 + 合法 schema JSON -> POST 请求体携带 custom.instruction / custom.schema", async () => {
+    const user = await selectCustom();
+    await user.type(
+      screen.getByPlaceholderText(/输入自定义分析指令/),
+      "提取材料中的风险点"
+    );
+    // schema 文本含 JSON 花括号，userEvent.type 会把 `{` 当特殊按键语法，改走 fireEvent.change
+    fireEvent.change(screen.getByPlaceholderText(/可选：输出 schema/), {
+      target: { value: '{"type":"object","properties":{"risks":{"type":"array"}}}' },
+    });
+    const submit = screen.getByRole("button", { name: /提交分析/ });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    await waitFor(() => {
+      const call = mockFetch.mock.calls.find(
+        ([u, init]) => u === "/api/analysis/tasks" && init?.method === "POST"
+      );
+      expect(call).toBeTruthy();
+    });
+    const call = mockFetch.mock.calls.find(([u]) => u === "/api/analysis/tasks");
+    const body = JSON.parse(call?.[1]?.body);
+    expect(body.task_type).toBe("custom");
+    expect(body.custom.instruction).toBe("提取材料中的风险点");
+    expect(body.custom.schema).toEqual({
+      type: "object",
+      properties: { risks: { type: "array" } },
+    });
+  });
+
+  it("仅指令（不填 schema）-> POST 请求体 custom 不含 schema 键", async () => {
+    const user = await selectCustom();
+    await user.type(screen.getByPlaceholderText(/输入自定义分析指令/), "概括要点");
+    await user.click(screen.getByRole("button", { name: /提交分析/ }));
+    await waitFor(() => {
+      const call = mockFetch.mock.calls.find(
+        ([u, init]) => u === "/api/analysis/tasks" && init?.method === "POST"
+      );
+      expect(call).toBeTruthy();
+    });
+    const call = mockFetch.mock.calls.find(([u]) => u === "/api/analysis/tasks");
+    const body = JSON.parse(call?.[1]?.body);
+    expect(body.custom.instruction).toBe("概括要点");
+    expect("schema" in (body.custom ?? {})).toBe(false);
+  });
+
+  it("坏 schema JSON -> 客户端 JSON.parse 预校验友好报错（不发 POST）", async () => {
+    const user = await selectCustom();
+    await user.type(screen.getByPlaceholderText(/输入自定义分析指令/), "概括要点");
+    fireEvent.change(screen.getByPlaceholderText(/可选：输出 schema/), {
+      target: { value: "{not-json" },
+    });
+    const submit = screen.getByRole("button", { name: /提交分析/ });
+    // 预校验即时反馈：输入即给出可读错误提示
+    expect(
+      await screen.findByText(/schema 不是合法 JSON/)
+    ).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    await user.click(submit).catch(() => {});
     expect(
       mockFetch.mock.calls.find(([u]) => u === "/api/analysis/tasks")
     ).toBeUndefined();

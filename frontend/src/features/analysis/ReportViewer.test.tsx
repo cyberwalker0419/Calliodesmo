@@ -1,8 +1,9 @@
-// ReportViewer 测试（P6 Task 20）。
+// ReportViewer 测试（P6 Task 20；Task 23 第二批扩展）。
 // 克隆 ContributionDetail.test.tsx / AnalysisPage.test.tsx 范式：
 // vi.stubGlobal('fetch') + QueryClientProvider + userEvent。
 // 覆盖（计划 Step 1 口径）：
 // - 第一批 5 类分节渲染存在性（摘要 / 关键信息 / 时间线 / 实体识别 / 问答）；
+// - 第二批 4 类分节渲染（关系条目 / 任务列表 / 概念 / 自定义开放字段）；
 // - 证据 chips 点击展开 / 收起 quote；
 // - partial 状态横幅 + warnings 展示；
 // - 信封元信息（model / prompt_version / usage / generated_at）；
@@ -116,6 +117,71 @@ const PARTIAL_ENVELOPE: AnalysisEnvelope = {
   warnings: ["证据失配占比超阈值，降级为 partial"],
 };
 
+// ---- 第二批 4 类信封（Task 23；payload 与 analysis/schemas.py 逐字段对齐）----
+
+const RELATION_ENVELOPE: AnalysisEnvelope = {
+  ...SUMMARY_ENVELOPE,
+  task_type: "relation_mapping",
+  prompt_version: "relation_mapping.v1",
+  payload: {
+    items: [
+      {
+        head: "示例组织",
+        tail: "示例人物",
+        type: "雇佣",
+        description: "占位关系描述",
+        confidence: 0.85,
+        evidence: [{ chunk_id: "doc-c#2", quote: "关系引文", confidence: 1.0 }],
+      },
+    ],
+  },
+};
+
+const TASKS_ENVELOPE: AnalysisEnvelope = {
+  ...SUMMARY_ENVELOPE,
+  task_type: "tasks",
+  prompt_version: "tasks.v1",
+  payload: {
+    items: [
+      {
+        action: "完成样例报告复核",
+        owner_raw: "分析组",
+        deadline_raw: "下周五前",
+        confidence: 0.7,
+        evidence: [{ chunk_id: "doc-c#3", quote: "任务引文", confidence: 1.0 }],
+      },
+      { action: "跟进后续进展", owner_raw: "", deadline_raw: "", confidence: 0.3 },
+    ],
+  },
+};
+
+const CONCEPTS_ENVELOPE: AnalysisEnvelope = {
+  ...SUMMARY_ENVELOPE,
+  task_type: "concepts",
+  prompt_version: "concepts.v1",
+  payload: {
+    items: [
+      {
+        name: "知识图谱",
+        definition: "以实体与关系组织知识的结构",
+        related: ["实体消解", "社区检测"],
+        confidence: 0.9,
+      },
+    ],
+  },
+};
+
+const CUSTOM_ENVELOPE: AnalysisEnvelope = {
+  ...SUMMARY_ENVELOPE,
+  task_type: "custom",
+  prompt_version: "custom.v1",
+  payload: {
+    fields: { risks: ["进度风险", "合规风险"], severity: "中" },
+    confidence: 0.6,
+    evidence: [{ chunk_id: "doc-a#0", quote: "自定义引文", confidence: 1.0 }],
+  },
+};
+
 describe("各节渲染存在性（第一批 5 类）", () => {
   it("summary：摘要正文 / 要点分节 / 置信标记 / 信封元信息", async () => {
     const user = userEvent.setup();
@@ -176,6 +242,52 @@ describe("各节渲染存在性（第一批 5 类）", () => {
     expect(screen.getByText(/核心结论为 X。/)).toBeInTheDocument();
     // 来源引注（引注为材料块 id，无 quote 可展开）
     expect(screen.getByText("doc-a#0")).toBeInTheDocument();
+  });
+});
+
+describe("各节渲染存在性（第二批 4 类，Task 23）", () => {
+  it("relation_mapping：头 / 尾 / 类型 / 描述逐条渲染 + 条目证据", () => {
+    renderViewer(RELATION_ENVELOPE);
+    expect(screen.getByText("示例组织")).toBeInTheDocument();
+    expect(screen.getByText("示例人物")).toBeInTheDocument();
+    expect(screen.getByText("雇佣")).toBeInTheDocument();
+    expect(screen.getByText("占位关系描述")).toBeInTheDocument();
+    expect(screen.getByText(/置信 0\.85/)).toBeInTheDocument();
+    // 条目证据 chip 存在
+    expect(screen.getByRole("button", { name: /doc-c#2/ })).toBeInTheDocument();
+  });
+
+  it("tasks：行动项 + 责任方 / 期限原始表述逐条渲染", () => {
+    renderViewer(TASKS_ENVELOPE);
+    expect(screen.getByText("完成样例报告复核")).toBeInTheDocument();
+    expect(screen.getByText(/分析组/)).toBeInTheDocument();
+    expect(screen.getByText(/下周五前/)).toBeInTheDocument();
+    expect(screen.getByText("跟进后续进展")).toBeInTheDocument();
+    // 责任方 / 期限标签逐条出现（两条目各一处，共两处）；空缺省占位不臆造
+    expect(screen.getAllByText(/责任方/)).toHaveLength(2);
+    expect(screen.getAllByText(/期限/)).toHaveLength(2);
+    expect(screen.getAllByText(/源文未提及/)).toHaveLength(2);
+  });
+
+  it("concepts：名称 / 定义 / 相关概念渲染", () => {
+    renderViewer(CONCEPTS_ENVELOPE);
+    expect(screen.getByText("知识图谱")).toBeInTheDocument();
+    expect(
+      screen.getByText(/以实体与关系组织知识的结构/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("实体消解")).toBeInTheDocument();
+    expect(screen.getByText("社区检测")).toBeInTheDocument();
+  });
+
+  it("custom：开放字段按键值渲染 + 顶层置信与证据", () => {
+    renderViewer(CUSTOM_ENVELOPE);
+    expect(screen.getByText("risks")).toBeInTheDocument();
+    expect(screen.getByText(/进度风险/)).toBeInTheDocument();
+    expect(screen.getByText(/合规风险/)).toBeInTheDocument();
+    expect(screen.getByText("severity")).toBeInTheDocument();
+    expect(screen.getByText("中")).toBeInTheDocument();
+    expect(screen.getByText(/置信 0\.60/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /doc-a#0/ })).toBeInTheDocument();
   });
 });
 

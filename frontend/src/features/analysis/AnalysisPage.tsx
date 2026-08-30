@@ -1,14 +1,17 @@
-// 分析提交页（P6 Task 19；Task 20 接入报告入口）：选类型 -> 选材料 -> 提交 ->
-// 轮询进度 -> 终态（查看报告 / 报告历史）。
+// 分析提交页（P6 Task 19；Task 20 接入报告入口；Task 23 第二批与自定义表单）：
+// 选类型 -> 选材料 -> 提交 -> 轮询进度 -> 终态（查看报告 / 报告历史）。
 // 克隆三组既有范式（计划「UI 克隆三组既有资产」，不新增前端依赖）：
 // - TaskTypePicker：features/qa/AskPanel.tsx 手写分段按钮组（{value, label, icon}
-//   数组 + cn() 高亮），数据源 ANALYSIS_TASK_TYPES（九类，第二批灰显「即将上线」）；
+//   数组 + cn() 高亮），数据源 ANALYSIS_TASK_TYPES（九类全部可选，Task 23 起）；
 // - 提交 / 轮询 / 进度 / 失败重试：features/ingest/IngestPage.tsx 异步全套
 //   （useSubmitAnalysis -> 202 + job_id -> useAnalysisJob 轮询 -> 进度条 +
 //   STAGE_LABEL 阶段文案 -> 终态），阶段词对齐 analysis/job_worker.py 进度分段；
 // - 材料清单 / 空态 / Skeleton：沿用既有手写替代（无 table 依赖）。
 // 权限：导航由 App.tsx access.can(ANALYZE) 隐藏式门控；页内提交禁用为双保险。
 // 成功态报告入口（Task 20）：ReportDialog 懒加载详情 + 跳转报告历史页。
+// custom 表单（Task 23）：指令必填（缺失禁提交）+ 可选 schema JSON 输入
+// （客户端 JSON.parse 预校验 + 根须对象，先于后端 sanitize 400 给友好报错）+
+// 「指令将发给 LLM，请勿包含敏感信息」提示（与后端 user 段隔离口径呼应）。
 import { History, RotateCcw, Send } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -41,7 +44,7 @@ const STAGE_LABEL: Record<string, string> = {
   done: "完成",
 };
 
-/** 九类选择器：克隆 AskPanel MODES 手写分段按钮组；第二批未注册，灰显「即将上线」不可选。 */
+/** 九类选择器：克隆 AskPanel MODES 手写分段按钮组；Task 21-22 接线后九类全部可选。 */
 function TaskTypePicker({
   value,
   onChange,
@@ -53,35 +56,47 @@ function TaskTypePicker({
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {ANALYSIS_TASK_TYPES.map(({ value: v, label, icon: Icon, batch }) => {
+      {ANALYSIS_TASK_TYPES.map(({ value: v, label, icon: Icon }) => {
         const active = value === v;
-        // 第二批 4 类尚未注册（提交会 400），前端先灰显「即将上线」（P6 Task 21-22 接线）
-        const locked = batch === 2;
         return (
           <button
             key={v}
             type="button"
-            disabled={disabled || locked}
+            disabled={disabled}
             aria-pressed={active}
             onClick={() => onChange(v)}
-            title={locked ? "第二批类型尚未交付（P6 Task 21-22）" : undefined}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors",
               active
                 ? "border-primary bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent",
-              locked && "cursor-not-allowed opacity-50"
+                : "text-muted-foreground hover:bg-accent"
             )}
           >
             <Icon className="h-4 w-4" /> {label}
-            {locked && (
-              <span className="rounded bg-muted px-1 text-[10px] leading-4">即将上线</span>
-            )}
           </button>
         );
       })}
     </div>
   );
+}
+
+/**
+ * custom schema 文本预校验（客户端先于后端 sanitize 给友好报错，Task 23）：
+ * 空文本合法（schema 可选）；非空须能 JSON.parse 且根为对象
+ * （后端 sanitize_user_schema 同口径拒根非对象，此处提前拦截减少 400 往返）。
+ */
+function validateSchemaText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return 'schema 须为 JSON 对象（如 {"type":"object","properties":{...}}）';
+    }
+    return null;
+  } catch {
+    return "schema 不是合法 JSON，请检查引号与括号后重试";
+  }
 }
 
 /** 材料选择：消费 GET /analysis/documents 出参（多选；不选 = 全可见范围）。 */
@@ -148,6 +163,10 @@ export function AnalysisPage() {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
   const [questionError, setQuestionError] = useState<string | null>(null);
+  // custom 表单（Task 23）：指令必填；可选 schema 文本经 JSON.parse 客户端预校验
+  const [instruction, setInstruction] = useState("");
+  const [schemaText, setSchemaText] = useState("");
+  const [schemaError, setSchemaError] = useState<string | null>(null);
   // 提交时锁定类型标签（进度/终态展示不随用户后续切换漂移）
   const [submittedType, setSubmittedType] = useState<AnalysisTaskType | null>(null);
   // 成功态报告详情 Dialog 门控（Task 20：ReportDialog 懒加载信封）
@@ -170,6 +189,15 @@ export function AnalysisPage() {
     }
     const req: AnalysisJobRequest = { task_type: taskType, doc_ids: [...selectedDocs] };
     if (taskType === "qa") req.question = question.trim();
+    // custom 分支（Task 23）：指令必填（按钮已禁用，此处双保险）+ 可选 schema
+    // 预校验拦截（按钮同样禁用，此处兜底）；合法对象才随请求携带。
+    if (taskType === "custom") {
+      if (!instruction.trim() || schemaError) return;
+      const trimmed = schemaText.trim();
+      req.custom = trimmed
+        ? { instruction: instruction.trim(), schema: JSON.parse(trimmed) }
+        : { instruction: instruction.trim() };
+    }
     setQuestionError(null);
     setSubmittedType(taskType);
     submit.mutate(req);
@@ -191,7 +219,7 @@ export function AnalysisPage() {
       <h1 className="text-lg font-semibold">分析任务</h1>
 
       <form onSubmit={onSubmit} className="space-y-4 rounded-lg border bg-card p-4">
-        {/* 分析类型（九类；第二批灰显） */}
+        {/* 分析类型（九类全部可选，Task 23 起） */}
         <div className="space-y-1.5">
           <div className="text-xs font-medium text-muted-foreground">分析类型（九类）</div>
           <TaskTypePicker
@@ -199,6 +227,7 @@ export function AnalysisPage() {
             onChange={(v) => {
               setTaskType(v);
               setQuestionError(null);
+              setSchemaError(null);
             }}
             disabled={!canAnalyze}
           />
@@ -245,8 +274,41 @@ export function AnalysisPage() {
           </div>
         )}
 
+        {/* custom 类（Task 23）：指令必填 + 可选 schema JSON 预校验 + 敏感信息提示 */}
+        {taskType === "custom" && (
+          <div className="space-y-1.5">
+            <Textarea
+              placeholder="输入自定义分析指令…"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              rows={2}
+            />
+            <Textarea
+              placeholder='可选：输出 schema（JSON Schema 子集，如 {"type":"object","properties":{...}}）'
+              value={schemaText}
+              onChange={(e) => {
+                setSchemaText(e.target.value);
+                setSchemaError(validateSchemaText(e.target.value));
+              }}
+              rows={4}
+              className="font-mono text-xs"
+            />
+            {schemaError && <p className="text-xs text-destructive">{schemaError}</p>}
+            <p className="text-xs text-muted-foreground">
+              指令将发给 LLM，请勿包含敏感信息；schema 可选，留空则自由输出。
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={!canAnalyze || submit.isPending}>
+          <Button
+            type="submit"
+            disabled={
+              !canAnalyze ||
+              submit.isPending ||
+              (taskType === "custom" && (!instruction.trim() || schemaError !== null))
+            }
+          >
             <Send className="h-4 w-4" /> 提交分析
           </Button>
           {!canAnalyze && (
