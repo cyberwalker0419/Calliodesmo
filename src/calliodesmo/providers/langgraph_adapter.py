@@ -25,14 +25,18 @@ def _to_openai_schema(t: Any) -> dict:
             "function": {"name": t.name, "description": t.description, "parameters": t.parameters},
         }
     if isinstance(t, dict):
-        return t if "function" in t else {
-            "type": "function",
-            "function": {
-                "name": t.get("name", ""),
-                "description": t.get("description", ""),
-                "parameters": t.get("parameters", {}),
-            },
-        }
+        return (
+            t
+            if "function" in t
+            else {
+                "type": "function",
+                "function": {
+                    "name": t.get("name", ""),
+                    "description": t.get("description", ""),
+                    "parameters": t.get("parameters", {}),
+                },
+            }
+        )
     raise TypeError(f"bind_tools 不支持的工具形态: {type(t)!r}")
 
 
@@ -109,6 +113,8 @@ def _build_model_class():
                     {"name": tc.name, "args": tc.arguments, "id": tc.id, "type": "tool_call"}
                     for tc in resp.tool_calls or []
                 ],
+                # usage 经 additional_kwargs 带出（图节点累计 token 预算，T10）
+                additional_kwargs={"usage": resp.usage},
             )
             return ChatResult(
                 generations=[

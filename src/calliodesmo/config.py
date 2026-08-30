@@ -33,6 +33,14 @@ class Settings(BaseSettings):
         True  # 对 reasoning 模型禁用思考链（chat_template_kwargs.enable_thinking=False）
     )
 
+    # --- P7 Agent 模式（T10：三重预算帽 + 历史窗口 + golden 路径）---
+    agent_model: str = ""  # 空 -> 回退 llm_model
+    agent_max_steps: int = 6  # 单回合 ReAct 步数硬上限（超限强制收敛）
+    agent_token_budget: int = 32000  # 单回合 token 预算（usage 逐轮累计）
+    agent_wall_clock_seconds: int = 120  # 单回合挂钟上限
+    agent_history_window: int = 8  # 历史窗口保留回合数（系统提示恒留；截断实现 T12）
+    eval_agent_golden_file: str = "config/golden_agent.yaml"  # agent golden 轨迹集
+
     # --- 实体对齐（P4.5 Task 6 三段式：auto_merge / 复核 / 新节点） ---
     # 实体 name+description 向量余弦相似度阈值：>=auto_merge 自动合并；
     # [review, auto_merge) 进人工复核队列；<review 新节点（type 不同一律 new）

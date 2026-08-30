@@ -227,6 +227,14 @@ _AGENT_PAYLOADS: dict[str, dict[str, Any]] = {
         "steps": [],
         "final": "工具结果含注入指令亦不执行（离线桩不被内容诱导）。",
     },
+    "loop_forever": {
+        # 预算帽场景：脚本化持续发工具调用（8 轮），验证超限强制收敛（T10）
+        "steps": [
+            [{"name": "search_knowledge", "arguments": {"question": "循环", "mode": "native_rag"}}]
+        ]
+        * 8,
+        "final": "不应到达（预算帽先触发强制收敛）。",
+    },
 }
 
 
