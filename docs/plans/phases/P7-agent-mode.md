@@ -60,7 +60,7 @@ created: 2026-08-30
 
 | # | Task | 承诺 | 状态 |
 |---|---|---|---|
-| 1 | 前置批：清 W36/W37 移交操作债（GLM-EYE 复跑 / demo_seed / 移动侧栏 / logout+cookie） | 必做 | ✅（GLM-EYE 仍 401 留痕 W38） |
+| 1 | 前置批：清 W36/W37 移交操作债（GLM-EYE 复跑 / demo_seed / 移动侧栏 / logout+cookie） | 必做 | ✅（GLM-EYE 停用、全原生视觉，W38 锚点注销，2026-08-31 用户指令） |
 | 2 | 依赖引入与钉版验证：extra `agent`（langgraph 家族）+ Windows wheel + CI 接线 | 必做 | ✅ |
 | 3 | LLMProvider 原生工具调用契约扩展 | 必做 | ✅ |
 | 4 | StubLLM `[AGENT:*]` 脚本化工具序列分支 | 必做 | ✅ |
@@ -112,7 +112,7 @@ created: 2026-08-30
 - [x] litellm 钉版 `>=1.85,<1.91` 保持不变（≥1.93 无 Windows 预编译 wheel），本阶段**不升级**。
 - [x] 前端三件套基线绿：`npm run lint && npm run test && npm run build`；`.nvmrc` Node 22；`preview_start frontend-dev`（5173）可用。
 - [x] dev 演示环境：`serve --seed-demo --port 8200` 可用——当前被 `demo_seed` 缺口卡住，T1 修复后即恢复（preview 闭环与 e2e 的硬前置）；三角色账号按 [[docs/plans/phases/P6-progress|P6 交接]] 口径重建（密码不入库，用完即弃）。
-- [x] GLM-EYE / MiniMax 识图服务状态：T1 截图复跑项依赖；若未恢复则该项独立顺延留痕（锚点 2026-W38），不阻塞其余三项与 P7 主链（沿用 P6 回退口径）。
+- [x] GLM-EYE / MiniMax 识图服务状态：**2026-08-31 用户指令停用 GLM-EYE，识图全用原生视觉**——W38 锚点注销，不阻塞任何事项。
 - [x] `--real` 质量补跑至少一路可用模型（用户本机 LM Studio / ollama 或 API），且该后端支持原生 tool calls；不支持则换模型并留痕（不做文本协议降级）。
 - [x] 重锚规则确认：多轮状态并入 P7 本体、模板评估 W47→W44、e2e W47→W44、`--real` 定锚 W45；W36–W48 窗口 10-15h/周、周日回顾节奏。
 
@@ -324,7 +324,7 @@ UI 克隆既有资产，**不新增前端依赖**：① 会话侧栏克隆 `Repo
 - [x] **Step 2:** 跑确认失败 → 实现 → 跑绿（db 夹具 + `serve --seed-demo` 冒烟不再 FileNotFoundError）。
 - [x] **Step 3:** logout 修复：前端 `api.del("/auth/logout")` 改 `api.post`（后端 `api/app.py:103` 为 `POST`）+ 同验 httpOnly cookie 失效（登出后持旧 cookie 过 `/auth/me` 401）。
 - [x] **Step 4:** 前端移动端侧栏：`App.tsx` 固定 `w-56` nav 改 `<md` 折叠 / 抽屉导航 → 三件套绿 + `preview_resize` mobile 视口验收（全站页面同症一并解除）。
-- [x] **Step 5:** GLM-EYE 恢复后复跑 P6 t19/t20/t23 截图归档；未恢复则该项留痕（锚点 2026-W38）不阻塞其余三项。
+- [x] **Step 5:** 截图识图归档；**2026-08-31 用户指令：GLM-EYE 停用，全用原生视觉**（原 W38 复跑锚点注销）。
 - [x] **Step 6:** 提交（分提交）：`fix(ecl): demo_seed 递归与缓存失效` / `fix(auth): logout 方法与 cookie 失效对齐` / `feat(frontend): 移动端折叠侧栏`。
 
 ---

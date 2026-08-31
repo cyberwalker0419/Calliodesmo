@@ -135,7 +135,7 @@ created: 2026-08-31
 | Windows 开发态 checkpointer InMemory 降级（跨 loop 桥接） | 2026-W49 | 单 loop 不可兼得 asyncpg/psycopg；ORM 恒 system of record |
 | worker 自检取消（停止按钮现客户端停轮询） | 2026-W49 | 不硬杀惯例保留 |
 | RAG 记忆（跨会话） | 2026-W49 | P9 清单一并 |
-| GLM-EYE 识图复跑 | 2026-W38 | 仍 401 / 配额上限；原生视觉回退口径不变 |
+| ~~GLM-EYE 识图~~ 停用 | 锚点注销 | 2026-08-31 用户指令：识图全用原生视觉，GLM-EYE 不再使用 |
 
 ## 证据
 
