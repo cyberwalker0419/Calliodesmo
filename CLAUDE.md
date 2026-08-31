@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P7-agent-mode**（Agent 模式：ReAct 主链 + 工具定义 + 多轮对话状态，权限内行动；2026-08-31 完成，PR 待合。P0-P6 均已完成并合入 main，后端 1124 passed）。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P7-agent-mode**（Agent 模式：ReAct 主链 + 工具定义 + 多轮对话状态，权限内行动；2026-08-31 完成并合入 main（PR #13）。P0-P6 均已完成并合入 main，后端 1124 passed）。
 
 ## 当前阶段
 

@@ -18,7 +18,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 `docs/plans/phases/P4.5-persistence-production.md`）
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 `docs/plans/phases/P5-advanced-rag.md`）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 `docs/plans/phases/P6-llm-analysis-tasks.md` 与 `docs/verification/P6-verification.md`）
-- **P7** Agent 模式 ✅ 完成（2026-08-31，PR 待合；详见 `docs/plans/phases/P7-agent-mode.md` 与 `docs/verification/P7-verification.md`）
+- **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 已合入 main；详见 `docs/plans/phases/P7-agent-mode.md` 与 `docs/verification/P7-verification.md`）
 
 完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
 

@@ -81,11 +81,11 @@ GraphRAG（索引基座）+ LlamaIndex/LangGraph（检索与 Agent 编排）；L
 | P0-P4 + P4.5 承诺批次 | 2026-07/08（提前完成，全员 407 passed） |
 | P4.5 Task 5-7 / P5 高级检索 | 2026-08（完成）| 
 | P6 LLM 分析任务 | 2026-08-30 完成（提前，1015 passed，PR #11） |
-| P7 Agent 模式 | 2026-W36 开工，2026-08-31 完成（提前于 W48 窗口；PR 待合） |
+| P7 Agent 模式 | 2026-W36 开工，2026-08-31 完成（提前于 W48 窗口；PR #13 已合入 main） |
 | P8-P9 | 2026-09 起滚动（随 P7 移交锚点） |
 
 > [!note] 进度注记
-> P0-P4 与 P4.5（含 Task 5-7）、P5 均已完成（2026-08-19，431 passed）；**P6 完成并合入**（2026-08-30，PR #11，1015 passed，9 类分析报告，`--real` 提前于 2026-W35 执行完毕、证据入库，[[docs/verification/P6-verification|P6 验证]]）；**P7 计划定稿**（2026-08-30）→ **P7 完成**（2026-08-31，提前于 W48 窗口；1124 passed + 前端 70 vitest + e2e 本地绿 + --real 质量证据 leak_veto=false；PR 待合；移交锚点重锚：模板注册表评估 / e2e 补建 2026-W47→W44 已闭合，`--real` 定锚 W45 提前执行；[[docs/plans/phases/P7-agent-mode|P7 计划]] · [[docs/verification/P7-verification|P7 验证]]）；月/周计划按节奏滚动更新。
+> P0-P4 与 P4.5（含 Task 5-7）、P5 均已完成（2026-08-19，431 passed）；**P6 完成并合入**（2026-08-30，PR #11，1015 passed，9 类分析报告，`--real` 提前于 2026-W35 执行完毕、证据入库，[[docs/verification/P6-verification|P6 验证]]）；**P7 计划定稿**（2026-08-30）→ **P7 完成**（2026-08-31，提前于 W48 窗口；1124 passed + 前端 70 vitest + e2e 本地绿 + --real 质量证据 leak_veto=false；PR #13 已合入 main；移交锚点重锚：模板注册表评估 / e2e 补建 2026-W47→W44 已闭合，`--real` 定锚 W45 提前执行；[[docs/plans/phases/P7-agent-mode|P7 计划]] · [[docs/verification/P7-verification|P7 验证]]）；月/周计划按节奏滚动更新。
 
 ## 后续精化（v2）
 
