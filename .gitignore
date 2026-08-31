@@ -40,3 +40,12 @@ frontend/test-results/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# 前端 TS 配置编译产物（tsc 误产；源为 *.config.ts，P7 T16 清理）
+frontend/*.config.js
+frontend/*.config.d.ts
+frontend/vitest.setup.js
+frontend/vitest.setup.d.ts
+
+# 根目录误装依赖产物（前端依赖在 frontend/ 内隔离）
+node_modules/

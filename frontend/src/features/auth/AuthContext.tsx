@@ -68,7 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await api.del("/auth/logout");
+      // 后端仅注册 POST /auth/logout（api/app.py）：DELETE 会 405 且
+      // httpOnly 会话 cookie 残留（P7 T1：方法与 cookie 失效对齐）。
+      await api.post("/auth/logout");
     } catch (e) {
       if (!(e instanceof ApiError)) throw e;
     }

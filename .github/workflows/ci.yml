@@ -17,7 +17,9 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --frozen
+        # P7 T2：agent extra 进 CI（agent 离线测试为核心能力，桩/内存 stores 不连库）；
+        # DB 依赖测试仍以 -m "not db" 跳过。
+        run: uv sync --frozen --extra agent
 
       - name: Ruff lint
         run: uv run ruff check .

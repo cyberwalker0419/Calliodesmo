@@ -55,6 +55,34 @@ def test_analysis_settings_env_override(monkeypatch):
     assert s.eval_analysis_golden_file == "config/other.yaml"
 
 
+def test_agent_settings_defaults():
+    """P7 T10 agent 配置 6 项默认值（计划「配置项清单」表锁定）。"""
+    s = Settings(_env_file=None)
+    assert s.agent_model == ""  # 空 = 回退 llm_model
+    assert s.agent_max_steps == 6
+    assert s.agent_token_budget == 32000
+    assert s.agent_wall_clock_seconds == 120
+    assert s.agent_history_window == 8
+    assert s.eval_agent_golden_file == "config/golden_agent.yaml"
+
+
+def test_agent_settings_env_override(monkeypatch):
+    """CALLIODESMO_ 前缀可加载 6 项 agent 配置。"""
+    monkeypatch.setenv("CALLIODESMO_AGENT_MODEL", "openai/gpt-4o")
+    monkeypatch.setenv("CALLIODESMO_AGENT_MAX_STEPS", "3")
+    monkeypatch.setenv("CALLIODESMO_AGENT_TOKEN_BUDGET", "1000")
+    monkeypatch.setenv("CALLIODESMO_AGENT_WALL_CLOCK_SECONDS", "5")
+    monkeypatch.setenv("CALLIODESMO_AGENT_HISTORY_WINDOW", "2")
+    monkeypatch.setenv("CALLIODESMO_EVAL_AGENT_GOLDEN_FILE", "config/other_agent.yaml")
+    s = Settings(_env_file=None)
+    assert s.agent_model == "openai/gpt-4o"
+    assert s.agent_max_steps == 3
+    assert s.agent_token_budget == 1000
+    assert s.agent_wall_clock_seconds == 5
+    assert s.agent_history_window == 2
+    assert s.eval_agent_golden_file == "config/other_agent.yaml"
+
+
 def _env_example_keys() -> set[str]:
     """解析 .env.example 的 Settings 键集合。
 

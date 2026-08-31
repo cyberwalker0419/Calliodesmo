@@ -42,9 +42,9 @@ created: 2026-08-29
 | 语义切分 | 等 contextual 收益证据，2026-W49（P9 启动时）重评 |
 | 三 store list 谓词下推（按 `doc_ids` 过滤） | P9（P6 以全量拉取 + `visible_to` 内存过滤 + `analysis_max_chunks` 截断兜底，Task 9 留痕） |
 | 逾期 TODO `api/deps.py:89` ProfileCard/BM25 改 PG（2026-W33 逾期） | 显式顺延 P9，锚点改 **2026-W49**（与谓词下推同批；P6 材料路径不依赖 BM25），Task 1 改锚点 |
-| 团队级自定义分析模板注册表 | P7 计划评估，锚点 2026-W47（仿 `ecl/extraction_template.py` ExtractionTemplateRegistry 范式，Task 22 留痕） |
+| 团队级自定义分析模板注册表 | P7 T17 评估完成（2026-08-31，重锚 W44）：结论**整体顺延 P9**（锚点 2026-W49；轻量版无 team 隔离/写审计，ORM 版范围膨胀；见 [[docs/plans/analysis-template-registry-eval]]） |
 | `scripts/eval_p5.py --real` 真实模型补跑（P5 遗留） | 用户本机，锚点 2026-W45（与 P6 `--real` 同批，Task 23 落） |
-| `frontend/e2e` 目录不存在（playwright config 指向空） | 随 P7 e2e 链路补建（2026-W47 起），P6 仅留痕不扩面 |
+| `frontend/e2e` 目录不存在（playwright config 指向空） | P7 T16 补建完成（2026-08-31，重锚 W47→W44）：六组 spec 本地绿、不进 CI（留痕 2026-W49 随审计硬化重评） |
 | 引入 instructor / LangChain | 不引入（与 `LLMProvider` 抽象重叠）——吸收 OutputFixingParser / RetryWithErrorOutputParser 模式自实现解析链 |
 
 ## 顺序总览
@@ -698,7 +698,7 @@ UI 克隆三组既有资产，**不新增前端依赖**：① `features/qa/AskPa
 - [x] **Step 1:** 写失败测试：`sanitize_user_schema` 拒 `$ref` / 递归嵌套 / 深度 >4 / 字段数 >30 / 序列化超 `analysis_custom_schema_max_bytes`；`build_custom_spec(instructions, schema)` 产物可被引擎消费且 provider 发送前裁剪为 JSON Schema 安全子集；指令注入探针——自定义指令试图覆盖 system 约束 / 越权读取材料范围外内容，执行器边界不变（材料仍全经 `visible_to`）；API 层 sanitize 失败 → 400 且错误可读。
 - [x] **Step 2:** 跑确认失败。
 - [x] **Step 3:** 实现 + 注册。
-- [x] **留痕:** 团队级自定义模板注册表（仿 `ecl/extraction_template.py`）→ P7 计划评估，锚点 2026-W47；完整 JSON Schema 校验（引 `jsonschema`）随团队级模板一并评估。custom 类无固定金标，评估口径 = 结构校验（sanitize 通过 + schema 符合）+ judge 参考分，验证报告中注明该口径（Task 23 落）。
+- [x] **留痕:** 团队级自定义模板注册表（仿 `ecl/extraction_template.py`）→ P7 计划评估，锚点 2026-W47；完整 JSON Schema 校验（引 `jsonschema`）随团队级模板一并评估。custom 类无固定金标，评估口径 = 结构校验（sanitize 通过 + schema 符合）+ judge 参考分，验证报告中注明该口径（Task 23 落）。**P7 T17 评估完成（2026-08-31）：结论整体顺延 P9，锚点 2026-W49（见 [[docs/plans/analysis-template-registry-eval]]）。**
 - [x] **Step 4:** 跑绿（第一批 5 类 + 第二批 3 类回归不红）。
 - [x] **Step 5:** 提交：`feat(analysis): 自定义分析（注入防御 + 动态 spec）`。
 

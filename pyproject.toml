@@ -51,6 +51,21 @@ eval-ragas = ["ragas>=0.2"]  # 可选评估库（默认自建轻量指标）
 # 引入前核对（2026-08-29，PyPI JSON API）：最新版 0.63.4、MIT 许可、纯 Python 零必装依赖。
 analysis = ["json-repair>=0.63"]
 
+# P7 Agent 模式（运行时懒导入 + 缺依赖友好报错 503，同 ingest 惯例；2026-08-31 依赖调研工作流实证）：
+# - langgraph>=1.2,<2：手写 StateGraph（1.0 LTS；不用 create_react_agent——2.0 移除）；
+#   langchain-core 由硬依赖带入（>=1.4.7,<2），显式不装 langchain 主体
+# - langgraph-checkpoint-postgres>=3.1.1,<4：下限 3.1.1 = CVE-2026-71433 修复版（GHSA-47pj-3jcm-6whg）
+# - psycopg[binary]>=3.2,<3.4：禁裸 psycopg（Windows 无系统 libpq）与 psycopg[c]（无 Windows wheel
+#   触发源码编译）；checkpoint-postgres 自身依赖裸 psycopg，须以 [binary] 覆盖提供
+#   psycopg-binary（cp311 win_amd64 wheel，同版锁定）
+# - psycopg-pool>=3.2,<3.4：AsyncConnectionPool（autocommit=True + dict_row）
+agent = [
+    "langgraph>=1.2,<2",
+    "langgraph-checkpoint-postgres>=3.1.1,<4",
+    "psycopg[binary]>=3.2,<3.4",
+    "psycopg-pool>=3.2,<3.4",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8",

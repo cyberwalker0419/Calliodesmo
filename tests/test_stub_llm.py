@@ -40,3 +40,93 @@ async def test_stub_unknown_prompt_falls_back_to_extraction():
     resp = await llm.complete(msgs)
     data = json.loads(resp.content)
     assert "entities" in data  # 回退为抽取
+
+
+# ---- P7 T4：[AGENT:*] 脚本化工具序列 ----
+
+
+def _agent_msgs(system: str, history=None) -> list:
+    msgs = [LLMMessage(role="system", content=system), LLMMessage(role="user", content="问题")]
+    if history:
+        msgs.extend(history)
+    return msgs
+
+
+async def test_stub_agent_two_step_search():
+    """两步检索脚本：首回合发 search_knowledge，喂回工具结果后次回合收尾。"""
+    from calliodesmo.interfaces.llm import ToolCall
+
+    llm = StubLLMProvider()
+    system = "你是情报分析助手。[AGENT:two_step_search]"
+
+    first = await llm.complete(_agent_msgs(system))
+    assert first.tool_calls is not None and len(first.tool_calls) == 1
+    call = first.tool_calls[0]
+    assert call.name == "search_knowledge"
+    assert call.arguments["mode"] == "native_rag"
+
+    # 喂回工具结果（assistant tool_calls + tool 回写）-> 次回合收尾直答
+    second = await llm.complete(
+        _agent_msgs(
+            system,
+            history=[
+                LLMMessage(role="assistant", content="", tool_calls=(call,)),
+                LLMMessage(role="tool", content="OpenAI 开发了 GPT-4。", tool_call_id=call.id),
+            ],
+        )
+    )
+    assert second.tool_calls is None
+    assert "OpenAI" in second.content
+    assert isinstance(call, ToolCall)
+
+
+async def test_stub_agent_forbidden_probe():
+    """越权探测脚本：脚本化调用未授权工具（注册表将拒派，见 T5）。"""
+    llm = StubLLMProvider()
+    resp = await llm.complete(_agent_msgs("[AGENT:forbidden_probe]"))
+    assert resp.tool_calls is not None
+    assert resp.tool_calls[0].name == "run_analysis"
+
+
+async def test_stub_agent_insufficient_direct():
+    """证据不足直答脚本：零工具调用，直接收尾。"""
+    llm = StubLLMProvider()
+    resp = await llm.complete(_agent_msgs("[AGENT:insufficient_direct]"))
+    assert resp.tool_calls is None
+    assert "证据不足" in resp.content
+
+
+async def test_stub_agent_unknown_marker_raises():
+    """未知 agent 标记显式 ValueError，不静默回退（同分析标记口径）。"""
+    import pytest
+
+    llm = StubLLMProvider()
+    with pytest.raises(ValueError, match="AGENT:nope"):
+        await llm.complete(_agent_msgs("[AGENT:nope]"))
+
+
+async def test_stub_agent_step_order_stateless():
+    """步序按 messages 已有 assistant tool_calls 轮数判定（纯函数无状态）。"""
+    from calliodesmo.interfaces.llm import ToolCall
+
+    llm = StubLLMProvider()
+    system = "[AGENT:two_step_search]"
+    first = await llm.complete(_agent_msgs(system))
+    # 相同输入重现相同输出（无内部状态）
+    again = await llm.complete(_agent_msgs(system))
+    assert again.tool_calls == first.tool_calls
+    # 伪造已完成一轮 -> 直接收尾
+    done = await llm.complete(
+        _agent_msgs(
+            system,
+            history=[
+                LLMMessage(
+                    role="assistant",
+                    content="",
+                    tool_calls=(ToolCall(id="x", name="search_knowledge", arguments={}),),
+                ),
+                LLMMessage(role="tool", content="r", tool_call_id="x"),
+            ],
+        )
+    )
+    assert done.tool_calls is None

@@ -83,3 +83,34 @@ async def test_me_bad_session_cookie(client):
     client.cookies.set(SESSION_COOKIE, "forged.token.value")
     resp = await client.get("/auth/me")
     assert resp.status_code == 401
+
+
+async def test_logout_clears_session_cookie(client, session):
+    """logout（POST）清 httpOnly 会话 cookie：此后无凭证 /auth/me -> 401（P7 T1）。
+
+    前端 logout 必须命中本端点（POST，非 DELETE）cookie 才失效——方法不匹配
+    时 405 且 cookie 残留（P6 移交缺陷，本测试锁契约）。
+    """
+    from calliodesmo.api.app import SESSION_COOKIE
+
+    await seed_default_roles(session)
+    user = await create_user(
+        session, username="hale", password="pw123", clearance=ClearanceLevel.CONFIDENTIAL
+    )
+    await assign_role(session, user=user, role_name="analyst", scope=LibraryScope.TEAM)
+    await session.commit()
+
+    resp = await client.post("/auth/token", data={"username": "hale", "password": "pw123"})
+    assert resp.status_code == 200
+    assert SESSION_COOKIE in client.cookies
+
+    out = await client.post("/auth/logout")
+    assert out.status_code == 204
+    # cookie 被清除：无会话凭证 /auth/me -> 401
+    assert SESSION_COOKIE not in client.cookies
+    me = await client.get("/auth/me")
+    assert me.status_code == 401
+
+    # 方法不匹配探测：DELETE 未注册 -> 405（防前端退回 api.del 的回归哨兵）
+    bad = await client.delete("/auth/logout")
+    assert bad.status_code == 405

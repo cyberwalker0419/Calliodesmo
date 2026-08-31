@@ -11,6 +11,7 @@ import { DocumentCommunityManage } from "@/features/admin/DocumentCommunityManag
 import { ContributionsPanel } from "@/features/collab/ContributionsPanel";
 import { AnalysisPage } from "@/features/analysis/AnalysisPage";
 import { ReportsHistory } from "@/features/analysis/ReportsHistory";
+import { AgentPage } from "@/features/agent/AgentPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 export const routes = createBrowserRouter([
@@ -29,6 +30,7 @@ export const routes = createBrowserRouter([
       { path: "ingest", element: <IngestPage /> },
       { path: "analysis", element: <AnalysisPage /> },
       { path: "analysis/reports", element: <ReportsHistory /> },
+      { path: "agent", element: <AgentPage /> },
       { path: "admin/users", element: <UserManage /> },
       { path: "admin/teams", element: <TeamProjectManage /> },
       { path: "admin/communities", element: <DocumentCommunityManage /> },
