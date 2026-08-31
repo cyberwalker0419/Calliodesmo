@@ -9,7 +9,7 @@ created: 2026-08-19
 # P5 高级 RAG 与智能检索实施计划
 
 > 介于 [[docs/plans/phases/P4.5-persistence-production|P4.5]]（已完成）与 P6（待启动）之间。P4.5 已把摄入/持久化/对齐链路收尾为生产可用，本阶段在**检索质量精化**上挣精度（项目精度原则：精度主要在检索重排与实体消解挣回）。
-> **For agentic workers:** 按 Task 编号顺序执行（顺序由 [[docs/plans/roadmap|年计划]] 与「为什么是这个顺序」锁定）；步骤用 checkbox（`- [ ]`）跟踪；每 Task 内 TDD。
+> **For agentic workers:** 按 Task 编号顺序执行（顺序由本文「为什么是这个顺序」锁定）；步骤用 checkbox（`- [ ]`）跟踪；每 Task 内 TDD。
 
 > [!success] P5 闭合记录（2026-08-19）
 > Task 1-5 已实现并合入（提交链 f037942/f265ea9/fdf9430 + 回退修复 ef6b643）；Task 7 golden 回归与验证报告完成（[[docs/verification/P5-verification|P5 验证]] + p5-regression.json）；**Task 6 语义切分按收益证据跳过并记录**（contextual ctx_recall 提升 0.00 < 0.05 门槛）。

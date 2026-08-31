@@ -12,7 +12,7 @@ related:
 # P0 验证报告（地基脚手架 + 非 Docker 部署）
 
 > [!info] 范围
-> 记录 P0 阶段（仓库骨架、三维权限模型、JWT/AccessContext/审计、三抽象接口、API/CLI、非 Docker 部署）的**测试内容、技术栈、验证原理与验证过程**。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P0-scaffolding|P0 计划]] / [[docs/deploy/native|原生部署]]。
+> 记录 P0 阶段（仓库骨架、三维权限模型、JWT/AccessContext/审计、三抽象接口、API/CLI、非 Docker 部署）的**测试内容、技术栈、验证原理与验证过程**。关联：[[docs/plans/phases/P0-scaffolding|P0 计划]] / [[docs/deploy/native|原生部署]]。
 
 ## 结论
 

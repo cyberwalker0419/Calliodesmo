@@ -8,7 +8,7 @@ created: 2026-07-27
 ---
 # P2 基础检索与 RAG 实施计划
 
-> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P1-ecl-pipeline|P1]] / [[docs/plans/phases/P3-web-ui|P3]]。
+> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/phases/P1-ecl-pipeline|P1]] / [[docs/plans/phases/P3-web-ui|P3]]。
 
 **Goal:** 打通"能问能答"主链路：三种检索模式（**NativeRAG** 向量+稀疏混合查情景层原文块 / **LocalSearch** 图邻居查语义层子图 / **GlobalSearch** 社区摘要查摘要层主题），全程按 `AccessContext` 过滤；混合检索稠密∪稀疏∪图三路 `RRF` 融合 + 交叉编码器重排，答案经 `LLMProvider` 合成并标注来源。FastAPI `/query` + CLI `ask` 暴露 Q&A。精度精化（multi-vec/ColBERT、contextual retrieval、查询改写）推迟 P5。
 

@@ -7,7 +7,7 @@ tags:
 created: 2026-07-26
 ---
 # P1 ECL 管线 MVP 实施计划
-> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [x]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P0-scaffolding|P0]] / [[docs/plans/monthly/2026-08|2026-08 月计划]]。
+> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [x]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/phases/P0-scaffolding|P0]] / [[docs/plans/phases/P2-retrieval-rag|P2]]。
 **Goal:** 打通 ECL 主链路（Extract -> Cognify -> Load），实现“数据进 -> 建图 -> 落个人库”。Extract 入口支持多格式文档解析：基础格式（纯文本/标记/表格/结构化）内置，PDF、Office 全家桶、开放文档、富文本/电子书、邮件、Jupyter 笔记本以可拓展插件方式按需接入。
 **Architecture:** `DocumentLoader` 抽象（P0 已立）不变；每类格式一个 Loader 插件，按 `source.suffix` 经 `LoaderRegistry` 分发，新增格式只需新增 Loader + 注册，不动核心。基础格式默认内置；重依赖格式列 optional extra、懒加载、缺依赖友好报错。Cognify 默认自建（实体-关系图 + 实体消解 + 连通分量社区检测 + LLM 社区摘要；networkx/GraphRAG Leiden 可选 extra）；抽取走团队级软引导模板；Load 写个人库三层数据（情景/语义/摘要）。
 **Tech Stack（P0 基础上追加）:**

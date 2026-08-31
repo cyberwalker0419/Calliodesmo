@@ -8,7 +8,7 @@ created: 2026-08-30
 
 # P6 LLM 分析任务验证报告（2026-08-30）
 
-> 关联：[[docs/plans/phases/P6-llm-analysis-tasks|P6 阶段计划]] · [[docs/plans/roadmap|年计划]] · [[docs/verification/README|验证索引]]
+> 关联：[[docs/plans/phases/P6-llm-analysis-tasks|P6 阶段计划]] · [[docs/verification/README|验证索引]]
 
 ## 测试内容
 

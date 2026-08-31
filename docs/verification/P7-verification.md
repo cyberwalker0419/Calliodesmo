@@ -7,7 +7,7 @@ created: 2026-08-31
 ---
 # P7 Agent 模式验证报告（2026-08-31）
 
-> 关联：[[docs/plans/phases/P7-agent-mode|P7 阶段计划]] · [[docs/plans/roadmap|年计划]] ·
+> 关联：[[docs/plans/phases/P7-agent-mode|P7 阶段计划]] ·
 > [[docs/verification/README|验证索引]] · [[docs/verification/P6-verification|P6 验证]]
 
 ## 测试内容

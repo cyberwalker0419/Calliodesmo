@@ -8,7 +8,7 @@ created: 2026-08-14
 
 # OCR / 识图多模态验证报告（Task 7，2026-08-14）
 
-> 关联：[[docs/plans/phases/P4.5-persistence-production|P4.5 计划 Task 7]] · [[docs/plans/roadmap|年计划]]
+> 关联：[[docs/plans/phases/P4.5-persistence-production|P4.5 计划 Task 7]]
 
 ## 测试内容
 

@@ -20,7 +20,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 `docs/plans/phases/P6-llm-analysis-tasks.md` 与 `docs/verification/P6-verification.md`）
 - **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 已合入 main；详见 `docs/plans/phases/P7-agent-mode.md` 与 `docs/verification/P7-verification.md`）
 
-完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
+阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
 
 ## 架构要点
 
@@ -76,10 +76,8 @@ src/calliodesmo/
 frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；详见下「前端开发与验证闭环」
 docs/
 ├── deploy/               部署文档（native.md：非 Docker 原生部署）
-├── plans/                Obsidian vault：roadmap / monthly/<YYYY-MM> / weekly/<YYYY-Www> / phases/P<n>-<slug>
-│   ├── phases/           阶段任务计划（P0-P7 已有，checkbox 跟踪）
-│   ├── monthly/          月计划
-│   └── weekly/           周计划（含日计划表）
+├── plans/                Obsidian vault：phases/P<n>-<slug>（唯一计划层；年/月/周层 2026-08-31 撤销）
+│   └── phases/           阶段任务计划（P0-P7 已有，checkbox 跟踪）
 ├── verification/         各阶段验证报告（README 索引 + P0-P5 / OCR 识图 / 全链路仿真报告 + pytest 输出/证据）
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
@@ -215,11 +213,9 @@ npm run e2e      # Playwright e2e（@playwright/test，桌面 + 移动视口）
 
 ## 计划文档体系（docs/plans/）
 
-四层 Obsidian markdown + wikilinks：
+单层 Obsidian markdown + wikilinks（2026-08-31 重构：撤销年/月/周层，只留阶段计划）：
 
-- `roadmap.md` - 年计划（P0-P9 路线图 + 里程碑 + 节奏）
-- `monthly/<YYYY-MM>.md` - 月计划
-- `weekly/<YYYY-Www>.md` - 周计划（含日计划表）
+- `phases/P<n>-<slug>.md` - 阶段任务计划（bite-sized TDD 步骤；未竟重评议程随阶段计划附录）
 - `phases/P<n>-<slug>.md` - 阶段任务计划（bite-sized TDD 步骤）
 
 修改计划文档时保持 wikilink（`[[...]]`）与 frontmatter（`title` / `type` / `tags` / `created`）格式一致。

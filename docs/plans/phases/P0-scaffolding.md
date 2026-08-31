@@ -8,7 +8,7 @@ created: 2026-07-26
 ---
 # P0 地基脚手架 实施计划
 
-> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/monthly/2026-08|2026-08 月计划]]。
+> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/phases/P1-ecl-pipeline|P1]]。
 
 **Goal:** 搭起可运行、可测试的系统地基：基础设施（Postgres+pgvector/Neo4j）、配置与密钥、三维权限模型（用户/角色/权限/用户组）+ JWT 认证 + AccessContext + 审计骨架、三大抽象接口（LLMProvider/EmbeddingProvider/DocumentLoader）及默认实现、冒烟测试与 CI。
 

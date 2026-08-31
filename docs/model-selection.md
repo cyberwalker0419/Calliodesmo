@@ -6,13 +6,12 @@ tags:
   - reference
   - models
 related:
-  - "[[docs/plans/roadmap]]"
   - "[[docs/plans/phases/P1-ecl-pipeline]]"
   - "[[docs/deploy/native]]"
 ---
 # 模型选型建议
 
-> 全程模型选型（嵌入 / 重排 / 抽取 / 摘要 / 合成 / 分析 / Agent）。核心原则：**可切换**（抽象接口）+ **离线可测**（默认桩）+ **由数据判定**（评估 harness 回归）。关联 [[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] / [[docs/deploy/native|原生部署]]。
+> 全程模型选型（嵌入 / 重排 / 抽取 / 摘要 / 合成 / 分析 / Agent）。核心原则：**可切换**（抽象接口）+ **离线可测**（默认桩）+ **由数据判定**（评估 harness 回归）。关联 [[docs/plans/phases/P1-ecl-pipeline|P1 计划]] / [[docs/deploy/native|原生部署]]。
 
 ## 一、选型原则
 

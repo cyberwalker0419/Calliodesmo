@@ -8,7 +8,7 @@ created: 2026-08-19
 
 # P5 高级 RAG 验证报告（2026-08-19）
 
-> 关联：[[docs/plans/phases/P5-advanced-rag|P5 阶段计划]] · [[docs/plans/roadmap|年计划]]
+> 关联：[[docs/plans/phases/P5-advanced-rag|P5 阶段计划]]
 
 ## 测试内容
 

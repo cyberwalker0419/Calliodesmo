@@ -22,9 +22,11 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P4.5** 持久化与生产化 ✅ Task 1-7 全闭合（2026-08-15：清 SQLite 连真实 PG+pgvector+Neo4j、三 store 真后端、增量索引 MVP、P4 合并落库贯通 + 双写一致性、摄入 UI + 异步 job、三段式实体对齐 + 复核 UI、多模态 OCR/识图；详见 [docs/plans/phases/P4.5-persistence-production.md](docs/plans/phases/P4.5-persistence-production.md)）
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 [docs/plans/phases/P5-advanced-rag.md](docs/plans/phases/P5-advanced-rag.md)）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 [docs/plans/phases/P6-llm-analysis-tasks.md](docs/plans/phases/P6-llm-analysis-tasks.md) 与 [docs/verification/P6-verification.md](docs/verification/P6-verification.md)）
-- **P7** Agent 模式 ✅ 完成（2026-08-31，PR 待合：ReAct 主链 + 三重预算帽 + 只读工具七件/分析桥 + 三维门控（越权与不存在同消息）+ 会话 ORM 三表 + PG checkpointer + agent golden harness（离线 + --real 双轨）+ 前端聊天面 + e2e 六组；ReWOO 暂缓 / PlanExecute 门槛达标让位 / SSE 让位（锚点 2026-W49）；模板注册表评估结论顺延 P9；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md) 与 [docs/verification/P7-verification.md](docs/verification/P7-verification.md)）
+- **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 合入 main：ReAct 主链 + 三重预算帽 + 只读工具七件/分析桥 + 三维门控（越权与不存在同消息）+ 会话 ORM 三表 + PG checkpointer + agent golden harness（离线 + --real 双轨）+ 前端聊天面 + e2e 六组；ReWOO 暂缓 / PlanExecute 门槛达标让位 / SSE 让位（锚点 2026-W49）；模板注册表评估结论顺延 P9；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md) 与 [docs/verification/P7-verification.md](docs/verification/P7-verification.md)）
+- **P8** 证据验证与幻觉检测（2026-W49 重评启动）：答案-证据映射 / 接地度评分 / 意图路由 / 报告生命周期 / 置信度校准（ECE）
+- **P9** 动态更新与规模化（锚点 2026-W49）：审计硬化 / 压测 / VectorStore 置换 / 谓词下推 / Alembic + ReWOO·PlanExecute·SSE·RAG 记忆重评
 
-完整路线图见 `docs/plans/roadmap.md`（Obsidian vault 根）；阶段任务计划见 `docs/plans/phases/`。
+阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
 
 ## 架构要点
 
@@ -254,11 +256,10 @@ npm run e2e          # Playwright e2e（@playwright/test，桌面 + 移动视口
 
 ## 计划文档体系（docs/plans/）
 
-四层 Obsidian markdown + wikilinks：
+单层 Obsidian markdown + wikilinks（2026-08-31 重构：撤销年/月/周计划层，只留阶段计划）：
 
-- `roadmap.md` - 年计划（P0-P9 路线图 + 里程碑 + 节奏）
-- `monthly/<YYYY-MM>.md` - 月计划
-- `weekly/<YYYY-Www>.md` - 周计划（含日计划表）
-- `phases/P<n>-<slug>.md` - 阶段任务计划（bite-sized TDD 步骤）
+- `phases/P<n>-<slug>.md` - 阶段任务计划（bite-sized TDD 步骤；未竟重评议程随阶段计划附录，如 P7「闭合实录与 W49 重评议程」）
+- 专项备忘：`entity-graph-layouts.md`（图谱布局）· `analysis-template-registry-eval.md`（模板注册表评估）
 
+跨阶段总览与 P8/P9 展望见「当前阶段」段与各阶段计划「范围外」表。
 修改计划文档时保持 wikilink（`[[...]]`）与 frontmatter（`title` / `type` / `tags` / `created`）格式一致。

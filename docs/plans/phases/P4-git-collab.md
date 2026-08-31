@@ -8,7 +8,7 @@ created: 2026-07-29
 ---
 # P4 Git-like 协作推送实施计划
 
-> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P3-web-ui|P3]] / [[docs/plans/phases/P5-advanced-rag|P5]]。
+> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/phases/P3-web-ui|P3]] / [[docs/plans/phases/P5-advanced-rag|P5]]。
 
 > [!important] 前置条件（开工前确认）
 > - **基线**：P4 分支从 P3 合并后的 main 切出（`codex/p4-git-collab`）。

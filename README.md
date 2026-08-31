@@ -61,7 +61,7 @@ uv run calliodesmo serve        # 启动 API + Web UI：http://127.0.0.1:8000
 ```
 src/calliodesmo/   FastAPI 后端 + Typer CLI（api / auth / ecl / retrieval / interfaces / providers / stores / eval / cli.py）
 frontend/          React SPA（登录 / 问答 / 浏览 / 管理）
-docs/              deploy（部署）· plans（路线图与阶段计划，Obsidian vault）· verification（验证报告）
+docs/              deploy（部署）· plans（阶段计划，Obsidian vault；年/月/周层 2026-08-31 撤销）· verification（验证报告）
 tests/             pytest（真实 PG+pgvector+Neo4j，`-m "not db"` 跑纯逻辑）
 ```
 
@@ -70,7 +70,7 @@ tests/             pytest（真实 PG+pgvector+Neo4j，`-m "not db"` 跑纯逻�
 - 🚀 [Docker 部署指南](docs/deploy/docker.md) - 一键全栈生产
 - 💻 [本地原生部署指南](docs/deploy/native.md) - 无 Docker 生产
 - 🧪 [测试/开发环境](docs/deploy/testing.md) - 桩模型冒烟、pytest、前端联调
-- 🗺️ [实施路线图](docs/plans/roadmap.md) - P0-P9 年计划
+- 🗺️ [阶段计划](docs/plans/phases/) - P0-P7 阶段任务（唯一计划层）
 - ✅ [验证报告索引](docs/verification/README.md) - 各阶段测试证据
 
 ## License

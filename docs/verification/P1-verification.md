@@ -11,7 +11,7 @@ related:
 ---
 # P1 验证报告（ECL 管线 MVP：Extract → Cognify → Load）
 
-> 关联：[[docs/plans/phases/P1-ecl-pipeline|P1 实施计划]] · [[docs/verification/P0-verification|P0 验证]] · [[docs/plans/roadmap|路线图]]
+> 关联：[[docs/plans/phases/P1-ecl-pipeline|P1 实施计划]] · [[docs/verification/P0-verification|P0 验证]]
 
 ## 结论
 

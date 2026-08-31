@@ -8,7 +8,7 @@ created: 2026-07-27
 ---
 # P3 Web UI 实施计划
 
-> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/roadmap|年计划]] / [[docs/plans/phases/P2-retrieval-rag|P2]] / [[docs/plans/phases/P4-git-collab|P4]]。
+> **For agentic workers:** 按 Task 顺序逐任务执行；步骤用 checkbox（`- [ ]`）跟踪。每个 Task 内按 TDD：先写失败测试 -> 实现 -> 跑绿 -> 提交。关联：[[docs/plans/phases/P2-retrieval-rag|P2]] / [[docs/plans/phases/P4-git-collab|P4]]。
 
 > [!important] 前置条件：P3 分支从 **P2 合并后的 main** 切出（`/query`/`get_search_engine` 需与 stores 依赖工厂共享同一实例）；MVP 裁剪线——Task 5 子图可降级为邻居列表、Task 7 merge/split 整块并入 P4；MVP 必做清单 = Task 1 全量 + 2 + 3 + 4 + 5 降级版 + 8 权限矩阵回归。
 
