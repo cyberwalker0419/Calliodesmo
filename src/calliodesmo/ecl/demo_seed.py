@@ -128,11 +128,7 @@ async def seed_demo_stores(
     total_chunks = 0
     for path in files:
         slug = path.stem.replace("__", "-")
-        before = (
-            set(stores.community_store._records.keys())
-            if is_mem
-            else set()
-        )
+        before = set(stores.community_store._records.keys()) if is_mem else set()
         stats = await engine.ingest(path, access=access)
         total_chunks += stats.chunks
         # level-0 实体社区：cognify 派生的 access_level 恒 INTERNAL 且 comm-N 跨批次

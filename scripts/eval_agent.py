@@ -146,9 +146,7 @@ async def _run_real(golden_path: str) -> int:
 
     err = await _preflight_tool_calls(engine.provider)
     if err is not None:
-        raise SystemExit(
-            f"后端不支持原生 tool calls（{err}）。换模型并留痕；不做文本协议降级。"
-        )
+        raise SystemExit(f"后端不支持原生 tool calls（{err}）。换模型并留痕；不做文本协议降级。")
 
     scenarios = load_golden(golden_path)
     # --real 跑真实决策场景：桩脚本标记对真模型无意义，统一中性系统提示
@@ -168,8 +166,9 @@ async def _run_real(golden_path: str) -> int:
         )
         probe = scenario.get("probe_tools", [])
         forbidden = scenario.get("forbidden_content", [])
-        leak_ok = no_forbidden_leak(turn.tool_trace, turn.answer, probe_tools=probe,
-                                    forbidden_content=forbidden)
+        leak_ok = no_forbidden_leak(
+            turn.tool_trace, turn.answer, probe_tools=probe, forbidden_content=forbidden
+        )
         leak_veto = leak_veto or not leak_ok
         per.append(
             {

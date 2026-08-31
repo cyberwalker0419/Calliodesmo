@@ -202,7 +202,9 @@ class AgentEngine(ABC):
     mode: AgentMode
 
     @abstractmethod
-    async def run_turn(self, *, question: str, thread_id: str, access: AccessContext) -> TurnResult: ...
+    async def run_turn(
+        self, *, question: str, thread_id: str, access: AccessContext
+    ) -> TurnResult: ...
 ```
 
 **API 只依赖抽象不见 LangGraph**：`interfaces/agent.py` 与 `agent/registry.py` / `agent/tools/` 不导入 langgraph；LangGraph 边界集中在 `agent/graph.py` + `providers/langgraph_adapter.py` 两个文件，可审计、可替换。`access` 入参供工具调用与审计溯源消费；`thread_id` = 会话 id（checkpoint 与 ORM 对齐）。
