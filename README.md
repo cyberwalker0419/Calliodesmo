@@ -20,6 +20,18 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 | **Agent 模式** | ReAct 多轮对话（LangGraph）；只读工具七件 + 分析桥；三重预算帽；工具轨迹透明可审计 |
 | **安全** | 三维权限贯穿全链路（检索 / 分析 / Agent 工具调用）；越权与不存在同消息不泄漏存在性；全程审计 |
 
+## 技术栈
+
+| 类别 | 技术 |
+| --- | --- |
+| Web / CLI | FastAPI · uvicorn · Typer |
+| 数据 | SQLAlchemy 2.0 (async) · PostgreSQL 16+ + pgvector · Neo4j |
+| 认证 | PyJWT · pwdlib + Argon2 |
+| LLM / 嵌入 | LiteLLM（多后端可切换）· BGE-M3（本地，可选 extra） |
+| 检索 / Agent | LlamaIndex + LangGraph 1.x（`agent` extra：langgraph + langgraph-checkpoint-postgres + psycopg[binary]）· GraphRAG（库形式集成） |
+| 质量 | pytest + pytest-asyncio · Ruff · GitHub Actions · Playwright（e2e，本地） |
+| 前端 | React 19 · Vite 6 · TanStack Query · React Router 7 · Tailwind · shadcn/ui（Radix 源码拷贝）· cytoscape + cytoscape-fcose · lucide-react |
+
 ## 部署（生产，二选一）
 
 ### 方式 A：Docker（推荐，一键全栈）
