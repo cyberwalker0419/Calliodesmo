@@ -8,13 +8,16 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON_DOWNLOADS: "never"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
+      - name: Install uv (ghfast mirror)
+        run: |
+          curl -fsSL https://ghfast.top/https://github.com/astral-sh/uv/releases/download/0.13.0/uv-x86_64-unknown-linux-gnu.tar.gz -o /tmp/uv.tgz
+          tar -xzf /tmp/uv.tgz -C /usr/local/bin --strip-components=1
+          uv --version
 
       - name: Install dependencies
         # P7 T2：agent extra 进 CI（agent 离线测试为核心能力，桩/内存 stores 不连库）；
