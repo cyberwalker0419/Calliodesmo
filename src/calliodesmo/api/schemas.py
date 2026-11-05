@@ -36,6 +36,9 @@ class QueryResponse(BaseModel):
     model: str
     # P8 接地度侧车（可空：旧客户端 / 无证据答案不受影响）
     verification: dict[str, Any] | None = None
+    # P8 意图路由（仅 mode=auto 时非空；显式模式零变化）
+    routed_mode: str | None = None
+    routing: dict[str, Any] | None = None
 
 
 class ChangePasswordRequest(BaseModel):

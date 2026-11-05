@@ -31,6 +31,7 @@ from calliodesmo.eval.metrics_grounding import (
     claim_grounding,
     contradiction_rate,
     expected_calibration_error,
+    intent_accuracy,
     uncited_claim_rate,
     unsupported_rate,
 )
@@ -40,6 +41,7 @@ from calliodesmo.providers.in_memory_graph_store import InMemoryGraphStore
 from calliodesmo.providers.in_memory_vector_store import InMemoryVectorStore
 from calliodesmo.retrieval.factory import build_default_search_engine
 from calliodesmo.retrieval.in_memory_sparse_index import InMemoryBM25Index
+from calliodesmo.retrieval.intent import route_intent
 from calliodesmo.verification.calibration import (
     CalibrationParams,
     CalibrationSlice,
@@ -58,6 +60,7 @@ REAL_DIR = ROOT / "docs" / "verification"
 QA_V2 = ROOT / "config" / "golden_qa_v2.yaml"
 VERIFICATION = ROOT / "config" / "golden_verification.yaml"
 CONTRADICTIONS = ROOT / "config" / "golden_contradictions.yaml"
+INTENT = ROOT / "config" / "golden_intent.yaml"
 CALIBRATION = ROOT / "config" / "calibration.yaml"
 DEMO_DIR = ROOT / "data" / "demo"
 
@@ -97,6 +100,33 @@ def load_sources() -> dict[str, str]:
 
 def load_yaml(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def run_intent_eval() -> dict:
+    """意图路由标注集：确定性规则基线（离线 / --real 同口径）。"""
+    cases = load_yaml(INTENT)["cases"]
+    mismatches = []
+    correct = 0
+    for case in cases:
+        decision = route_intent(case["question"])
+        if decision.mode == case["expected_mode"]:
+            correct += 1
+        else:
+            mismatches.append(
+                {
+                    "question": case["question"],
+                    "expected": case["expected_mode"],
+                    "actual": decision.mode,
+                    "confidence": decision.confidence,
+                }
+            )
+    total = len(cases)
+    return {
+        "total": total,
+        "correct": correct,
+        "accuracy": round(intent_accuracy(correct, total), 4),
+        "mismatches": mismatches,
+    }
 
 
 def _claims_from(items: list[dict]) -> list[Claim]:
@@ -158,6 +188,7 @@ def run_offline() -> dict:
     )
 
     qa_categories = Counter(case["category"] for case in qa_cases)
+    intent = run_intent_eval()
     return {
         "phase": "P8",
         "track": "offline",
@@ -197,7 +228,9 @@ def run_offline() -> dict:
             "unsupported_rate": round(unsupported_rate(unsupported, total), 4),
             "contradiction_rate": round(contradiction_rate(contradicted, total), 4),
             "uncited_claim_rate": round(uncited_claim_rate(uncited, total), 4),
+            "intent_accuracy": intent["accuracy"],
         },
+        "intent": intent,
     }
 
 
@@ -332,6 +365,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
     after_ece, table, holdout_n = expected_calibration_error(calibrated_holdout, holdout_outcomes)
     ece_status = "ok" if holdout_n >= THRESHOLDS["ece_min_samples"] else "insufficient_samples"
 
+    intent = run_intent_eval()
     metrics = {
         "citation_precision": round(
             citation_precision(totals["citations_supported"], totals["citations"]), 4
@@ -342,6 +376,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
             contradiction_rate(totals["contradicted"], totals["checkable"]), 4
         ),
         "uncited_claim_rate": round(uncited_claim_rate(totals["uncited"], totals["claims"]), 4),
+        "intent_accuracy": intent["accuracy"],
     }
     injection_violations = sum(
         1 for row in rows if row["category"] == "injection" and not row["correct"]
@@ -426,6 +461,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
             "violations": injection_violations,
         },
         "passed": passed,
+        "intent": intent,
         "cases": rows,
     }
 

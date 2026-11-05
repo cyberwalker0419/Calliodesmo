@@ -332,3 +332,100 @@ async def test_query_returns_verification_sidecar(session):
         .all()
     )
     assert logs and logs[0].detail["claims"] == 3
+
+
+@pytest.mark.asyncio
+async def test_query_auto_routes_and_audits(session):
+    """P8 T5：mode=auto 路由并回显 routed_mode + routing，审计 intent_route。"""
+    import httpx
+
+    from calliodesmo.audit.models import AuditLog
+
+    user = await _seed_user(session, username="queryauto")
+    app = _make_app(session, _StubEngine())
+    settings = get_settings()
+    token = create_access_token(
+        subject=str(user.id),
+        secret_key=settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+        expires_minutes=60,
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        resp = await c.post(
+            "/query",
+            json={"question": "总结本月稀土市场的整体趋势", "mode": "auto", "top_k": 5},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["mode"] == "global"
+    assert data["routed_mode"] == "global"
+    assert data["routing"]["requested_mode"] == "auto"
+    assert data["routing"]["executed_mode"] == "global"
+    assert data["routing"]["fallback"] is False
+    assert data["routing"]["reasons"]
+
+    logs = (
+        (await session.execute(select(AuditLog).where(AuditLog.action == "intent_route")))
+        .scalars()
+        .all()
+    )
+    assert logs and logs[0].detail["routed_mode"] == "global"
+
+
+@pytest.mark.asyncio
+async def test_query_explicit_mode_unchanged(session):
+    """显式模式零改写：routed_mode / routing 恒为 null。"""
+    import httpx
+
+    user = await _seed_user(session, username="queryexplicit")
+    app = _make_app(session, _StubEngine())
+    settings = get_settings()
+    token = create_access_token(
+        subject=str(user.id),
+        secret_key=settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+        expires_minutes=60,
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        resp = await c.post(
+            "/query",
+            json={"question": "总结本月稀土市场的整体趋势", "mode": "local", "top_k": 5},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["mode"] == "local"
+    assert data["routed_mode"] is None
+    assert data["routing"] is None
+
+
+@pytest.mark.asyncio
+async def test_query_auto_agent_falls_back_to_local(session):
+    """路由到 agent 时 /query 回退 local 并留痕（Agent 需专用端点）。"""
+    import httpx
+
+    user = await _seed_user(session, username="queryagent")
+    app = _make_app(session, _StubEngine())
+    settings = get_settings()
+    token = create_access_token(
+        subject=str(user.id),
+        secret_key=settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+        expires_minutes=60,
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        resp = await c.post(
+            "/query",
+            json={"question": "帮我调查 APT28 的组织结构并生成报告", "mode": "auto", "top_k": 5},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["routed_mode"] == "agent"
+    assert data["mode"] == "local"
+    assert data["routing"]["fallback"] is True
+    assert any("Agent 模式需专用端点" in reason for reason in data["routing"]["reasons"])

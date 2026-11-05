@@ -2,7 +2,7 @@
   "phase": "P8",
   "track": "offline",
   "disclaimer": "离线证据≠质量证据：确定性核验与桩对真实幻觉发生率零区分度；本文件只承诺语料结构、判定契约与指标公式，质量结论须由 --real 质量轨承担。",
-  "generated_at": "2026-11-05T16:44:28.797204+00:00",
+  "generated_at": "2026-11-05T17:40:40.287307+00:00",
   "corpora": {
     "golden_qa_v2": {
       "cases": 35,
@@ -52,6 +52,13 @@
     "claim_grounding": 0.3023,
     "unsupported_rate": 0.2326,
     "contradiction_rate": 0.2326,
-    "uncited_claim_rate": 0.2558
+    "uncited_claim_rate": 0.2558,
+    "intent_accuracy": 1.0
+  },
+  "intent": {
+    "total": 22,
+    "correct": 22,
+    "accuracy": 1.0,
+    "mismatches": []
   }
 }

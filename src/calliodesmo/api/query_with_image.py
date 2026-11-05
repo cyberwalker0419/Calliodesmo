@@ -20,8 +20,9 @@ from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import Permission
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
-from calliodesmo.interfaces.retriever import SearchEngine, SearchMode
+from calliodesmo.interfaces.retriever import SearchEngine
 from calliodesmo.interfaces.vision import VisionProvider
+from calliodesmo.retrieval.intent import resolve_query_mode
 from calliodesmo.verification.pipeline import build_answer_verification
 
 router = APIRouter(prefix="/query", tags=["query"])
@@ -66,12 +67,21 @@ async def query_with_image(
     if not context.has_permission(Permission.QUERY):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
     try:
-        search_mode = SearchMode(mode)
+        search_mode, routed_mode, routing = resolve_query_mode(mode, question)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"未知检索模式：{mode}（可选 native_rag / local / global）",
+            detail=f"未知检索模式：{mode}（可选 native_rag / local / global / auto）",
         ) from None
+    if routing is not None:
+        await record_audit(
+            session,
+            user_id=context.user_id,
+            action="intent_route",
+            resource_type="query",
+            detail=routing,
+            source="api",
+        )
 
     # 图片校验：大小上限 + mime
     image_bytes = await file.read()
@@ -145,4 +155,6 @@ async def query_with_image(
         context_chunks=answer.context_chunks,
         model=answer.model,
         verification=verification,
+        routed_mode=routed_mode,
+        routing=routing,
     )
