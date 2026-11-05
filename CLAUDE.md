@@ -23,7 +23,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 [docs/plans/phases/P5-advanced-rag.md](docs/plans/phases/P5-advanced-rag.md)）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 [docs/plans/phases/P6-llm-analysis-tasks.md](docs/plans/phases/P6-llm-analysis-tasks.md) 与 [docs/verification/P6-verification.md](docs/verification/P6-verification.md)）
 - **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 合入 main：ReAct 主链 + 三重预算帽 + 只读工具七件/分析桥 + 三维门控（越权与不存在同消息）+ 会话 ORM 三表 + PG checkpointer + agent golden harness（离线 + --real 双轨）+ 前端聊天面 + e2e 六组；ReWOO 暂缓 / PlanExecute 门槛达标让位 / SSE 让位（锚点 2026-W49）；模板注册表评估结论顺延 P9；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md) 与 [docs/verification/P7-verification.md](docs/verification/P7-verification.md)）
-- **P8** 证据验证与幻觉检测（2026-W49 重评启动）：答案-证据映射 / 接地度评分 / 意图路由 / 报告生命周期 / 置信度校准（ECE）
+- **P8** 证据验证与幻觉检测 🚧 进行中（计划 2026-11-06，提前启动，锚点原 2026-W49）：答案-证据映射 / 接地度评分 / 幻觉标记 / 意图路由 / 报告生命周期 / 置信度校准（ECE）；详见 [docs/plans/phases/P8-evidence-verification.md](docs/plans/phases/P8-evidence-verification.md)
 - **P9** 动态更新与规模化（锚点 2026-W49）：审计硬化 / 压测 / VectorStore 置换 / 谓词下推 / Alembic + ReWOO·PlanExecute·SSE·RAG 记忆重评
 
 阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
