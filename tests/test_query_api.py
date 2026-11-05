@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import calliodesmo.models  # noqa: F401
@@ -267,3 +268,67 @@ async def test_query_with_image_rejects_oversize(session):
             headers={"Authorization": f"Bearer {token}"},
         )
     assert resp.status_code == 413
+
+
+class _CitedStubEngine:
+    """带引注答案的桩引擎：P8 接地度侧车字段断言用。"""
+
+    async def query(self, question, *, mode, top_k, access):
+        return Answer(
+            text=(
+                "稀土市场保持平稳 [c1]。"
+                "APT28 的指挥部位于圣彼得堡 [c2]。"
+                "这是一句没有引注的补充说明。"
+            ),
+            source_chunk_ids=["c1", "c2"],
+            mode=mode,
+            context_chunks=[
+                {"chunk_id": "c1", "content": "本月稀土市场保持平稳。", "score": 0.9},
+                {"chunk_id": "c2", "content": "APT28 是疑似源自俄罗斯的威胁组织。", "score": 0.8},
+            ],
+            model="test/stub",
+            usage={"total_tokens": 10},
+        )
+
+
+@pytest.mark.asyncio
+async def test_query_returns_verification_sidecar(session):
+    """P8 T3：QA 响应带 verification（引注核验 / 未引注单列 / 复核标记）。"""
+    import httpx
+
+    from calliodesmo.audit.models import AuditLog
+
+    user = await _seed_user(session, username="queryverify")
+    app = _make_app(session, _CitedStubEngine())
+    settings = get_settings()
+    token = create_access_token(
+        subject=str(user.id),
+        secret_key=settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+        expires_minutes=60,
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        resp = await c.post(
+            "/query",
+            json={"question": "稀土与 APT28", "mode": "native_rag", "top_k": 5},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert resp.status_code == 200
+    verification = resp.json()["verification"]
+    assert verification is not None
+    assert verification["source"] == "qa"
+    assert verification["totals"]["claims"] == 3
+    assert verification["totals"]["checkable"] == 2
+    assert verification["totals"]["supported"] == 1
+    assert verification["totals"]["unsupported"] == 1
+    assert verification["totals"]["uncited"] == 1
+    assert verification["metrics"]["citation_precision"] == 0.5
+    assert verification["needs_review"] is True
+
+    logs = (
+        (await session.execute(select(AuditLog).where(AuditLog.action == "evidence_verify")))
+        .scalars()
+        .all()
+    )
+    assert logs and logs[0].detail["claims"] == 3

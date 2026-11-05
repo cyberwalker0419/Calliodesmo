@@ -226,6 +226,7 @@ async def list_runs(
             tool_trace=r.tool_trace or [],
             error=r.error,
             created_at=r.created_at,
+            verification=r.verification,
         )
         for r in rows
     ]

@@ -63,6 +63,7 @@ class AnalysisReportStore:
         model: str,
         prompt_version: str,
         usage: dict,
+        verification: dict | None = None,
     ) -> AnalysisReportORM:
         """落一条报告行：固定 personal scope + owner=提交者（决策 4）。
 
@@ -73,6 +74,7 @@ class AnalysisReportStore:
             status: 仅接受 ``ok`` / ``partial``（落库口径；``failed`` 抛 ``ValueError``）。
             payload: 完整信封（写入前经 ``json_safe`` 清洗）。
             access_level: 密级继承结果（``compute_report_access_level``，worker 算得传入）。
+            verification: P8 接地度侧车（可空；写入前经 ``json_safe``）。
 
         异常:
             ValueError: status 非 ok / partial，或 task_type 非 AnalysisType 合法值。
@@ -106,6 +108,7 @@ class AnalysisReportStore:
             model=model,
             prompt_version=prompt_version,
             usage_=json_safe(usage),
+            verification=json_safe(verification) if verification is not None else None,
         )
         session.add(report)
         await session.flush()

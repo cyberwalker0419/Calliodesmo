@@ -66,6 +66,7 @@ from calliodesmo.api.schemas import (
     AnalysisJobRequest,
     AnalysisReportListItem,
     AnalysisReportListOut,
+    AnalysisVerificationOut,
 )
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
@@ -235,6 +236,25 @@ async def get_report(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"报告不存在或不可见: {report_id}"
         )
     return AnalysisEnvelope.model_validate(report.payload)
+
+
+@router.get("/reports/{report_id}/verification", response_model=AnalysisVerificationOut)
+async def get_report_verification(
+    report_id: uuid.UUID,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisVerificationOut:
+    """报告接地度侧车（P8）：不可见 / 不存在一律 404；历史报告返回 null。
+
+    信封（``AnalysisEnvelope``）九字段契约保持不变——侧车独立端点，可回滚。
+    """
+    require_permission(ctx, Permission.ANALYZE)
+    report = await AnalysisReportStore().get(session, report_id, access=ctx)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"报告不存在或不可见: {report_id}"
+        )
+    return AnalysisVerificationOut(verification=report.verification)
 
 
 @router.get("/reports/{report_id}/export")
@@ -482,7 +502,26 @@ def _report_item(report: AnalysisReportORM) -> AnalysisReportListItem:
         model=report.model,
         created_at=report.created_at,
         source_chunk_count=report.source_chunk_count,
+        verification=_verification_summary(report.verification),
     )
+
+
+def _verification_summary(verification: dict | None) -> dict | None:
+    """报告列表用侧车摘要（不含逐条 claim，避免列表膨胀）。"""
+    if not verification:
+        return None
+    totals = verification.get("totals") or {}
+    metrics = verification.get("metrics") or {}
+    return {
+        "claims": totals.get("claims", 0),
+        "supported": totals.get("supported", 0),
+        "unsupported": totals.get("unsupported", 0),
+        "uncertain": totals.get("uncertain", 0),
+        "contradicted": totals.get("contradicted", 0),
+        "uncited": totals.get("uncited", 0),
+        "claim_grounding": metrics.get("claim_grounding", 0.0),
+        "needs_review": bool(verification.get("needs_review")),
+    }
 
 
 def _document_label(doc_id: str, doc_chunks: list[ChunkRecord]) -> str:

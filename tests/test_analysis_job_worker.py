@@ -279,6 +279,13 @@ async def test_success_path_persists_report_with_audit(session):
     assert report.model == "test/stub"
     assert report.prompt_version == "summary.v1"
     assert report.subject_label == "Alpha 文档、Beta 文档"
+    # P8 接地度侧车：claim 计数 / 指标 / 复核标记齐备
+    verification = report.verification
+    assert verification is not None
+    assert verification["source"] == "analysis"
+    assert verification["totals"]["claims"] >= 1
+    assert "claim_grounding" in verification["metrics"]
+    assert isinstance(verification["needs_review"], bool)
 
     # 信封装配：完整信封落 payload（含 generated_at），详情出参直接取信封
     envelope = report.payload
@@ -302,6 +309,19 @@ async def test_success_path_persists_report_with_audit(session):
     assert entry.detail["status"] == "ok"
     assert entry.detail["model"] == "test/stub"
     assert entry.detail["prompt_version"] == "summary.v1"
+
+    # P8 审计：evidence_verify 只记计数与复核标记（不记原文）
+    async with factory() as s:
+        verify_audits = list(
+            (
+                await s.execute(select(AuditLog).where(AuditLog.action == "evidence_verify"))
+            ).scalars()
+        )
+    assert len(verify_audits) == 1
+    detail = verify_audits[0].detail
+    assert detail["claims"] == verification["totals"]["claims"]
+    assert "needs_review" in detail
+    assert "原文" not in str(detail)
 
 
 async def test_doc_ids_membership_filter_from_task_payload(session):

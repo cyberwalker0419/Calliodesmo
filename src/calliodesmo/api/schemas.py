@@ -34,6 +34,8 @@ class QueryResponse(BaseModel):
     source_chunk_ids: list[str]
     context_chunks: list[dict[str, Any]]
     model: str
+    # P8 接地度侧车（可空：旧客户端 / 无证据答案不受影响）
+    verification: dict[str, Any] | None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -465,6 +467,14 @@ class AnalysisReportListItem(BaseModel):
     model: str
     created_at: datetime
     source_chunk_count: int
+    # P8 接地度摘要（可空：历史报告无侧车）
+    verification: dict[str, Any] | None = None
+
+
+class AnalysisVerificationOut(BaseModel):
+    """报告接地度侧车（P8）：历史报告无侧车时 ``verification`` 为 null。"""
+
+    verification: dict[str, Any] | None = None
 
 
 class AnalysisReportListOut(BaseModel):
@@ -550,3 +560,5 @@ class AgentRunOut(BaseModel):
     tool_trace: list
     error: str | None
     created_at: datetime
+    # P8 接地度侧车（可空：P7 历史执行无侧车）
+    verification: dict[str, Any] | None = None

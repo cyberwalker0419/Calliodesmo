@@ -16,6 +16,7 @@ persist 90（消息 / 执行落库 + 落库前密级断言钩子）→ done 100 
 
 from __future__ import annotations
 
+import re
 import uuid
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
@@ -24,7 +25,12 @@ from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.service import get_access_context
 from calliodesmo.db.models_agent import AgentMessageORM, AgentRunORM, AgentSessionORM
 from calliodesmo.db.models_job import Job, JobStatus
+from calliodesmo.stores.visibility import visible_to
 from calliodesmo.utils.json import json_safe
+from calliodesmo.verification.pipeline import build_verification
+
+#: 工具输出 / 参数中的 chunk_id 引注形态（`[chunk_id]`）
+_CHUNK_REF_RE = re.compile(r"\[([A-Za-z0-9_\-:.#]+)\]")
 
 
 async def run_agent_job(
@@ -101,6 +107,8 @@ async def run_agent_job(
                 await session.commit()
                 return
 
+            # P8 接地度侧车：从工具轨迹回收 chunk_id，按当前权限取可见源文
+            verification = await _build_agent_verification(turn, access=access)
             # persist 90：落库前密级断言钩子（证据密级不高于会话密级）
             assert_evidence_within_session(sess.access_level, session_level=sess.access_level)
             job.progress = 90
@@ -120,6 +128,7 @@ async def run_agent_job(
             )
             run.usage = json_safe(turn.usage)
             run.steps = turn.steps
+            run.verification = json_safe(verification)
             session.add(
                 AgentMessageORM(
                     session_id=session_id, role="assistant", content=turn.answer, run_id=run_id
@@ -133,6 +142,22 @@ async def run_agent_job(
             job.result = json_safe(
                 {"session_id": str(session_id), "run_id": str(run_id), "status": run.status}
             )
+            await record_audit(
+                session,
+                user_id=job.user_id,
+                action="evidence_verify",
+                resource_type="agent_run",
+                resource_id=str(run_id),
+                detail={
+                    "claims": verification["totals"]["claims"],
+                    "supported": verification["totals"]["supported"],
+                    "unsupported": verification["totals"]["unsupported"],
+                    "contradicted": verification["totals"]["contradicted"],
+                    "needs_review": verification["needs_review"],
+                },
+                source="agent_worker",
+            )
+            await session.commit()
             await record_audit(
                 session,
                 user_id=job.user_id,
@@ -152,3 +177,26 @@ async def run_agent_job(
     finally:
         if barrier is not None and hasattr(barrier, "set"):
             barrier.set()
+
+
+async def _build_agent_verification(turn, *, access) -> dict:
+    """从工具轨迹回收 chunk_id → 取可见源文 → 生成接地度侧车。
+
+    工具输出 / 参数中的 ``[chunk_id]`` 为唯一证据线索；接口层 ``get_chunks_by_ids``
+    无 access 过滤，故此处逐条 ``visible_to`` 复核（与 ``GetChunkTool`` 同红线）。
+    """
+    from calliodesmo.api.deps import get_app_stores  # 懒加载：域模块不顶层依赖 api 层
+
+    chunk_ids: set[str] = set()
+    for call, result in turn.tool_trace:
+        for value in (call.arguments or {}).values():
+            if isinstance(value, str):
+                chunk_ids.update(_CHUNK_REF_RE.findall(value))
+            elif isinstance(value, list):
+                chunk_ids.update(str(v) for v in value if isinstance(v, str))
+        if result.ok and isinstance(result.output, str):
+            chunk_ids.update(_CHUNK_REF_RE.findall(result.output))
+    stores = get_app_stores()
+    records = await stores.vector_store.get_chunks_by_ids(sorted(chunk_ids))
+    sources = {r.chunk_id: r.content for r in records if visible_to(r, access)}
+    return build_verification(source="agent", sources=sources, answer=turn.answer)

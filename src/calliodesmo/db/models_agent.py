@@ -77,6 +77,8 @@ class AgentRunORM(Base):
     tool_trace: Mapped[list] = mapped_column(JSON, default=list)
     usage: Mapped[dict] = mapped_column(JSON, default=dict)
     steps: Mapped[int] = mapped_column(Integer, default=0)
+    # P8 接地度侧车（可空：P7 历史执行无此列值）
+    verification: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

@@ -31,6 +31,12 @@ _JOBS_COLUMN_SPECS: tuple[tuple[str, str], ...] = (
     ("task_payload", "JSON"),
 )
 
+#: P8 侧车列：表名 -> 补列规格（可空 JSON，历史行保持 NULL）
+_SIDECAR_COLUMN_SPECS: dict[str, tuple[tuple[str, str], ...]] = {
+    "analysis_reports": (("verification", "JSON"),),
+    "agent_runs": (("verification", "JSON"),),
+}
+
 #: contributions 需回填列型的时间列（P6 Task 1 统一为 DateTime(timezone=True)）。
 _TSTZ_COLUMNS: tuple[str, ...] = ("reviewed_at", "merged_at", "created_at", "updated_at")
 
@@ -43,6 +49,7 @@ async def ensure_missing_columns(engine: AsyncEngine) -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(_backfill_jobs_columns)
+        await conn.run_sync(_backfill_sidecar_columns)
         await conn.run_sync(_backfill_contribution_timestamptz)
 
 
@@ -58,6 +65,19 @@ def _backfill_jobs_columns(conn: Connection) -> None:
             logger.info("db/migrate：jobs 补列 %s", name)
     # 与 create_all 的 index=True 同名（ix_<table>_<column>），IF NOT EXISTS 幂等
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_task_type ON jobs (task_type)"))
+
+
+def _backfill_sidecar_columns(conn: Connection) -> None:
+    """P8 侧车列幂等补齐（analysis_reports / agent_runs 的 verification JSON 列）。"""
+    insp = inspect(conn)
+    for table, specs in _SIDECAR_COLUMN_SPECS.items():
+        if not insp.has_table(table):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table)}
+        for name, clause in specs:
+            if name not in existing:
+                conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{name}" {clause}'))
+                logger.info("db/migrate：%s 补列 %s", table, name)
 
 
 def _backfill_contribution_timestamptz(conn: Connection) -> None:

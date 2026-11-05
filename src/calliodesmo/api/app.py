@@ -39,6 +39,7 @@ from calliodesmo.auth.service import authenticate, change_password, create_user
 from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.session import get_session
 from calliodesmo.interfaces.retriever import SearchEngine, SearchMode
+from calliodesmo.verification.pipeline import build_answer_verification
 
 
 class SPAStaticFiles(StaticFiles):
@@ -191,6 +192,23 @@ def build_router() -> APIRouter:
                 detail=f"未知检索模式：{req.mode}（可选 native_rag / local / global）",
             ) from None
         answer = await engine.query(req.question, mode=mode, top_k=req.top_k, access=context)
+        verification = build_answer_verification(
+            source="qa", answer=answer.text, context_chunks=answer.context_chunks
+        )
+        await record_audit(
+            session,
+            user_id=context.user_id,
+            action="evidence_verify",
+            resource_type="answer",
+            detail={
+                "claims": verification["totals"]["claims"],
+                "supported": verification["totals"]["supported"],
+                "unsupported": verification["totals"]["unsupported"],
+                "contradicted": verification["totals"]["contradicted"],
+                "needs_review": verification["needs_review"],
+            },
+            source="api",
+        )
         await record_audit(
             session,
             user_id=context.user_id,
@@ -206,6 +224,7 @@ def build_router() -> APIRouter:
             source_chunk_ids=answer.source_chunk_ids,
             context_chunks=answer.context_chunks,
             model=answer.model,
+            verification=verification,
         )
 
     return router

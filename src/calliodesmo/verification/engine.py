@@ -79,7 +79,7 @@ def verify_claim(claim: Claim, sources: Mapping[str, str]) -> VerificationResult
             confidence=0.1,
             reason="空声明：无可核验内容",
         )
-    if claim.quote and _normalize(claim.quote).strip():
+    if claim.quote and normalize_text(claim.quote).strip():
         return _verify_with_quote(claim, sources)
     return _verify_cross_document(claim, sources)
 
@@ -96,8 +96,8 @@ def _verify_with_quote(claim: Claim, sources: Mapping[str, str]) -> Verification
     if source is None:
         return _unsupported(claim, _EVIDENCE_UNAVAILABLE)
 
-    norm_source = _normalize(source)
-    norm_quote = _normalize(claim.quote or "")
+    norm_source = normalize_text(source)
+    norm_quote = normalize_text(claim.quote or "")
     start = norm_source.find(norm_quote)
     if start < 0:
         return _unsupported(claim, "引注不可定位：quote 不是对应源文子串")
@@ -220,14 +220,14 @@ def _with_injection_note(reason: str, claim: Claim) -> str:
     return reason
 
 
-def _normalize(text: str) -> str:
+def normalize_text(text: str) -> str:
     """匹配归一化：复用 P6 ``normalize_for_match``（去空白）+ NFKC 全半角折叠。"""
     return unicodedata.normalize("NFKC", normalize_for_match(text))
 
 
 def _grams(text: str) -> set[str]:
     """字符二元组集合（去标点 / 空白；单字文本退化为单字集）。"""
-    cleaned = re.sub(r"[^\w]", "", _normalize(text))
+    cleaned = re.sub(r"[^\w]", "", normalize_text(text))
     if len(cleaned) < 2:
         return {cleaned} if cleaned else set()
     return {cleaned[i : i + 2] for i in range(len(cleaned) - 1)}
@@ -244,17 +244,17 @@ def _coverage(claim_text: str, unit_text: str) -> float:
 
 def _year_ranges(text: str) -> set[tuple[str, str]]:
     """抽取「YYYY 至 YYYY」年份区间集合（单年陈述不参与区间冲突判定）。"""
-    return {(start, end) for start, end in _YEAR_RANGE_RE.findall(_normalize(text))}
+    return {(start, end) for start, end in _YEAR_RANGE_RE.findall(normalize_text(text))}
 
 
 def _units(text: str) -> set[str]:
     """抽取单位 token 集合（长单位优先匹配）。"""
-    return set(_UNIT_RE.findall(_normalize(text)))
+    return set(_UNIT_RE.findall(normalize_text(text)))
 
 
 def _has_negation(text: str) -> bool:
     """是否含否定 / 限定词（极性比较用）。"""
-    norm = _normalize(text)
+    norm = normalize_text(text)
     return any(marker in norm for marker in _NEGATION_MARKERS)
 
 
@@ -289,7 +289,7 @@ def _iter_units(source: str) -> list[tuple[str, int, int]]:
     句子单元保证证据定位尽量精确。返回顺序固定（整块在前、句子按出现序），
     最佳单元取覆盖率最高者，同分保留先出现者，故结果确定。
     """
-    norm_source = _normalize(source)
+    norm_source = normalize_text(source)
     units: list[tuple[str, int, int]] = []
     if norm_source:
         units.append((norm_source, 0, len(norm_source)))

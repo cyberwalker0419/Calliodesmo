@@ -74,6 +74,8 @@ class AnalysisReportORM(Base):
     model: Mapped[str] = mapped_column(String(128))
     prompt_version: Mapped[str] = mapped_column(String(32))
     usage_: Mapped[dict] = mapped_column(JSON, default=dict)
+    # P8 接地度侧车（可空：历史报告无此列值，读取端按 None 兼容）
+    verification: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     __table_args__ = (
