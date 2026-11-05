@@ -193,7 +193,10 @@ def build_router() -> APIRouter:
             ) from None
         answer = await engine.query(req.question, mode=mode, top_k=req.top_k, access=context)
         verification = build_answer_verification(
-            source="qa", answer=answer.text, context_chunks=answer.context_chunks
+            source="qa",
+            answer=answer.text,
+            context_chunks=answer.context_chunks,
+            model=answer.model,
         )
         await record_audit(
             session,

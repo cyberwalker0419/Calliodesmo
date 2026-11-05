@@ -40,6 +40,11 @@ from calliodesmo.eval.metrics_grounding import (
     uncited_claim_rate,
     unsupported_rate,
 )
+from calliodesmo.verification.calibration import (
+    Calibrator,
+    default_calibrator,
+    temperature_scale,
+)
 from calliodesmo.verification.engine import normalize_text, verify_claim
 from calliodesmo.verification.models import Claim, EvidenceSpan, Verdict, VerificationResult
 
@@ -79,6 +84,9 @@ def build_verification(
     sources: Mapping[str, str],
     answer: str | None = None,
     payload: dict | None = None,
+    model: str | None = None,
+    prompt_version: str | None = None,
+    calibrator: Calibrator | None = None,
 ) -> dict:
     """构建 ``verification`` 侧车。
 
@@ -87,6 +95,8 @@ def build_verification(
         sources: 调用方已按 ``visible_to`` 过滤的 ``chunk_id → 源文``。
         answer: QA / Agent 答案文本（与 ``payload`` 二选一）。
         payload: 分析报告结构化 payload（与 ``answer`` 二选一）。
+        model / prompt_version: 校准参数切片键（缺切片时恒等映射并留 warning）。
+        calibrator: 校准器（默认读取 ``config/calibration.yaml`` 的进程内单例）。
 
     返回:
         可 JSON 序列化的侧车 dict（结构见模块 docstring）。
@@ -112,6 +122,11 @@ def build_verification(
     truncated = len(claims) > MAX_CLAIMS
     if truncated:
         claims = claims[:MAX_CLAIMS]
+    # 每次构建独立校准器（避免共享 warning 累积）；温度按切片取一次
+    active_calibrator = calibrator or Calibrator(params=default_calibrator().params)
+    temperature = active_calibrator.temperature_for(model=model, prompt_version=prompt_version)
+    for claim in claims:
+        claim["calibrated_confidence"] = temperature_scale(claim["confidence"], temperature)
 
     totals = _totals(claims, citations_total, citations_supported)
     metrics = _metrics(totals, claims)
@@ -123,17 +138,35 @@ def build_verification(
         "metrics": metrics,
         "needs_review": _needs_review(totals, metrics),
         "truncated": truncated,
+        "calibration": {
+            "model": model,
+            "prompt_version": prompt_version,
+            "warnings": list(active_calibrator.warnings),
+        },
     }
 
 
-def build_answer_verification(*, source: str, answer: str, context_chunks: list[dict]) -> dict:
+def build_answer_verification(
+    *,
+    source: str,
+    answer: str,
+    context_chunks: list[dict],
+    model: str | None = None,
+    prompt_version: str | None = None,
+) -> dict:
     """QA / Agent 端点便捷入口：从 ``context_chunks`` 取可见源文生成侧车。"""
     sources = {
         str(chunk.get("chunk_id")): str(chunk.get("content", ""))
         for chunk in context_chunks
         if chunk.get("chunk_id")
     }
-    return build_verification(source=source, sources=sources, answer=answer)
+    return build_verification(
+        source=source,
+        sources=sources,
+        answer=answer,
+        model=model,
+        prompt_version=prompt_version,
+    )
 
 
 def _answer_entries(answer: str, sources: Mapping[str, str]) -> tuple[list[dict], int, int]:

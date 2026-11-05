@@ -36,9 +36,7 @@ class TestQaAnswer:
         assert sidecar["metrics"]["citation_precision"] == 0.5
 
     def test_uncited_sentence_counted_separately(self, sources):
-        sidecar = build_verification(
-            source="qa", sources=sources, answer="稀土市场保持平稳。"
-        )
+        sidecar = build_verification(source="qa", sources=sources, answer="稀土市场保持平稳。")
         assert sidecar["totals"]["uncited"] == 1
         assert sidecar["totals"]["checkable"] == 0
         assert sidecar["metrics"]["uncited_claim_rate"] == 1.0
@@ -119,3 +117,50 @@ class TestShapeAndDeterminism:
         assert build_verification(source="qa", sources=sources, answer=answer) == (
             build_verification(source="qa", sources=sources, answer=answer)
         )
+
+
+class TestCalibrationIntegration:
+    """T4：侧车置信经温度缩放，缺切片回退恒等并留痕。"""
+
+    def test_calibrated_confidence_uses_slice(self, sources):
+        from calliodesmo.verification.calibration import (
+            CalibrationParams,
+            CalibrationSlice,
+            Calibrator,
+        )
+
+        calibrator = Calibrator(
+            params=CalibrationParams(
+                slices=(
+                    CalibrationSlice(
+                        model="m", prompt_version="qa.v1", temperature=2.0, sample_count=120
+                    ),
+                )
+            )
+        )
+        sidecar = build_verification(
+            source="qa",
+            sources=sources,
+            answer="镨钕氧化物报价小幅上行 [public__rare-earth-brief.md#0]。",
+            model="m",
+            prompt_version="qa.v1",
+            calibrator=calibrator,
+        )
+        claim = sidecar["claims"][0]
+        assert claim["calibrated_confidence"] < claim["confidence"]
+        assert sidecar["calibration"]["warnings"] == []
+
+    def test_missing_slice_identity_with_warning(self, sources):
+        from calliodesmo.verification.calibration import Calibrator
+
+        sidecar = build_verification(
+            source="qa",
+            sources=sources,
+            answer="镨钕氧化物报价小幅上行 [public__rare-earth-brief.md#0]。",
+            model="unknown-model",
+            prompt_version="qa.v1",
+            calibrator=Calibrator(),
+        )
+        claim = sidecar["claims"][0]
+        assert claim["calibrated_confidence"] == claim["confidence"]
+        assert sidecar["calibration"]["warnings"]

@@ -196,7 +196,14 @@ async def _build_agent_verification(turn, *, access) -> dict:
                 chunk_ids.update(str(v) for v in value if isinstance(v, str))
         if result.ok and isinstance(result.output, str):
             chunk_ids.update(_CHUNK_REF_RE.findall(result.output))
+    from calliodesmo.config import get_settings
+
     stores = get_app_stores()
     records = await stores.vector_store.get_chunks_by_ids(sorted(chunk_ids))
     sources = {r.chunk_id: r.content for r in records if visible_to(r, access)}
-    return build_verification(source="agent", sources=sources, answer=turn.answer)
+    return build_verification(
+        source="agent",
+        sources=sources,
+        answer=turn.answer,
+        model=get_settings().llm_model,
+    )

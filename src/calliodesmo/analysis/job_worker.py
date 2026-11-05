@@ -172,7 +172,11 @@ async def _finish_succeeded(
     )
     # P8 接地度侧车：材料源文已按 visible_to 过滤（gathered.source_texts）
     verification = build_verification(
-        source="analysis", sources=gathered.source_texts, payload=report.payload
+        source="analysis",
+        sources=gathered.source_texts,
+        payload=report.payload,
+        model=report.model,
+        prompt_version=report.prompt_version,
     )
     report_row = await AnalysisReportStore().create(
         session,
