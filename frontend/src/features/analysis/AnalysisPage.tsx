@@ -159,6 +159,7 @@ export function AnalysisPage() {
   const navigate = useNavigate();
   const canAnalyze = access.can(PERMISSIONS.ANALYZE);
   const canExport = access.can(PERMISSIONS.EXPORT);
+  const canApprove = access.can(PERMISSIONS.APPROVE);
   const [taskType, setTaskType] = useState<AnalysisTaskType>("summary");
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
@@ -402,6 +403,7 @@ export function AnalysisPage() {
         open={reportOpen}
         onOpenChange={setReportOpen}
         canExport={canExport}
+        canApprove={canApprove}
       />
     </div>
   );
