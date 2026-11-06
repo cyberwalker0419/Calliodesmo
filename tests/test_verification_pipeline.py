@@ -8,7 +8,7 @@ import pytest
 
 from calliodesmo.verification.pipeline import build_verification
 
-_DEMO = Path(__file__).resolve().parents[1] / "data" / "demo"
+_DEMO = Path(__file__).resolve().parent / "fixtures" / "demo"
 _PUBLIC = "public__rare-earth-brief.md#0"
 _INTERNAL = "internal__apt28-tracking.md#0"
 _CONFIDENTIAL = "confidential__nightingale-assessment.md#0"

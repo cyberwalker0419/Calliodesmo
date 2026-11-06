@@ -10,7 +10,7 @@ import yaml
 from calliodesmo.verification.engine import verify_claim, verify_claims
 from calliodesmo.verification.models import Claim, Verdict
 
-_DEMO_DIR = Path(__file__).resolve().parents[1] / "data" / "demo"
+_DEMO_DIR = Path(__file__).resolve().parent / "fixtures" / "demo"
 _VERIFICATION_YAML = Path(__file__).resolve().parents[1] / "config" / "golden_verification.yaml"
 
 

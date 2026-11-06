@@ -13,7 +13,7 @@ from calliodesmo.analysis.evidence import normalize_for_match
 
 _ROOT = Path(__file__).resolve().parents[1]
 _CONFIG = _ROOT / "config"
-_DEMO = _ROOT / "data" / "demo"
+_DEMO = _ROOT / "tests" / "fixtures" / "demo"
 
 
 def _load_yaml(name: str) -> dict:
