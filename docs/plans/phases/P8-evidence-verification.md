@@ -101,11 +101,11 @@ created: 2026-11-06
 
 **Files:** 新 `config/golden_qa_v2.yaml` · 新 `config/golden_verification.yaml`（claim + support 标注）· 新 `config/golden_contradictions.yaml` · 新 `src/calliodesmo/eval/metrics_grounding.py` · 测试 `tests/test_metrics_grounding.py` / `tests/test_golden_verification.py`。
 
-- [ ] **Step 1:** 写失败测试：指标公式（citation_precision / recall、claim_grounding、unsupported_rate、contradiction_rate、uncited_claim_rate、ECE 分箱）边界值；空输入、除零、全 supported / 全 unsupported。
-- [ ] **Step 2:** 跑确认失败 → 实现 `eval/metrics_grounding.py`（纯函数、无夹具、无 LLM）；ECE 10 桶，返回 `(ece, reliability_table, sample_count)`。
-- [ ] **Step 3:** 扩充语料：`golden_qa_v2.yaml` ≥ 30 例（含 ≥5 无答案、≥5 多跳、≥5 干扰项）；`golden_verification.yaml` ≥ 40 条 claim（supported / unsupported / uncertain / contradicted 四类平衡）；`golden_contradictions.yaml` 用 `data/demo` 同源材料构造数值 / 日期 / 否定冲突。
-- [ ] **Step 4:** 跑绿 + 落离线基线 `docs/verification/p8-regression.json`（结构 / 契约证据，非质量结论）；语料规模与类别分布打印进验证报告草稿。
-- [ ] **Step 5:** 提交：`feat(eval): P8 评估语料 v2 与接地度指标`。
+- [x] **Step 1:** 写失败测试：指标公式（citation_precision / recall、claim_grounding、unsupported_rate、contradiction_rate、uncited_claim_rate、ECE 分箱）边界值；空输入、除零、全 supported / 全 unsupported。
+- [x] **Step 2:** 跑确认失败 → 实现 `eval/metrics_grounding.py`（纯函数、无夹具、无 LLM）；ECE 10 桶，返回 `(ece, reliability_table, sample_count)`。
+- [x] **Step 3:** 扩充语料：`golden_qa_v2.yaml` ≥ 30 例（含 ≥5 无答案、≥5 多跳、≥5 干扰项）；`golden_verification.yaml` ≥ 40 条 claim（supported / unsupported / uncertain / contradicted 四类平衡）；`golden_contradictions.yaml` 用 `data/demo` 同源材料构造数值 / 日期 / 否定冲突。
+- [x] **Step 4:** 跑绿 + 落离线基线 `docs/verification/p8-regression.json`（结构 / 契约证据，非质量结论）；语料规模与类别分布打印进验证报告草稿。
+- [x] **Step 5:** 提交：`feat(eval): P8 评估语料 v2 与接地度指标`。
 
 **验收：** 指标单测全绿；语料类别分布满足下限；基线 JSON 可复现。
 
@@ -117,11 +117,11 @@ created: 2026-11-06
 
 **Files:** 新 `src/calliodesmo/verification/__init__.py` / `models.py` / `engine.py` · 测试 `tests/test_verification_engine.py`。
 
-- [ ] **Step 1:** 写失败测试：quote 子串（含空白 / 全角标点归一化）、chunk_id 不存在、空 quote、数值 / 日期 / 否定矛盾、跨文档同实体聚合、`uncertain` 边界；判定顺序稳定（contradicted > supported > uncertain > unsupported）。
-- [ ] **Step 2:** 跑确认失败 → 实现 `verification/models.py`（`Claim` / `EvidenceSpan` / `VerificationResult` / `Verdict` 枚举）与 `engine.py` 纯函数；复用 `normalize_for_match`，不复制归一化逻辑。
-- [ ] **Step 3:** 跨文档核验：claim 无直接 quote 时，按实体 / 关键词在可见源文检索候选句，命中支持句判 supported 并记 `match_type="cross_document"`；命中冲突句判 contradicted。
-- [ ] **Step 4:** 权限红线测试：源文只能来自 `visible_to` 过滤后的材料；不可见 chunk 与不存在 chunk 返回同一 `unsupported` 语义（不泄漏存在性）。
-- [ ] **Step 5:** 跑绿 + 提交：`feat(verification): 确定性证据核验引擎`。
+- [x] **Step 1:** 写失败测试：quote 子串（含空白 / 全角标点归一化）、chunk_id 不存在、空 quote、数值 / 日期 / 否定矛盾、跨文档同实体聚合、`uncertain` 边界；判定顺序稳定（contradicted > supported > uncertain > unsupported）。
+- [x] **Step 2:** 跑确认失败 → 实现 `verification/models.py`（`Claim` / `EvidenceSpan` / `VerificationResult` / `Verdict` 枚举）与 `engine.py` 纯函数；复用 `normalize_for_match`，不复制归一化逻辑。
+- [x] **Step 3:** 跨文档核验：claim 无直接 quote 时，按实体 / 关键词在可见源文检索候选句，命中支持句判 supported 并记 `match_type="cross_document"`；命中冲突句判 contradicted。
+- [x] **Step 4:** 权限红线测试：源文只能来自 `visible_to` 过滤后的材料；不可见 chunk 与不存在 chunk 返回同一 `unsupported` 语义（不泄漏存在性）。
+- [x] **Step 5:** 跑绿 + 提交：`feat(verification): 确定性证据核验引擎`。
 
 **验收：** 四类判定在 golden_verification 上确定性可复现；越权探测零泄漏；无新依赖。
 
@@ -133,11 +133,11 @@ created: 2026-11-06
 
 **Files:** 改 `src/calliodesmo/analysis/engine.py` / `job_worker.py` / `report_store.py` · 改 `src/calliodesmo/retrieval/answer_synthesizer.py` · 改 `src/calliodesmo/agent/job_worker.py` · 改 `src/calliodesmo/api/schemas.py` + 各出参 · 新 `src/calliodesmo/verification/pipeline.py` · 测试三条面各一组。
 
-- [ ] **Step 1:** 写失败测试：分析报告落库带 `verification`（claim 数 / supported 数 / unsupported 数 / 指标）；QA 答案带引注核验；AgentRun 带 `verification`；越权材料不出现在证据片段。
-- [ ] **Step 2:** 跑确认失败 → 实现 `verification/pipeline.py`（材料收集 → claim 抽取 → 核验 → 汇总），三处调用方注入同一实现；`uncited_claim_rate` 独立统计。
-- [ ] **Step 3:** 持久化：`AnalysisReportORM.verification`、`AgentRunORM.verification` 可空 JSON 列；`db/migrate.py` 幂等补列；`models.py` 注册不变（同表加列）。
-- [ ] **Step 4:** API 出参扩展（向后兼容，字段可空）：报告详情 / QA 响应 / Agent 回合带 `verification`；审计 `evidence_verify`（仅计数与回流，不记原文）。
-- [ ] **Step 5:** 跑绿 + 提交：`feat(verification): 报告/QA/Agent 接地度与幻觉标记接入`。
+- [x] **Step 1:** 写失败测试：分析报告落库带 `verification`（claim 数 / supported 数 / unsupported 数 / 指标）；QA 答案带引注核验；AgentRun 带 `verification`；越权材料不出现在证据片段。
+- [x] **Step 2:** 跑确认失败 → 实现 `verification/pipeline.py`（材料收集 → claim 抽取 → 核验 → 汇总），三处调用方注入同一实现；`uncited_claim_rate` 独立统计。
+- [x] **Step 3:** 持久化：`AnalysisReportORM.verification`、`AgentRunORM.verification` 可空 JSON 列；`db/migrate.py` 幂等补列；`models.py` 注册不变（同表加列）。
+- [x] **Step 4:** API 出参扩展（向后兼容，字段可空）：报告详情 / QA 响应 / Agent 回合带 `verification`；审计 `evidence_verify`（仅计数与回流，不记原文）。
+- [x] **Step 5:** 跑绿 + 提交：`feat(verification): 报告/QA/Agent 接地度与幻觉标记接入`。
 
 **验收：** 三条面字段齐全、历史数据兼容；性能不显著劣化（单报告核验 < 1s，纯本地）。
 
@@ -149,11 +149,11 @@ created: 2026-11-06
 
 **Files:** 新 `src/calliodesmo/verification/calibration.py` · 新 `config/calibration.yaml`（参数与切片）· 改 `verification/pipeline.py`（输出校准后置信）· 新 `scripts/eval_p8.py` · 测试 `tests/test_calibration.py`。
 
-- [ ] **Step 1:** 写失败测试：温度缩放公式、网格搜索最优温度、ECE 计算与分箱边界、空样本 / 全同类样本、参数读写幂等。
-- [ ] **Step 2:** 跑确认失败 → 实现校准器（纯 Python，无 numpy）；参数按 `model + prompt_version` 切片；缺参数时恒等映射并记 warning。
-- [ ] **Step 3:** `scripts/eval_p8.py`：离线（桩）与 `--real` 两轨，输出 `p8-regression.json` / `p8-real-<模型名>.json`；质量门槛判定与「样本不足」提示。
-- [ ] **Step 4:** 接入输出：报告 / QA / Agent 的 `verification.calibrated_confidence`；审计只记参数版本与指标，不记原文。
-- [ ] **Step 5:** 跑绿 + 提交：`feat(verification): 置信度校准与 P8 评估脚本`。
+- [x] **Step 1:** 写失败测试：温度缩放公式、网格搜索最优温度、ECE 计算与分箱边界、空样本 / 全同类样本、参数读写幂等。
+- [x] **Step 2:** 跑确认失败 → 实现校准器（纯 Python，无 numpy）；参数按 `model + prompt_version` 切片；缺参数时恒等映射并记 warning。
+- [x] **Step 3:** `scripts/eval_p8.py`：离线（桩）与 `--real` 两轨，输出 `p8-regression.json` / `p8-real-<模型名>.json`；质量门槛判定与「样本不足」提示。
+- [x] **Step 4:** 接入输出：报告 / QA / Agent 的 `verification.calibrated_confidence`；审计只记参数版本与指标，不记原文。
+- [x] **Step 5:** 跑绿 + 提交：`feat(verification): 置信度校准与 P8 评估脚本`。
 
 **验收：** 校准器数值正确；参数落盘可复现；--real 报告含 ECE、可靠性表、样本量与达标判定。
 
@@ -165,10 +165,10 @@ created: 2026-11-06
 
 **Files:** 新 `src/calliodesmo/retrieval/intent.py` · 改 `src/calliodesmo/api/query.py`（或对应端点）/ `api/schemas.py` · 改前端模式选择器（后续 Task 7）· 测试 `tests/test_intent_router.py`。
 
-- [ ] **Step 1:** 写失败测试：显式模式绝不改写；多跳 / 全局主题 / 实体关系 / 操作指令四类正例；模糊查询回退默认；置信阈值与理由字段。
-- [ ] **Step 2:** 跑确认失败 → 实现规则打分器（关键词、疑问类型、长度、实体/关系线索、动作词）；输出 `IntentDecision(mode, confidence, reasons)`。
-- [ ] **Step 3:** API 接入：`mode=auto` 时路由并回显 `routed_mode` + `routing`；审计 `intent_route`；显式模式路径零变化（回归）。
-- [ ] **Step 4:** 跑绿 + 提交：`feat(retrieval): 意图路由 auto 模式`。
+- [x] **Step 1:** 写失败测试：显式模式绝不改写；多跳 / 全局主题 / 实体关系 / 操作指令四类正例；模糊查询回退默认；置信阈值与理由字段。
+- [x] **Step 2:** 跑确认失败 → 实现规则打分器（关键词、疑问类型、长度、实体/关系线索、动作词）；输出 `IntentDecision(mode, confidence, reasons)`。
+- [x] **Step 3:** API 接入：`mode=auto` 时路由并回显 `routed_mode` + `routing`；审计 `intent_route`；显式模式路径零变化（回归）。
+- [x] **Step 4:** 跑绿 + 提交：`feat(retrieval): 意图路由 auto 模式`。
 
 **验收：** 路由决策表测试全绿；显式模式回归不变；标注集 `intent_accuracy` 有离线基线。
 
@@ -180,11 +180,11 @@ created: 2026-11-06
 
 **Files:** 改 `src/calliodesmo/db/models_analysis.py`（新 `AnalysisReportVersionORM` + 列扩展）· 改 `src/calliodesmo/db/migrate.py` · 新 `src/calliodesmo/analysis/lifecycle.py` · 改 `src/calliodesmo/api/analysis.py` / `api/schemas.py` · 改 `src/calliodesmo/cli.py` · 测试 `tests/test_report_lifecycle.py` / `tests/test_report_lifecycle_api.py`。
 
-- [ ] **Step 1:** 写失败测试：版本快照 append-only（编辑 / 重分析生成新版本，旧版本不可变）；软删除后列表不可见、详情 404、恢复后可见；复核状态机合法 / 非法流转；并发乐观锁；越权 404 同文案。
-- [ ] **Step 2:** 跑确认失败 → 实现 ORM（`version` / `snapshot` / `created_by` / `created_at`；报告行加 `deleted_at` / `review_status` / `reviewed_by` / `reviewed_at` / `review_note`）与 `db/migrate.py` 幂等补列；`models.py` 注册新表。
-- [ ] **Step 3:** `analysis/lifecycle.py`：`create_version` / `list_versions` / `rollback`（append 式）/ `soft_delete` / `restore` / `submit_review` / `approve` / `reject`；全程 `record_audit`；权限：owner + `APPROVE` 复核。
-- [ ] **Step 4:** API + CLI：`GET /analysis/reports/{id}/versions`、`POST .../rollback`、`DELETE` / `POST .../restore`、`POST .../review`；CLI `reports versions/rollback/delete/restore/review`。
-- [ ] **Step 5:** 跑绿 + 提交：`feat(analysis): 报告版本化、软删除与复核流`。
+- [x] **Step 1:** 写失败测试：版本快照 append-only（编辑 / 重分析生成新版本，旧版本不可变）；软删除后列表不可见、详情 404、恢复后可见；复核状态机合法 / 非法流转；并发乐观锁；越权 404 同文案。
+- [x] **Step 2:** 跑确认失败 → 实现 ORM（`version` / `snapshot` / `created_by` / `created_at`；报告行加 `deleted_at` / `review_status` / `reviewed_by` / `reviewed_at` / `review_note`）与 `db/migrate.py` 幂等补列；`models.py` 注册新表。
+- [x] **Step 3:** `analysis/lifecycle.py`：`create_version` / `list_versions` / `rollback`（append 式）/ `soft_delete` / `restore` / `submit_review` / `approve` / `reject`；全程 `record_audit`；权限：owner + `APPROVE` 复核。
+- [x] **Step 4:** API + CLI：`GET /analysis/reports/{id}/versions`、`POST .../rollback`、`DELETE` / `POST .../restore`、`POST .../review`；CLI `reports versions/rollback/delete/restore/review`。
+- [x] **Step 5:** 跑绿 + 提交：`feat(analysis): 报告版本化、软删除与复核流`。
 
 **验收：** 状态机与权限矩阵全绿；删除可恢复；版本链可审计；既有报告读取回归不变。
 
@@ -196,10 +196,10 @@ created: 2026-11-06
 
 **Files:** 改 `frontend/src/features/analysis/*` · `frontend/src/features/agent/*` · `frontend/src/api/types.ts` + 客户端 · 测试 `*.test.tsx` · e2e 可选补一组。
 
-- [ ] **Step 1:** 写失败测试：验证徽标按 verdict 渲染；`needs_review` 提示；版本列表与回滚确认；删除后列表消失、恢复入口；无复核权限隐藏操作。
-- [ ] **Step 2:** 跑确认失败 → 实现组件与 API 接线；`verification` 字段可空时向后兼容（旧报告不报错）。
-- [ ] **Step 3:** `preview_*` 闭环：分析详情（supported / unsupported / contradicted 三态）、QA 引用核验、Agent 回合核验；三角色 × 桌面 / 移动双视口；DOM 探针零溢出 / 遮挡。
-- [ ] **Step 4:** 跑绿（vitest + build + lint）+ 提交：`feat(frontend): 证据验证与报告生命周期 UI`。
+- [x] **Step 1:** 写失败测试：验证徽标按 verdict 渲染；`needs_review` 提示；版本列表与回滚确认；删除后列表消失、恢复入口；无复核权限隐藏操作。
+- [x] **Step 2:** 跑确认失败 → 实现组件与 API 接线；`verification` 字段可空时向后兼容（旧报告不报错）。
+- [x] **Step 3:** `preview_*` 闭环：分析详情（supported / unsupported / contradicted 三态）、QA 引用核验、Agent 回合核验；三角色 × 桌面 / 移动双视口；DOM 探针零溢出 / 遮挡。
+- [x] **Step 4:** 跑绿（vitest + build + lint）+ 提交：`feat(frontend): 证据验证与报告生命周期 UI`。
 
 **验收：** 三角色权限一致；双视口无布局异常；旧报告兼容。
 
@@ -219,15 +219,21 @@ created: 2026-11-06
 
 **Files:** 新 `docs/verification/P8-verification.md` · 改 `docs/verification/README.md` · 改 `CLAUDE.md` / `AGENTS.md` 当前阶段与结构段 · 改 `README.md`。
 
-- [ ] **Step 1:** 离线轨：全量 `pytest -q` 绿（≥1150 基线）+ `scripts/eval_p8.py` 落 `p8-regression.json`；前端 vitest / build / lint 绿。
-- [ ] **Step 2:** 质量轨（用户本机，`--real`）：`scripts/eval_p8.py --real`，落 `p8-real-<模型名>.json`；如实记录 ECE 样本量、unsupported / contradiction 率、注入零诱导。
-- [ ] **Step 3:** 写 P8 验证报告（四要素 + Task 闭合矩阵 + 未竟清单），区分离线 / 质量两轨；登记证据文件。
-- [ ] **Step 4:** 文档同步：CLAUDE.md / AGENTS.md 当前阶段补 P8 行、结构段补 `verification/` 与 `eval/metrics_grounding.py`；README badge 更新。
-- [ ] **Step 5:** 提交 + PR：`docs(verification): P8 验证报告与文档同步`；PR 合入 main。
+- [x] **Step 1:** 离线轨：全量 `pytest -q` 绿（≥1150 基线）+ `scripts/eval_p8.py` 落 `p8-regression.json`；前端 vitest / build / lint 绿。
+- [ ] **Step 2:** 质量轨（用户本机，`--real`）：`scripts/eval_p8.py --real`，落 `p8-real-<模型名>.json`；如实记录 ECE 样本量、unsupported / contradiction 率、注入零诱导。（待执行：锚点 2026-W46，用户本机就绪可提前）
+- [x] **Step 3:** 写 P8 验证报告（四要素 + Task 闭合矩阵 + 未竟清单），区分离线 / 质量两轨；登记证据文件。
+- [x] **Step 4:** 文档同步：CLAUDE.md / AGENTS.md 当前阶段补 P8 行、结构段补 `verification/` 与 `eval/metrics_grounding.py`；README badge 更新。
+- [x] **Step 5:** 提交：`docs(verification): P8 验证报告与文档同步`；⏳ PR 合入 main 待用户确认后推送（未推送）。
 
 **验收：** 双轨证据齐备；P8 未竟项全部带锚点；PR CI 绿。
 
 ---
+
+**闭合实录（2026-11-06）**：T1–T7 + T9 全部闭合并逐 Task 提交（提交链见
+[[docs/verification/P8-verification|P8 验证报告]]）；离线结构轨全绿（43/43 判定、
+矛盾 10/10、intent 22/22；后端 1288 passed / 1 skipped），前端 80 vitest + 三件套绿，preview 双角色 × 双视口
+闭环完成。`--real` 质量轨待用户本机执行（锚点 2026-W46，证据入库后补记）；
+T8 Agent 会话生命周期按计划留待 2026-W49 重评。
 
 ## 依赖与风险
 
