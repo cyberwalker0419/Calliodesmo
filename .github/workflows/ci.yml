@@ -13,10 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv (ghfast mirror)
+      - name: Install uv (PyPI)
+        # 2026-11-06：ghfast 镜像对 releases URL 返回 403，改从 PyPI 安装固定版本，
+        # 不依赖 GitHub Releases 直连。
         run: |
-          curl -fsSL https://ghfast.top/https://github.com/astral-sh/uv/releases/download/0.13.0/uv-x86_64-unknown-linux-gnu.tar.gz -o /tmp/uv.tgz
-          tar -xzf /tmp/uv.tgz -C /usr/local/bin --strip-components=1
+          python -m pip install --disable-pip-version-check "uv==0.13.0"
           uv --version
 
       - name: Install dependencies
