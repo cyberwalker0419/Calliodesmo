@@ -1,4 +1,4 @@
-import { Globe, ImagePlus, Layers, MessageSquareText, Send, X } from "lucide-react";
+import { Globe, ImagePlus, Layers, MessageSquareText, Send, Sparkles, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { AnswerCard } from "./AnswerCard";
 import { useAsk } from "./useQuery";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const MODES: { value: SearchMode; label: string; icon: typeof Layers }[] = [
+  { value: "auto", label: "Auto", icon: Sparkles },
   { value: "native_rag", label: "Native", icon: MessageSquareText },
   { value: "local", label: "Local", icon: Layers },
   { value: "global", label: "Global", icon: Globe },

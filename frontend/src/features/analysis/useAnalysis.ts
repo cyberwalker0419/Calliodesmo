@@ -4,15 +4,21 @@
 // - 轮询用 useQuery + refetchInterval 函数式（非终态 1200ms、终态返回 false 停、
 //   enabled 门控）；
 // - 报告历史 / 详情 / 可见文档清单为普通 useQuery（Task 19/20 消费）。
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  deleteReport,
   getReport,
+  getReportVerification,
   listAnalysisDocuments,
+  listReportVersions,
   listReports,
+  restoreReport,
+  reviewReport,
+  rollbackReport,
   submitAnalysisTask,
 } from "./api";
 import { api } from "@/api/client";
-import type { AnalysisJobRequest, JobOut } from "@/api/types";
+import type { AnalysisJobRequest, JobOut, ReviewAction } from "@/api/types";
 
 /** 提交分析任务 -> 202 + job_id（异步 analyze job；进度经 useAnalysisJob 轮询）。 */
 export function useSubmitAnalysis() {
@@ -48,13 +54,19 @@ export function useAnalysisJob(jobId: string | null) {
  * ``enabled`` 门控（Task 20）：无 analyze 权限的页面守卫场景不发起查询。
  */
 export function useReports(
-  params: { limit?: number; offset?: number; enabled?: boolean } = {}
+  params: {
+    limit?: number;
+    offset?: number;
+    enabled?: boolean;
+    includeDeleted?: boolean;
+  } = {}
 ) {
   const limit = params.limit ?? 20;
   const offset = params.offset ?? 0;
+  const includeDeleted = params.includeDeleted ?? false;
   return useQuery({
-    queryKey: ["analysis-reports", limit, offset],
-    queryFn: () => listReports({ limit, offset }),
+    queryKey: ["analysis-reports", limit, offset, includeDeleted],
+    queryFn: () => listReports({ limit, offset, includeDeleted }),
     enabled: params.enabled ?? true,
   });
 }
@@ -73,5 +85,72 @@ export function useAnalysisDocuments() {
   return useQuery({
     queryKey: ["analysis-documents"],
     queryFn: () => listAnalysisDocuments(),
+  });
+}
+
+/** 报告接地度侧车：GET /analysis/reports/{id}/verification（可空，历史报告兼容）。 */
+export function useReportVerification(reportId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["analysis-report-verification", reportId],
+    queryFn: () => getReportVerification(reportId as string),
+    enabled: enabled && reportId !== null,
+  });
+}
+
+/** 报告版本链：GET /analysis/reports/{id}/versions。 */
+export function useReportVersions(reportId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["analysis-report-versions", reportId],
+    queryFn: () => listReportVersions(reportId as string),
+    enabled: enabled && reportId !== null,
+  });
+}
+
+/** 生命周期 mutations：成功后失效报告列表 / 详情 / 版本链。 */
+function useInvalidateReport() {
+  const queryClient = useQueryClient();
+  return (reportId: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["analysis-reports"] });
+    void queryClient.invalidateQueries({ queryKey: ["analysis-report", reportId] });
+    void queryClient.invalidateQueries({
+      queryKey: ["analysis-report-versions", reportId],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["analysis-report-verification", reportId],
+    });
+  };
+}
+
+export function useDeleteReport() {
+  const invalidate = useInvalidateReport();
+  return useMutation({
+    mutationFn: (reportId: string) => deleteReport(reportId),
+    onSuccess: (_data, reportId) => invalidate(reportId),
+  });
+}
+
+export function useRestoreReport() {
+  const invalidate = useInvalidateReport();
+  return useMutation({
+    mutationFn: (reportId: string) => restoreReport(reportId),
+    onSuccess: (_data, reportId) => invalidate(reportId),
+  });
+}
+
+export function useRollbackReport() {
+  const invalidate = useInvalidateReport();
+  return useMutation({
+    mutationFn: (vars: { reportId: string; version: number }) =>
+      rollbackReport(vars.reportId, vars.version),
+    onSuccess: (_data, vars) => invalidate(vars.reportId),
+  });
+}
+
+export function useReviewReport() {
+  const invalidate = useInvalidateReport();
+  return useMutation({
+    mutationFn: (vars: { reportId: string; action: ReviewAction; note?: string }) =>
+      reviewReport(vars.reportId, vars.action, vars.note),
+    onSuccess: (_data, vars) => invalidate(vars.reportId),
   });
 }

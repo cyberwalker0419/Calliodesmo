@@ -475,6 +475,7 @@ class AnalysisReportListItem(BaseModel):
     # P8 生命周期
     review_status: str = "draft"
     current_version: int = 1
+    deleted: bool = False
 
 
 class AnalysisVerificationOut(BaseModel):

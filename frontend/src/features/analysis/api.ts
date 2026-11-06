@@ -8,7 +8,11 @@ import type {
   AnalysisDocumentOut,
   AnalysisEnvelope,
   AnalysisJobRequest,
+  AnalysisReportActionOut,
+  AnalysisReportVersionsOut,
   ReportListOut,
+  ReviewAction,
+  VerificationSidecar,
 } from "@/api/types";
 
 /** POST /analysis/tasks -> 202 + job_id（异步 analyze job，进度经 GET /jobs/{id} 轮询）。 */
@@ -18,11 +22,15 @@ export function submitAnalysisTask(req: AnalysisJobRequest): Promise<AnalysisAcc
 
 /** GET /analysis/reports：报告历史（三维可见性过滤 + limit/offset 分页，默认 20/0）。 */
 export function listReports(
-  params: { limit?: number; offset?: number } = {}
+  params: { limit?: number; offset?: number; includeDeleted?: boolean } = {}
 ): Promise<ReportListOut> {
   const limit = params.limit ?? 20;
   const offset = params.offset ?? 0;
-  return api.get<ReportListOut>("/analysis/reports", { limit, offset });
+  return api.get<ReportListOut>("/analysis/reports", {
+    limit,
+    offset,
+    include_deleted: params.includeDeleted ? true : undefined,
+  });
 }
 
 /** GET /analysis/reports/{report_id}：完整信封（不可见 / 不存在 -> 404，客户端抛 ApiError）。 */
@@ -42,4 +50,52 @@ export function exportReportUrl(reportId: string, format: "json" | "md" = "json"
 /** GET /analysis/documents：可见文档清单（按 doc_id 聚合；Task 19 MaterialPicker 数据源）。 */
 export function listAnalysisDocuments(): Promise<AnalysisDocumentOut[]> {
   return api.get<AnalysisDocumentOut[]>("/analysis/documents");
+}
+
+/** GET /analysis/reports/{id}/verification：接地度侧车（历史报告可能为 null）。 */
+export function getReportVerification(
+  reportId: string
+): Promise<{ verification: VerificationSidecar | null }> {
+  return api.get<{ verification: VerificationSidecar | null }>(
+    `/analysis/reports/${reportId}/verification`
+  );
+}
+
+/** GET /analysis/reports/{id}/versions：版本链（append-only，新版本在前）。 */
+export function listReportVersions(reportId: string): Promise<AnalysisReportVersionsOut> {
+  return api.get<AnalysisReportVersionsOut>(`/analysis/reports/${reportId}/versions`);
+}
+
+/** POST /analysis/reports/{id}/rollback：回滚到目标版本（append 式）。 */
+export function rollbackReport(
+  reportId: string,
+  version: number,
+  expectedLockVersion?: number
+): Promise<AnalysisReportActionOut> {
+  return api.post<AnalysisReportActionOut>(`/analysis/reports/${reportId}/rollback`, {
+    version,
+    expected_lock_version: expectedLockVersion,
+  });
+}
+
+/** DELETE /analysis/reports/{id}：软删除（可恢复）。 */
+export function deleteReport(reportId: string): Promise<AnalysisReportActionOut> {
+  return api.del<AnalysisReportActionOut>(`/analysis/reports/${reportId}`);
+}
+
+/** POST /analysis/reports/{id}/restore：恢复软删除报告。 */
+export function restoreReport(reportId: string): Promise<AnalysisReportActionOut> {
+  return api.post<AnalysisReportActionOut>(`/analysis/reports/${reportId}/restore`);
+}
+
+/** POST /analysis/reports/{id}/review：复核流（submit / approve / reject）。 */
+export function reviewReport(
+  reportId: string,
+  action: ReviewAction,
+  note?: string
+): Promise<AnalysisReportActionOut> {
+  return api.post<AnalysisReportActionOut>(`/analysis/reports/${reportId}/review`, {
+    action,
+    note,
+  });
 }

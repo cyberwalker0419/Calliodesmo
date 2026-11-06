@@ -224,6 +224,7 @@ async def submit_analysis_task(
 async def list_reports(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    include_deleted: bool = Query(default=False, description="含已软删除报告（恢复入口）"),
     ctx: AccessContext = Depends(get_current_context),
     session: AsyncSession = Depends(get_session),
 ) -> AnalysisReportListOut:
@@ -234,7 +235,7 @@ async def list_reports(
     """
     require_permission(ctx, Permission.ANALYZE)
     items, total = await AnalysisReportStore().list_visible(
-        session, access=ctx, limit=limit, offset=offset
+        session, access=ctx, limit=limit, offset=offset, include_deleted=include_deleted
     )
     return AnalysisReportListOut(items=[_report_item(r) for r in items], total=total)
 
@@ -650,6 +651,7 @@ def _report_item(report: AnalysisReportORM) -> AnalysisReportListItem:
         verification=_verification_summary(report.verification),
         review_status=report.review_status,
         current_version=report.current_version,
+        deleted=report.deleted_at is not None,
     )
 
 

@@ -36,6 +36,7 @@ import {
   type TasksPayload,
   type TimelineEventPayload,
   type TimelinePayload,
+  type VerificationSidecar,
 } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,8 +48,10 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VerificationPanel } from "@/features/verification/VerificationPanel";
 import { exportReportUrl } from "./api";
-import { useReport } from "./useAnalysis";
+import { ReportLifecyclePanel } from "./ReportLifecyclePanel";
+import { useReport, useReportVerification } from "./useAnalysis";
 
 /** 时间线精度中文标注（对齐 TimelineGranularity 三值）。 */
 const GRANULARITY_LABEL: Record<string, string> = {
@@ -624,13 +627,20 @@ export interface ReportViewerProps {
   reportId: string;
   /** 当前用户是否持 export 权限（无则导出按钮禁用；后端守卫为最终闸）。 */
   canExport?: boolean;
+  /** P8 接地度侧车（旧报告为 null，不渲染验证面板）。 */
+  verification?: VerificationSidecar | null;
 }
 
 /**
  * ReportViewer：信封分节渲染（纯展示，数据经 ReportDialog / 父组件注入）。
  * 结构：状态横幅与告警 → 元信息卡 → Radix Tabs 分节（按 task_type）→ 导出按钮。
  */
-export function ReportViewer({ envelope, reportId, canExport = false }: ReportViewerProps) {
+export function ReportViewer({
+  envelope,
+  reportId,
+  canExport = false,
+  verification = null,
+}: ReportViewerProps) {
   const typeLabel =
     ANALYSIS_TASK_TYPES.find((t) => t.value === envelope.task_type)?.label ??
     envelope.task_type;
@@ -659,6 +669,9 @@ export function ReportViewer({ envelope, reportId, canExport = false }: ReportVi
           <p className="text-sm font-medium text-destructive">报告生成失败</p>
         </div>
       )}
+
+      {/* P8 接地度：声明级验证徽标 / 汇总指标 / 证据引文 */}
+      <VerificationPanel verification={verification} defaultOpen />
 
       {/* warnings 展示（降级与证据失配等可读告警） */}
       {envelope.warnings.length > 0 && (
@@ -736,6 +749,12 @@ export interface ReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canExport?: boolean;
+  /** 复核权限（APPROVE）：决定通过 / 驳回按钮可见性。 */
+  canApprove?: boolean;
+  /** 当前列表行的复核状态（draft / pending / approved / rejected）。 */
+  reviewStatus?: string;
+  /** 生命周期动作后刷新列表。 */
+  onChanged?: () => void;
 }
 
 /**
@@ -747,8 +766,12 @@ export function ReportDialog({
   open,
   onOpenChange,
   canExport = false,
+  canApprove = false,
+  reviewStatus = "draft",
+  onChanged,
 }: ReportDialogProps) {
   const { data: envelope, isLoading, error } = useReport(open ? reportId : null);
+  const verification = useReportVerification(open ? reportId : null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] w-full max-w-3xl overflow-y-auto">
@@ -772,7 +795,23 @@ export function ReportDialog({
             加载报告失败：{(error as Error).message}
           </p>
         ) : envelope && reportId ? (
-          <ReportViewer envelope={envelope} reportId={reportId} canExport={canExport} />
+          <div className="space-y-4">
+            <ReportViewer
+              envelope={envelope}
+              reportId={reportId}
+              canExport={canExport}
+              verification={verification.data?.verification ?? null}
+            />
+            <ReportLifecyclePanel
+              reportId={reportId}
+              reviewStatus={reviewStatus}
+              canApprove={canApprove}
+              onDeleted={() => {
+                onOpenChange(false);
+                onChanged?.();
+              }}
+            />
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>

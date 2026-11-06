@@ -13,7 +13,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
-import type { AnalysisEnvelope } from "@/api/types";
+import type { AnalysisEnvelope, VerificationSidecar } from "@/api/types";
 import { ReportViewer } from "./ReportViewer";
 
 function wrap(children: React.ReactNode) {
@@ -23,11 +23,59 @@ function wrap(children: React.ReactNode) {
   return createElement(QueryClientProvider, { client }, children);
 }
 
-function renderViewer(envelope: AnalysisEnvelope, props: { canExport?: boolean } = {}) {
+function renderViewer(
+  envelope: AnalysisEnvelope,
+  props: { canExport?: boolean; verification?: VerificationSidecar | null } = {}
+) {
   return render(
-    wrap(<ReportViewer envelope={envelope} reportId="r-1" canExport={props.canExport ?? false} />)
+    wrap(
+      <ReportViewer
+        envelope={envelope}
+        reportId="r-1"
+        canExport={props.canExport ?? false}
+        verification={props.verification ?? null}
+      />
+    )
   );
 }
+
+const VERIFICATION: VerificationSidecar = {
+  version: 1,
+  source: "analysis",
+  claims: [
+    {
+      text: "离线桩占位摘要：验证渲染链路。",
+      kind: "claim",
+      cited: false,
+      chunk_id: null,
+      verdict: "unsupported",
+      confidence: 0.2,
+      calibrated_confidence: 0.2,
+      reason: "未找到支撑证据",
+      evidence: [],
+    },
+  ],
+  totals: {
+    claims: 1,
+    checkable: 1,
+    supported: 0,
+    unsupported: 1,
+    uncertain: 0,
+    contradicted: 0,
+    uncited: 1,
+    citations: 0,
+    citations_supported: 0,
+  },
+  metrics: {
+    citation_precision: 0,
+    claim_grounding: 0,
+    unsupported_rate: 1,
+    contradiction_rate: 0,
+    uncited_claim_rate: 1,
+    calibrated_confidence: 0.2,
+  },
+  needs_review: true,
+};
 
 const SUMMARY_ENVELOPE: AnalysisEnvelope = {
   task_type: "summary",
@@ -317,6 +365,20 @@ describe("partial 状态横幅与 warnings", () => {
   it("ok 信封：无 partial 横幅", () => {
     renderViewer(SUMMARY_ENVELOPE);
     expect(screen.queryByText(/部分状态报告/)).toBeNull();
+  });
+});
+
+describe("P8 接地度验证展示", () => {
+  it("有侧车：渲染汇总与 needs_review；旧报告（null）不渲染", () => {
+    const { unmount } = renderViewer(SUMMARY_ENVELOPE, { verification: VERIFICATION });
+    expect(screen.getByText("接地度验证")).toBeInTheDocument();
+    expect(screen.getByText("需复核")).toBeInTheDocument();
+    // ReportViewer 默认展开声明级判定
+    expect(screen.getByText("无据")).toBeInTheDocument();
+    unmount();
+
+    renderViewer(SUMMARY_ENVELOPE);
+    expect(screen.queryByText("接地度验证")).toBeNull();
   });
 });
 

@@ -174,6 +174,7 @@ class AnalysisReportStore:
         access: AccessContext,
         limit: int = 20,
         offset: int = 0,
+        include_deleted: bool = False,
     ) -> tuple[list[AnalysisReportORM], int]:
         """可见报告历史列表：三维过滤（clearance + scope + owner）+ limit/offset 分页。
 
@@ -188,11 +189,10 @@ class AnalysisReportStore:
             raise ValueError(
                 f"分页参数非法：limit={limit}, offset={offset}（须 limit>0 且 offset>=0）"
             )
-        stmt = (
-            select(AnalysisReportORM)
-            .where(AnalysisReportORM.deleted_at.is_(None))
-            .order_by(AnalysisReportORM.created_at.desc(), AnalysisReportORM.id)
-        )
+        stmt = select(AnalysisReportORM)
+        if not include_deleted:
+            stmt = stmt.where(AnalysisReportORM.deleted_at.is_(None))
+        stmt = stmt.order_by(AnalysisReportORM.created_at.desc(), AnalysisReportORM.id)
         rows = (await session.execute(stmt)).scalars().all()
         visible = [r for r in rows if visible_to(r, access)]
         return visible[offset : offset + limit], len(visible)
