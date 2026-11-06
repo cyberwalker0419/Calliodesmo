@@ -285,9 +285,7 @@ def _transition(report: AnalysisReportORM, target: str) -> None:
     """复核状态机流转校验（非法流转抛 409 语义错误）。"""
     current = report.review_status or "draft"
     if target not in VALID_REVIEW_TRANSITIONS.get(current, frozenset()):
-        raise ReviewTransitionError(
-            f"非法复核流转：{current} → {target}（报告 {report.id}）"
-        )
+        raise ReviewTransitionError(f"非法复核流转：{current} → {target}（报告 {report.id}）")
 
 
 async def submit_review(

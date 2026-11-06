@@ -254,3 +254,20 @@ async def test_rollback_validation(session, bad_version):
             headers=_auth(owner),
         )
         assert resp.status_code == 422
+
+
+async def test_list_include_deleted_restore_entry(session):
+    """显示已删除：include_deleted=true 返回软删除行（deleted 标记），默认不返回。"""
+    owner = await _seed_user(session, "lc-api-include-deleted", {Permission.ANALYZE})
+    report = await _make_report(session, owner)
+    await session.commit()
+
+    async with _client(session) as client:
+        headers = _auth(owner)
+        await client.delete(f"/analysis/reports/{report.id}", headers=headers)
+        resp = await client.get("/analysis/reports", headers=headers)
+        assert resp.json()["total"] == 0
+        resp = await client.get("/analysis/reports?include_deleted=true", headers=headers)
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["deleted"] is True
