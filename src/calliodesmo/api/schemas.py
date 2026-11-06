@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -472,12 +472,55 @@ class AnalysisReportListItem(BaseModel):
     source_chunk_count: int
     # P8 接地度摘要（可空：历史报告无侧车）
     verification: dict[str, Any] | None = None
+    # P8 生命周期
+    review_status: str = "draft"
+    current_version: int = 1
 
 
 class AnalysisVerificationOut(BaseModel):
     """报告接地度侧车（P8）：历史报告无侧车时 ``verification`` 为 null。"""
 
     verification: dict[str, Any] | None = None
+
+
+class AnalysisReportVersionOut(BaseModel):
+    """报告版本快照元信息（快照正文不随列表返回，按需回滚 / 详情读取）。"""
+
+    version: int
+    created_by: uuid.UUID
+    created_at: datetime
+    status: str
+    subject_label: str
+    model: str
+
+
+class AnalysisReportVersionsOut(BaseModel):
+    items: list[AnalysisReportVersionOut]
+    total: int
+
+
+class AnalysisReportRollbackRequest(BaseModel):
+    """回滚请求：目标版本 + 可选乐观锁版本。"""
+
+    version: int = Field(ge=1)
+    expected_lock_version: int | None = None
+
+
+class AnalysisReportReviewRequest(BaseModel):
+    """复核请求：submit / approve / reject。"""
+
+    action: Literal["submit", "approve", "reject"]
+    note: str | None = None
+
+
+class AnalysisReportActionOut(BaseModel):
+    """生命周期动作回执（删除 / 恢复 / 回滚 / 复核）。"""
+
+    id: uuid.UUID
+    status: str
+    review_status: str
+    current_version: int
+    deleted: bool
 
 
 class AnalysisReportListOut(BaseModel):

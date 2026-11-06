@@ -31,9 +31,18 @@ _JOBS_COLUMN_SPECS: tuple[tuple[str, str], ...] = (
     ("task_payload", "JSON"),
 )
 
-#: P8 侧车列：表名 -> 补列规格（可空 JSON，历史行保持 NULL）
+#: P8 列规格：表名 -> 补列规格（侧车 JSON 可空 + 报告生命周期列带 server_default）
 _SIDECAR_COLUMN_SPECS: dict[str, tuple[tuple[str, str], ...]] = {
-    "analysis_reports": (("verification", "JSON"),),
+    "analysis_reports": (
+        ("verification", "JSON"),
+        ("current_version", "INTEGER NOT NULL DEFAULT 1"),
+        ("lock_version", "INTEGER NOT NULL DEFAULT 0"),
+        ("deleted_at", "TIMESTAMPTZ"),
+        ("review_status", "VARCHAR(16) NOT NULL DEFAULT 'draft'"),
+        ("reviewed_by", "UUID"),
+        ("reviewed_at", "TIMESTAMPTZ"),
+        ("review_note", "TEXT"),
+    ),
     "agent_runs": (("verification", "JSON"),),
 }
 
@@ -78,6 +87,20 @@ def _backfill_sidecar_columns(conn: Connection) -> None:
             if name not in existing:
                 conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{name}" {clause}'))
                 logger.info("db/migrate：%s 补列 %s", table, name)
+    if insp.has_table("analysis_reports"):
+        # 软删除 / 复核列表过滤索引（幂等）
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_analysis_reports_deleted_at "
+                "ON analysis_reports (deleted_at)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_analysis_reports_review_status "
+                "ON analysis_reports (review_status)"
+            )
+        )
 
 
 def _backfill_contribution_timestamptz(conn: Connection) -> None:

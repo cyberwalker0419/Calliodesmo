@@ -27,8 +27,20 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
-from sqlalchemy import JSON, Enum, Index, Integer, String, Uuid, func
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Enum,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from calliodesmo.auth.models import ClearanceLevel, LibraryScope
@@ -76,7 +88,22 @@ class AnalysisReportORM(Base):
     usage_: Mapped[dict] = mapped_column(JSON, default=dict)
     # P8 接地度侧车（可空：历史报告无此列值，读取端按 None 兼容）
     verification: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # P8 生命周期（版本 / 软删除 / 复核状态机）
+    current_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    lock_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    review_status: Mapped[str] = mapped_column(
+        String(16), default="draft", server_default="draft", index=True
+    )
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    # 乐观锁：并发写版本链时由 SQLAlchemy 在 UPDATE 上带 lock_version 条件
+    __mapper_args__: ClassVar[dict] = {"version_id_col": lock_version}
 
     __table_args__ = (
         # 历史列表主查询（list_visible 按 owner 过滤 + created_at 降序分页）
@@ -84,4 +111,27 @@ class AnalysisReportORM(Base):
     )
 
 
-__all__ = ["AnalysisReportORM"]
+class AnalysisReportVersionORM(Base):
+    """报告版本快照（append-only）：编辑 / 重分析 / 回滚各追加一行，旧行不可变。
+
+    ``snapshot`` 保存报告行当时的完整可恢复状态（信封 + verification + 运行记录），
+    回滚采用 append 式（同 P4 社区版本先例）：不以旧行覆盖新行，而是追加一个
+    内容等于目标版本的新行，保证版本链可审计。
+    """
+
+    __tablename__ = "analysis_report_versions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    report_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    created_by: Mapped[uuid.UUID] = mapped_column(Uuid)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        # 版本号唯一：并发写时由 DB 兜底（配合 ORM 乐观锁）
+        UniqueConstraint("report_id", "version", name="uq_analysis_report_versions_report_version"),
+    )
+
+
+__all__ = ["AnalysisReportORM", "AnalysisReportVersionORM"]
