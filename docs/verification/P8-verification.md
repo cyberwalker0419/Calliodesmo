@@ -30,7 +30,7 @@ created: 2026-11-06
 - T5 意图路由：规则决策表 15 项单测 + 标注集 22 例 **intent_accuracy 1.0**（离线
   基线）；显式模式零改写与 `auto` 审计经 API 回归锁定。
 - T6 报告生命周期：版本 append-only / 回滚 / 软删除恢复 / 复核状态机 / 乐观锁 /
-  owner 越权 404 / 删除后列表与详情不可见 —— 服务层 13 项 + API 8 项全绿。
+  owner 越权 404 / 删除后列表与详情不可见 —— 服务层 13 项 + API 9 项全绿。
 - 侧车契约：`verification` 侧车版本 1，字段与 `api/schemas.py` / 前端
   `api/types.ts` 逐字段对齐；`analysis_reports` / `agent_runs` 可空列经
   `db/migrate.py` 幂等补齐。
