@@ -1,0 +1,6 @@
+# P8 置信度校准参数（温度缩放；按 model + prompt_version 切片）
+#
+# 由 scripts/eval_p8.py --real --write-calibration 拟合写入；缺切片时运行时回退
+# default_temperature 并记 warning。temperature = 1.0 表示恒等（未校准）。
+default_temperature: 1.0
+slices: []

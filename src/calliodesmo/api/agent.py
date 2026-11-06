@@ -35,6 +35,7 @@ from calliodesmo.api.schemas import (
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import Permission
+from calliodesmo.config import Settings, get_settings
 from calliodesmo.db.models_agent import AgentMessageORM, AgentRunORM, AgentSessionORM
 from calliodesmo.db.models_job import Job
 from calliodesmo.db.session import get_session
@@ -118,6 +119,7 @@ async def submit_run(
     context: AccessContext = Depends(get_current_context),
     session: AsyncSession = Depends(get_session),
     session_factory=Depends(get_job_session_factory),
+    settings: Settings = Depends(get_settings),
 ) -> AgentRunAccepted:
     if not context.has_permission(Permission.QUERY):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
@@ -128,9 +130,7 @@ async def submit_run(
     # 引擎构建（缺 extra / 缺 key 的 RuntimeError -> 503，同 ingest / analyze 惯例）
     from calliodesmo.agent.factory import build_agent_engine
     from calliodesmo.api.deps import get_app_stores
-    from calliodesmo.config import get_settings
 
-    settings = get_settings()
     try:
         engine = build_agent_engine(
             settings,
@@ -226,6 +226,7 @@ async def list_runs(
             tool_trace=r.tool_trace or [],
             error=r.error,
             created_at=r.created_at,
+            verification=r.verification,
         )
         for r in rows
     ]

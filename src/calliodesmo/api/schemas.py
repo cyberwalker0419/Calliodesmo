@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -34,6 +34,11 @@ class QueryResponse(BaseModel):
     source_chunk_ids: list[str]
     context_chunks: list[dict[str, Any]]
     model: str
+    # P8 接地度侧车（可空：旧客户端 / 无证据答案不受影响）
+    verification: dict[str, Any] | None = None
+    # P8 意图路由（仅 mode=auto 时非空；显式模式零变化）
+    routed_mode: str | None = None
+    routing: dict[str, Any] | None = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -465,6 +470,58 @@ class AnalysisReportListItem(BaseModel):
     model: str
     created_at: datetime
     source_chunk_count: int
+    # P8 接地度摘要（可空：历史报告无侧车）
+    verification: dict[str, Any] | None = None
+    # P8 生命周期
+    review_status: str = "draft"
+    current_version: int = 1
+    deleted: bool = False
+
+
+class AnalysisVerificationOut(BaseModel):
+    """报告接地度侧车（P8）：历史报告无侧车时 ``verification`` 为 null。"""
+
+    verification: dict[str, Any] | None = None
+
+
+class AnalysisReportVersionOut(BaseModel):
+    """报告版本快照元信息（快照正文不随列表返回，按需回滚 / 详情读取）。"""
+
+    version: int
+    created_by: uuid.UUID
+    created_at: datetime
+    status: str
+    subject_label: str
+    model: str
+
+
+class AnalysisReportVersionsOut(BaseModel):
+    items: list[AnalysisReportVersionOut]
+    total: int
+
+
+class AnalysisReportRollbackRequest(BaseModel):
+    """回滚请求：目标版本 + 可选乐观锁版本。"""
+
+    version: int = Field(ge=1)
+    expected_lock_version: int | None = None
+
+
+class AnalysisReportReviewRequest(BaseModel):
+    """复核请求：submit / approve / reject。"""
+
+    action: Literal["submit", "approve", "reject"]
+    note: str | None = None
+
+
+class AnalysisReportActionOut(BaseModel):
+    """生命周期动作回执（删除 / 恢复 / 回滚 / 复核）。"""
+
+    id: uuid.UUID
+    status: str
+    review_status: str
+    current_version: int
+    deleted: bool
 
 
 class AnalysisReportListOut(BaseModel):
@@ -550,3 +607,5 @@ class AgentRunOut(BaseModel):
     tool_trace: list
     error: str | None
     created_at: datetime
+    # P8 接地度侧车（可空：P7 历史执行无侧车）
+    verification: dict[str, Any] | None = None

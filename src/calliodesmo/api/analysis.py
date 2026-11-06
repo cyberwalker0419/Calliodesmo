@@ -49,6 +49,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.analysis.factory import build_analysis_engine
 from calliodesmo.analysis.job_worker import run_analysis_job
+from calliodesmo.analysis.lifecycle import (
+    ConcurrencyConflict,
+    ReportNotFoundError,
+    ReviewTransitionError,
+    approve,
+    list_versions,
+    reject,
+    restore,
+    rollback,
+    soft_delete,
+    submit_review,
+)
 from calliodesmo.analysis.report_store import AnalysisReportStore
 from calliodesmo.analysis.sanitize import SchemaSanitizeError, trim_to_safe_json_schema
 from calliodesmo.analysis.schemas import AnalysisEnvelope, AnalysisType
@@ -64,8 +76,14 @@ from calliodesmo.api.schemas import (
     AnalysisAcceptedOut,
     AnalysisDocumentOut,
     AnalysisJobRequest,
+    AnalysisReportActionOut,
     AnalysisReportListItem,
     AnalysisReportListOut,
+    AnalysisReportReviewRequest,
+    AnalysisReportRollbackRequest,
+    AnalysisReportVersionOut,
+    AnalysisReportVersionsOut,
+    AnalysisVerificationOut,
 )
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.context import AccessContext
@@ -206,6 +224,7 @@ async def submit_analysis_task(
 async def list_reports(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    include_deleted: bool = Query(default=False, description="含已软删除报告（恢复入口）"),
     ctx: AccessContext = Depends(get_current_context),
     session: AsyncSession = Depends(get_session),
 ) -> AnalysisReportListOut:
@@ -216,7 +235,7 @@ async def list_reports(
     """
     require_permission(ctx, Permission.ANALYZE)
     items, total = await AnalysisReportStore().list_visible(
-        session, access=ctx, limit=limit, offset=offset
+        session, access=ctx, limit=limit, offset=offset, include_deleted=include_deleted
     )
     return AnalysisReportListOut(items=[_report_item(r) for r in items], total=total)
 
@@ -235,6 +254,153 @@ async def get_report(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"报告不存在或不可见: {report_id}"
         )
     return AnalysisEnvelope.model_validate(report.payload)
+
+
+@router.get("/reports/{report_id}/verification", response_model=AnalysisVerificationOut)
+async def get_report_verification(
+    report_id: uuid.UUID,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisVerificationOut:
+    """报告接地度侧车（P8）：不可见 / 不存在一律 404；历史报告返回 null。
+
+    信封（``AnalysisEnvelope``）九字段契约保持不变——侧车独立端点，可回滚。
+    """
+    require_permission(ctx, Permission.ANALYZE)
+    report = await AnalysisReportStore().get(session, report_id, access=ctx)
+    if report is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"报告不存在或不可见: {report_id}"
+        )
+    return AnalysisVerificationOut(verification=report.verification)
+
+
+@router.get("/reports/{report_id}/versions", response_model=AnalysisReportVersionsOut)
+async def get_report_versions(
+    report_id: uuid.UUID,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisReportVersionsOut:
+    """报告版本链（append-only，新版本在前）；不可见 / 已删除 / 不存在统一 404。"""
+    require_permission(ctx, Permission.ANALYZE)
+    try:
+        rows = await list_versions(session, report_id, access=ctx)
+    except ReportNotFoundError as exc:
+        raise _lifecycle_http(exc, report_id) from exc
+    return AnalysisReportVersionsOut(
+        items=[
+            AnalysisReportVersionOut(
+                version=row.version,
+                created_by=row.created_by,
+                created_at=row.created_at,
+                status=str((row.snapshot or {}).get("status", "")),
+                subject_label=str((row.snapshot or {}).get("subject_label", "")),
+                model=str((row.snapshot or {}).get("model", "")),
+            )
+            for row in rows
+        ],
+        total=len(rows),
+    )
+
+
+@router.post("/reports/{report_id}/rollback", response_model=AnalysisReportActionOut)
+async def rollback_report(
+    report_id: uuid.UUID,
+    req: AnalysisReportRollbackRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisReportActionOut:
+    """回滚到目标版本：append 新版本并恢复报告状态（owner 操作）。"""
+    require_permission(ctx, Permission.ANALYZE)
+    try:
+        await rollback(
+            session,
+            report_id,
+            version=req.version,
+            access=ctx,
+            expected_lock_version=req.expected_lock_version,
+            source="api",
+        )
+    except (ReportNotFoundError, ReviewTransitionError, ConcurrencyConflict) as exc:
+        raise _lifecycle_http(exc, report_id) from exc
+    report = await AnalysisReportStore().get(session, report_id, access=ctx)
+    await session.commit()
+    return _action_out(report, deleted=False)
+
+
+@router.delete("/reports/{report_id}", response_model=AnalysisReportActionOut)
+async def delete_report(
+    report_id: uuid.UUID,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisReportActionOut:
+    """软删除报告（可恢复；不硬删）。"""
+    require_permission(ctx, Permission.ANALYZE)
+    try:
+        report = await soft_delete(session, report_id, access=ctx, source="api")
+    except ReportNotFoundError as exc:
+        raise _lifecycle_http(exc, report_id) from exc
+    await session.commit()
+    return _action_out(report, deleted=True)
+
+
+@router.post("/reports/{report_id}/restore", response_model=AnalysisReportActionOut)
+async def restore_report(
+    report_id: uuid.UUID,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisReportActionOut:
+    """恢复软删除报告。"""
+    require_permission(ctx, Permission.ANALYZE)
+    try:
+        report = await restore(session, report_id, access=ctx, source="api")
+    except ReportNotFoundError as exc:
+        raise _lifecycle_http(exc, report_id) from exc
+    await session.commit()
+    return _action_out(report, deleted=False)
+
+
+@router.post("/reports/{report_id}/review", response_model=AnalysisReportActionOut)
+async def review_report(
+    report_id: uuid.UUID,
+    req: AnalysisReportReviewRequest,
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisReportActionOut:
+    """复核流：submit（owner）/ approve / reject（需 APPROVE 权限）。"""
+    require_permission(ctx, Permission.ANALYZE)
+    handlers = {"submit": submit_review, "approve": approve, "reject": reject}
+    try:
+        report = await handlers[req.action](
+            session, report_id, access=ctx, note=req.note, source="api"
+        )
+    except (ReportNotFoundError, ReviewTransitionError) as exc:
+        raise _lifecycle_http(exc, report_id) from exc
+    await session.commit()
+    return _action_out(report, deleted=False)
+
+
+def _lifecycle_http(exc: Exception, report_id: uuid.UUID) -> HTTPException:
+    """生命周期错误 -> HTTP：不存在 / 越权 404，流转 / 并发 409。"""
+    if isinstance(exc, ReportNotFoundError):
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"报告不存在或不可见: {report_id}",
+        )
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+def _action_out(report: AnalysisReportORM | None, *, deleted: bool) -> AnalysisReportActionOut:
+    """生命周期动作回执（report 为空时防御性返回最小结构）。"""
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="报告不存在或不可见")
+    return AnalysisReportActionOut(
+        id=report.id,
+        status=report.status,
+        review_status=report.review_status,
+        current_version=report.current_version,
+        deleted=deleted,
+    )
 
 
 @router.get("/reports/{report_id}/export")
@@ -482,7 +648,29 @@ def _report_item(report: AnalysisReportORM) -> AnalysisReportListItem:
         model=report.model,
         created_at=report.created_at,
         source_chunk_count=report.source_chunk_count,
+        verification=_verification_summary(report.verification),
+        review_status=report.review_status,
+        current_version=report.current_version,
+        deleted=report.deleted_at is not None,
     )
+
+
+def _verification_summary(verification: dict | None) -> dict | None:
+    """报告列表用侧车摘要（不含逐条 claim，避免列表膨胀）。"""
+    if not verification:
+        return None
+    totals = verification.get("totals") or {}
+    metrics = verification.get("metrics") or {}
+    return {
+        "claims": totals.get("claims", 0),
+        "supported": totals.get("supported", 0),
+        "unsupported": totals.get("unsupported", 0),
+        "uncertain": totals.get("uncertain", 0),
+        "contradicted": totals.get("contradicted", 0),
+        "uncited": totals.get("uncited", 0),
+        "claim_grounding": metrics.get("claim_grounding", 0.0),
+        "needs_review": bool(verification.get("needs_review")),
+    }
 
 
 def _document_label(doc_id: str, doc_chunks: list[ChunkRecord]) -> str:

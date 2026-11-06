@@ -25,6 +25,8 @@ contributions_app = typer.Typer(help="贡献请求(MR)管理命令。")
 app.add_typer(contributions_app, name="contributions")
 templates_app = typer.Typer(help="抽取模板审核命令。")
 app.add_typer(templates_app, name="templates")
+reports_app = typer.Typer(help="分析报告生命周期命令（版本 / 软删除 / 复核）。")
+app.add_typer(reports_app, name="reports")
 
 #: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -1014,3 +1016,157 @@ def templates_approve_type(
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"类型 {entity_type} 已沉淀进团队 {team} 模板。")
+
+
+# ---- P8 报告生命周期命令（版本 / 软删除 / 复核） ----
+
+
+async def _reports_session(fn):
+    """以管理员身份开会话执行 fn(session, access)：报告固定 personal，owner=管理员。"""
+    import calliodesmo.models  # noqa: F401
+    from calliodesmo.auth.models import User
+    from calliodesmo.auth.service import get_access_context
+
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with factory() as session:
+            admin = (
+                await session.execute(select(User).where(User.username == settings.admin_username))
+            ).scalar_one_or_none()
+            if admin is None or not admin.is_active:
+                raise RuntimeError(
+                    f"管理员 {settings.admin_username} 不存在或已停用"
+                    "（先运行 `calliodesmo db seed`）"
+                )
+            access = await get_access_context(session, admin.id)
+            if access is None:
+                raise RuntimeError(f"管理员 {settings.admin_username} 上下文不可用")
+            result = await fn(session, access)
+            await session.commit()
+            return result
+    finally:
+        await engine.dispose()
+
+
+def _parse_report_id(report_id: str):
+    try:
+        return uuid.UUID(report_id)
+    except ValueError as exc:
+        typer.echo(f"错误：报告 id 非法：{report_id}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@reports_app.command("versions")
+def reports_versions(report_id: str = typer.Argument(..., help="报告 id。")) -> None:
+    """列出报告版本链（append-only，新版本在前）。"""
+    from calliodesmo.analysis.lifecycle import ReportLifecycleError, list_versions
+
+    rid = _parse_report_id(report_id)
+
+    async def _op(session, access):
+        return await list_versions(session, rid, access=access)
+
+    try:
+        rows = asyncio.run(_reports_session(_op))
+    except ReportLifecycleError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    if not rows:
+        typer.echo("（无版本）")
+        return
+    for row in rows:
+        snapshot = row.snapshot or {}
+        typer.echo(
+            f"v{row.version}	{snapshot.get('status', '')}	"
+            f"{snapshot.get('model', '')}	{row.created_at}"
+        )
+
+
+@reports_app.command("rollback")
+def reports_rollback(
+    report_id: str = typer.Argument(..., help="报告 id。"),
+    version: int = typer.Option(..., "--version", help="目标版本号。"),
+) -> None:
+    """回滚到目标版本（append 式：追加内容等于目标快照的新版本）。"""
+    from calliodesmo.analysis.lifecycle import ReportLifecycleError, rollback
+
+    rid = _parse_report_id(report_id)
+
+    async def _op(session, access):
+        return await rollback(session, rid, version=version, access=access, source="cli")
+
+    try:
+        new_version = asyncio.run(_reports_session(_op))
+    except ReportLifecycleError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"已回滚：报告 {rid} 追加 v{new_version.version}（源自 v{version}）。")
+
+
+@reports_app.command("delete")
+def reports_delete(report_id: str = typer.Argument(..., help="报告 id。")) -> None:
+    """软删除报告（可恢复；不硬删）。"""
+    from calliodesmo.analysis.lifecycle import ReportLifecycleError, soft_delete
+
+    rid = _parse_report_id(report_id)
+
+    async def _op(session, access):
+        return await soft_delete(session, rid, access=access, source="cli")
+
+    try:
+        asyncio.run(_reports_session(_op))
+    except ReportLifecycleError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"已软删除：报告 {rid}（可用 reports restore 恢复）。")
+
+
+@reports_app.command("restore")
+def reports_restore(report_id: str = typer.Argument(..., help="报告 id。")) -> None:
+    """恢复软删除报告。"""
+    from calliodesmo.analysis.lifecycle import ReportLifecycleError, restore
+
+    rid = _parse_report_id(report_id)
+
+    async def _op(session, access):
+        return await restore(session, rid, access=access, source="cli")
+
+    try:
+        asyncio.run(_reports_session(_op))
+    except ReportLifecycleError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"已恢复：报告 {rid}。")
+
+
+@reports_app.command("review")
+def reports_review(
+    report_id: str = typer.Argument(..., help="报告 id。"),
+    action: str = typer.Option(..., "--action", help="复核动作：submit / approve / reject。"),
+    note: str = typer.Option("", "--note", help="复核备注（可选）。"),
+) -> None:
+    """复核流：submit（owner）/ approve / reject（需 APPROVE 权限）。"""
+    from calliodesmo.analysis.lifecycle import (
+        ReportLifecycleError,
+        approve,
+        reject,
+        submit_review,
+    )
+
+    handlers = {"submit": submit_review, "approve": approve, "reject": reject}
+    if action not in handlers:
+        typer.echo(f"错误：未知复核动作 {action}（可选 submit / approve / reject）", err=True)
+        raise typer.Exit(code=1)
+    rid = _parse_report_id(report_id)
+
+    async def _op(session, access):
+        return await handlers[action](session, rid, access=access, note=note or None, source="cli")
+
+    try:
+        report = asyncio.run(_reports_session(_op))
+    except ReportLifecycleError as exc:
+        typer.echo(f"错误：{exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"复核动作已执行：报告 {rid} -> {report.review_status}。")

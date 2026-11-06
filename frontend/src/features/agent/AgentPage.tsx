@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
 import { ToolTrace } from "./ToolTrace";
+import { VerificationPanel } from "@/features/verification/VerificationPanel";
 import {
   useAgentJob,
   useAgentMessages,
@@ -155,7 +156,10 @@ function ChatView({ sessionId }: { sessionId: string }) {
             <div className="min-w-0 flex-1">
               <div className="whitespace-pre-wrap">{m.content}</div>
               {m.role === "assistant" && m.run_id && (
-                <ToolTrace run={runById.get(m.run_id)} />
+                <>
+                  <VerificationPanel verification={runById.get(m.run_id)?.verification} />
+                  <ToolTrace run={runById.get(m.run_id)} />
+                </>
               )}
             </div>
           </div>

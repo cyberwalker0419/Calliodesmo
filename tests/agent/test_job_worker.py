@@ -76,6 +76,10 @@ async def test_run_agent_job_success_pipeline(session, _pg_engine):
         assert run.status == "succeeded"
         assert run.steps == 2
         assert [t["call"]["name"] for t in run.tool_trace] == ["search_knowledge"]
+        # P8 接地度侧车：AgentRun 带 verification（可空列，成功路径必有）
+        assert run.verification is not None
+        assert run.verification["source"] == "agent"
+        assert "claim_grounding" in run.verification["metrics"]
 
         msgs = (
             (await s.execute(select(AgentMessageORM).where(AgentMessageORM.session_id == sess.id)))

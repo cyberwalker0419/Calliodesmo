@@ -19,6 +19,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 `docs/plans/phases/P5-advanced-rag.md`）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 `docs/plans/phases/P6-llm-analysis-tasks.md` 与 `docs/verification/P6-verification.md`）
 - **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 已合入 main；详见 `docs/plans/phases/P7-agent-mode.md` 与 `docs/verification/P7-verification.md`）
+- **P8** 证据验证与幻觉检测 ✅ 完成（2026-11-06，T1–T7 + T9，后端 1288 passed / 1 skipped；T8 条件任务未启动：答案-证据映射 / 接地度评分 / 幻觉标记 / ECE 校准 / 意图路由 / 报告版本·软删除·复核流 / 前端验证与生命周期 UI；`--real` 质量轨待用户本机执行；详见 `docs/plans/phases/P8-evidence-verification.md` 与 `docs/verification/P8-verification.md`）
 
 阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
 
@@ -63,12 +64,13 @@ src/calliodesmo/
 ├── audit/        审计日志（谁/何时/做了什么/从哪来）
 ├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / models_agent.py 会话三表 / migrate.py 幂等补列）
 ├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
-├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store）
+├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store / lifecycle）
+├── verification/ P8 证据验证域（models / engine / pipeline / calibration）
 ├── agent/        P7 Agent 域（errors / registry / tools / budget / graph / access / history / checkpoint / factory / job_worker）
 ├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis ...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
 ├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
-├── eval/         P2 评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / harness
+├── eval/         评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / metrics_grounding(接地度·ECE) / harness
 ├── stores/       profile_card_store / visibility
 ├── config.py     pydantic-settings（CALLIODESMO_ 前缀）
 ├── models.py     ORM 模型集中导入（保证 Base.metadata 注册完整）

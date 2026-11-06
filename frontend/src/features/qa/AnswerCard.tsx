@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, Quote } from "lucide-react";
 import { useState } from "react";
 import type { QueryResponse } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
+import { VerificationPanel } from "@/features/verification/VerificationPanel";
 import { cn } from "@/lib/utils";
 
 export function AnswerCard({ result }: { result: QueryResponse }) {
@@ -14,6 +15,12 @@ export function AnswerCard({ result }: { result: QueryResponse }) {
         <Quote className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium">答案</span>
         <Badge variant="secondary">{result.mode}</Badge>
+        {result.routed_mode && result.routing?.requested_mode === "auto" && (
+          <Badge variant="outline" className="text-[10px]" title={result.routing.reasons.join("；")}>
+            自动路由 → {result.routed_mode}
+            {result.routing.fallback ? "（回退）" : ""}
+          </Badge>
+        )}
         {result.model && (
           <span className="text-xs text-muted-foreground" title={result.model}>
             {result.model.split(/[\\/]/).pop()}
@@ -21,6 +28,7 @@ export function AnswerCard({ result }: { result: QueryResponse }) {
         )}
       </div>
       <p className="whitespace-pre-wrap text-sm leading-relaxed">{result.answer}</p>
+      <VerificationPanel verification={result.verification} />
       {result.source_chunk_ids.length > 0 && (
         <div className="space-y-1">
           <div className="text-xs font-medium text-muted-foreground">来源标注（点击展开证据）</div>
