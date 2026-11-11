@@ -10,7 +10,7 @@ test("三模式切换 + top_k + 提问回卡", async ({ page }) => {
   test.setTimeout(300_000); // 真模型回合
   await login(page, ADMIN);
   await page.goto("/app/qa");
-  for (const mode of ["Native", "Local", "Global"]) {
+  for (const mode of ["Auto", "Native", "Local", "Global"]) {
     await page.getByRole("button", { name: mode }).click();
     await expect(page.getByRole("button", { name: mode })).toBeVisible();
   }
@@ -19,4 +19,6 @@ test("三模式切换 + top_k + 提问回卡", async ({ page }) => {
   await page.getByRole("button", { name: "提问" }).click();
   // 回卡渲染（答案区出现，真模型接地语料或明确拒答均算冒烟通过）
   await expect(page.getByText("答案").first()).toBeVisible({ timeout: 240_000 });
+  // P8：答案卡片携带接地度侧车（无证据也会渲染「未引注」声明）
+  await expect(page.getByText("接地度验证").first()).toBeVisible({ timeout: 60_000 });
 });
