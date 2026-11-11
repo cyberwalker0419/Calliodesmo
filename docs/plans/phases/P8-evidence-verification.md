@@ -231,7 +231,7 @@ created: 2026-11-06
 
 **闭合实录（2026-11-06）**：T1–T7 + T9 全部闭合并逐 Task 提交（提交链见
 [[docs/verification/P8-verification|P8 验证报告]]）；离线结构轨全绿（43/43 判定、
-矛盾 10/10、intent 22/22；后端 1288 passed / 1 skipped），前端 80 vitest + 三件套绿，preview 双角色 × 双视口
+矛盾 10/10、intent 22/22；后端 1288 passed / 1 skipped），前端 80 vitest + 三件套绿，preview 双角色 × 双视口与 e2e 14/14
 闭环完成。`--real` 质量轨已于 2026-11-11 执行（qwen3.8-flash-next，证据入库），但 citation / grounding / unsupported / contradiction / 注入零诱导均未达门槛，质量结论留 P9 硬化；
 T8 Agent 会话生命周期按计划留待 2026-W49 重评。
 

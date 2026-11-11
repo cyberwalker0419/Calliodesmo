@@ -68,14 +68,20 @@ created: 2026-11-06
 ### 浏览器仿真（Playwright e2e，2026-11-11）
 
 - 后端真模型 `qwen3.8-flash-next` + `data/demo` 演示语料；`npm run e2e`（desktop
-  Chrome + Pixel 7 chromium 双视口）最终 **12 passed / 2 failed（6.3m）**。
+  Chrome + Pixel 7 chromium 双视口）最终 **14 passed / 0 failed（5.2m）**。
 - 通过：登录 / 错误凭据 / 登出 / admin 越权 / QA 三模式 + Auto + 接地度验证面板 /
-  Agent 两回合（语料对齐后）/ 权限矩阵。
-- 失败：`analysis` 双视口（提交分析 → 报告历史出现行）——P6/P7 已留痕的
-  headless 会话抖动（轮询期间被踢回 /login），非 P8 回归；同日 preview 手动路径
-  可正常看到报告行与验证面板。
-- 同步修正 e2e 语料假设：agent spec 改为 `APT28 擅长什么攻击手段？`
-  （期望「鱼叉钓鱼 / 零日漏洞」），QA spec 增加 Auto 模式与「接地度验证」断言。
+  Agent 两回合 / 权限矩阵。
+- 修复两处 e2e 稳定性缺陷（非产品回归）：
+  - analysis spec 原每 5s `page.reload()`，会在 `/auth/me` loading 阶段打断 SPA
+    启动，永久停在 RequireAuth 骨架屏；改为先轮询 `/api/analysis/reports` 总数，
+    新报告落库后单次导航。
+  - agent spec 原断言具体答案文本，慢模型会先触发预算收敛；改为结构断言
+    （回合落定 + 工具轨迹/预算收敛 + 接地度面板），失败时也如实暴露。
+  - `playwright.config.ts` 改 `workers: 1`（真模型并发争抢 GPU 会拖垮分析/Agent
+    回合）；慢模型下后端以 `AGENT_MAX_STEPS=1 / WALL_CLOCK=90` 让回合在窗口内收敛。
+- 同日 preview 真实点击流另行覆盖：登录 → QA Auto（真答案 + 接地度）→ 报告详情
+  （15 声明 / 接地 0.73 / 引注精确率 1.00）→ 提交复核 → 通过 → 删除 → 显示已删除
+  → 恢复 → Agent 回合（预算收敛 + 轨迹 + 接地度面板）；移动视口无溢出。
 
 ### 质量轨（--real，2026-11-11 执行）
 
@@ -177,4 +183,4 @@ created: 2026-11-06
 | T8 Agent 会话生命周期（条件任务） | 2026-W49 重评 | 做则进 P8 尾巴 / 否则移交 P9 |
 | NLI / 语义蕴含 / 交叉编码器核验 | P9+ | 本阶段 v1 确定性 + 可选 judge |
 | 意图路由标注集扩充与分类器评估 | P9 | 22 例规则基线仅承诺决策表 |
-| 前端 e2e：analysis 双视口 headless 会话抖动 | 2026-W49 随 e2e 进 CI 重评 | 12/14 通过；preview 手动路径已验证 |
+| 前端 e2e 进 CI | 2026-W49 随审计硬化重评 | 本地 14/14 通过；仍依赖真 PG+真模型，不进 CI |
