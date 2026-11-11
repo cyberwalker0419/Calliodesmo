@@ -19,7 +19,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 `docs/plans/phases/P5-advanced-rag.md`）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 `docs/plans/phases/P6-llm-analysis-tasks.md` 与 `docs/verification/P6-verification.md`）
 - **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 已合入 main；详见 `docs/plans/phases/P7-agent-mode.md` 与 `docs/verification/P7-verification.md`）
-- **P8** 证据验证与幻觉检测 ✅ 完成（2026-11-06，T1–T7 + T9，后端 1288 passed / 1 skipped；T8 条件任务未启动：答案-证据映射 / 接地度评分 / 幻觉标记 / ECE 校准 / 意图路由 / 报告版本·软删除·复核流 / 前端验证与生命周期 UI；`--real` 质量轨待用户本机执行；详见 `docs/plans/phases/P8-evidence-verification.md` 与 `docs/verification/P8-verification.md`）
+- **P8** 证据验证与幻觉检测 ✅ 完成（2026-11-06，T1–T7 + T9，后端 1288 passed / 1 skipped；T8 条件任务未启动：答案-证据映射 / 接地度评分 / 幻觉标记 / ECE 校准 / 意图路由 / 报告版本·软删除·复核流 / 前端验证与生命周期 UI；`--real` 已执行（qwen3.8-flash-next，质量门槛未达，硬化归 P9）；详见 `docs/plans/phases/P8-evidence-verification.md` 与 `docs/verification/P8-verification.md`）
 
 阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
 

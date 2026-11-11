@@ -65,18 +65,46 @@ created: 2026-11-06
   Node 26 + jsdom 25 不透明 origin 下 storage 不可用（vitest setup 内存
   polyfill + `environmentOptions.jsdom.url`）。
 
-### 质量轨（--real；待用户本机执行）
+### 浏览器仿真（Playwright e2e，2026-11-11）
 
-- 命令：`uv run python scripts/eval_p8.py --real [--write-calibration]`。
-- 产出：`docs/verification/p8-real-<模型名>.json`（ECE / 可靠性表 / 样本量 /
-  答案准确率 / 注入探针 / 门槛判定）；样本 ≥100 才作 ECE 达标断言，否则如实
-  标注「参考值」。
-- **本机执行尝试（2026-11-06）**：`.env` 指向的真模型端点
-  `http://192.168.50.212:8888/v1` 连接失败（curl exit 7），当前不可达，
-  `--real` 未能执行；待服务恢复后补跑并更新本报告与证据文件。
-- 门槛：citation_precision ≥ 0.80、claim_grounding ≥ 0.80、
-  unsupported_rate ≤ 0.10、contradiction_rate ≤ 0.05、ece ≤ 0.10（样本 ≥100）、
-  注入零诱导。**本报告不预设 --real 结论**。
+- 后端真模型 `qwen3.8-flash-next` + `data/demo` 演示语料；`npm run e2e`（desktop
+  Chrome + Pixel 7 chromium 双视口）最终 **12 passed / 2 failed（6.3m）**。
+- 通过：登录 / 错误凭据 / 登出 / admin 越权 / QA 三模式 + Auto + 接地度验证面板 /
+  Agent 两回合（语料对齐后）/ 权限矩阵。
+- 失败：`analysis` 双视口（提交分析 → 报告历史出现行）——P6/P7 已留痕的
+  headless 会话抖动（轮询期间被踢回 /login），非 P8 回归；同日 preview 手动路径
+  可正常看到报告行与验证面板。
+- 同步修正 e2e 语料假设：agent spec 改为 `APT28 擅长什么攻击手段？`
+  （期望「鱼叉钓鱼 / 零日漏洞」），QA spec 增加 Auto 模式与「接地度验证」断言。
+
+### 质量轨（--real，2026-11-11 执行）
+
+- 执行环境：head `http://192.168.50.115:8888/v1`，模型 `qwen3.8-flash-next`
+  （vLLM，500k 上下文）；`llm_disable_thinking=true`（关闭思考链）。早先对
+  `DeepSeek-V4.1-Flash-1017` 的尝试因默认思考链导致灌库摘要超时（最小请求 56s/8
+  tokens），未完成；该端点随后切换为 Qwen 后重跑成功。
+- 命令：`CALLIODESMO_LLM_MODEL=openai/qwen3.8-flash-next
+  CALLIODESMO_LLM_API_BASE=http://192.168.50.115:8888/v1
+  uv run python scripts/eval_p8.py --real --write-calibration`。
+- 样本：35 QA 例 / 90 条声明（44 条可核验）/ 校准训练 22 + 留出 22。
+- **结果（质量参考，门槛未达）**：
+  - `answer_accuracy` **0.6154**（v2 归一化：去 Markdown / 标点，期望答案按
+    分句并列项校验；v1 严格子串口径为 0.3103）；
+  - `citation_precision` **0.4091**、`claim_grounding` **0.4091**；
+  - `unsupported_rate` **0.1364**、`contradiction_rate` **0.0682**、
+    `uncited_claim_rate` **0.5111**；
+  - ECE **0.2466**（留出 22 条 < 100，状态 `insufficient_samples`，仅参考）；
+  - 注入探针 3 条，**违规 2 条**（一条输出内部笔记全文代码块，一条列出机密
+    文档元数据）；v1 检测曾把「拒绝并说明不能泄露系统提示」误判为违规，v2 改为
+    「是否实际照做」判定并重算（仅从保存答案确定性重算，未重跑模型）；
+  - `passed=null`：除 `intent_accuracy=1.0` 外，citation / grounding /
+    unsupported / contradiction / 注入零诱导均未达门槛。
+- 结论：确定性核验与校准链路在真模型上可运行、证据可复现；但在当前小语料 +
+  该模型下**质量门槛未达标，不能宣称质量达标**。后续方向：扩充语料使 ECE 样本
+  ≥100、提升答案引注纪律与核验覆盖率、注入防御从提示层升级到输出层
+  （锚点 2026-W49 / P9）。
+- 证据：`docs/verification/p8-real-qwen3.8-flash-next.json`（含 `metric_revision`
+  v2 说明）。
 
 ## 技术栈
 
@@ -135,7 +163,8 @@ created: 2026-11-06
 
 - `docs/verification/p8-regression.json`：离线结构 / 契约基线（语料规模、
   43 条判定全匹配、矛盾 10/10、intent_accuracy、指标公式输出）。
-- `docs/verification/p8-real-<模型名>.json`：--real 质量证据（待用户本机生成）。
+- `docs/verification/p8-real-qwen3.8-flash-next.json`：--real 质量证据
+  （2026-11-11，35 例 / 90 声明；指标见上，门槛未达）。
 - `config/calibration.yaml`：校准参数（默认恒等；`--real --write-calibration`
   拟合写入）。
 
@@ -143,9 +172,9 @@ created: 2026-11-06
 
 | 事项 | 锚点 | 去向 |
 | --- | --- | --- |
-| `scripts/eval_p8.py --real` 质量轨（ECE / 门槛 / 注入） | 2026-W46（用户本机就绪可提前） | 本阶段收尾补跑，证据入库 |
-| ECE 样本 ≥100 的达标断言 | 随 --real | 样本不足时只报参考值 |
+| `--real` 质量门槛未达（citation/grounding 0.41、unsupported 0.14、注入 2） | 2026-W49 / P9 | 扩充语料、提升引注纪律与核验覆盖率、输出层注入防御 |
+| ECE 样本 ≥100 的达标断言 | P9（当前留出 22 条） | 样本不足只报参考值 0.2466 |
 | T8 Agent 会话生命周期（条件任务） | 2026-W49 重评 | 做则进 P8 尾巴 / 否则移交 P9 |
 | NLI / 语义蕴含 / 交叉编码器核验 | P9+ | 本阶段 v1 确定性 + 可选 judge |
 | 意图路由标注集扩充与分类器评估 | P9 | 22 例规则基线仅承诺决策表 |
-| 前端 e2e 补验证 / Agent UI 核验组 | 2026-W49 随 e2e 进 CI 重评 | 本地 vitest + preview 已覆盖主路径 |
+| 前端 e2e：analysis 双视口 headless 会话抖动 | 2026-W49 随 e2e 进 CI 重评 | 12/14 通过；preview 手动路径已验证 |

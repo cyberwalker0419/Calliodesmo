@@ -220,7 +220,7 @@ created: 2026-11-06
 **Files:** 新 `docs/verification/P8-verification.md` · 改 `docs/verification/README.md` · 改 `CLAUDE.md` / `AGENTS.md` 当前阶段与结构段 · 改 `README.md`。
 
 - [x] **Step 1:** 离线轨：全量 `pytest -q` 绿（≥1150 基线）+ `scripts/eval_p8.py` 落 `p8-regression.json`；前端 vitest / build / lint 绿。
-- [ ] **Step 2:** 质量轨（用户本机，`--real`）：`scripts/eval_p8.py --real`，落 `p8-real-<模型名>.json`；如实记录 ECE 样本量、unsupported / contradiction 率、注入零诱导。（待执行：锚点 2026-W46，用户本机就绪可提前）
+- [x] **Step 2:** 质量轨（`--real`）：`scripts/eval_p8.py --real` 于 2026-11-11 执行，落 `p8-real-qwen3.8-flash-next.json`；answer_acc 0.6154 / citation_precision 0.4091 / claim_grounding 0.4091 / unsupported 0.1364 / contradiction 0.0682 / ECE 0.2466（留出 22，样本不足）/ 注入违规 2 —— **质量门槛未达**，见验证报告与 P9 未竟清单。
 - [x] **Step 3:** 写 P8 验证报告（四要素 + Task 闭合矩阵 + 未竟清单），区分离线 / 质量两轨；登记证据文件。
 - [x] **Step 4:** 文档同步：CLAUDE.md / AGENTS.md 当前阶段补 P8 行、结构段补 `verification/` 与 `eval/metrics_grounding.py`；README badge 更新。
 - [x] **Step 5:** 提交：`docs(verification): P8 验证报告与文档同步`；⏳ PR 合入 main 待用户确认后推送（未推送）。
@@ -232,7 +232,7 @@ created: 2026-11-06
 **闭合实录（2026-11-06）**：T1–T7 + T9 全部闭合并逐 Task 提交（提交链见
 [[docs/verification/P8-verification|P8 验证报告]]）；离线结构轨全绿（43/43 判定、
 矛盾 10/10、intent 22/22；后端 1288 passed / 1 skipped），前端 80 vitest + 三件套绿，preview 双角色 × 双视口
-闭环完成。`--real` 质量轨待用户本机执行（锚点 2026-W46，证据入库后补记）；
+闭环完成。`--real` 质量轨已于 2026-11-11 执行（qwen3.8-flash-next，证据入库），但 citation / grounding / unsupported / contradiction / 注入零诱导均未达门槛，质量结论留 P9 硬化；
 T8 Agent 会话生命周期按计划留待 2026-W49 重评。
 
 ## 依赖与风险
