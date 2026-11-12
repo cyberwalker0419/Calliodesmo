@@ -7,11 +7,9 @@ admin（analyst 越权 403 探测）· agent（会话两回合）· logout（coo
 ## 启动顺序（硬性，防「后端未启 spec 全红」虚假不稳定）
 
 ```bash
-# 1) 语料入库（首次，供 qa / analysis 接地；生产 schema）
-uv run calliodesmo ingest data/demo
-# 2) 后端（演示数据）：仓库根
-uv run calliodesmo serve --seed-demo --port 8200
-# 3) e2e：frontend/
+# 1) 后端（演示数据；慢模型建议收紧 Agent 预算，让回合在 e2e 窗口内收敛）
+CALLIODESMO_AGENT_MAX_STEPS=1 CALLIODESMO_AGENT_WALL_CLOCK_SECONDS=90   uv run calliodesmo serve --seed-demo --port 8200
+# 2) e2e：frontend/（串行，避免真模型并发争抢 GPU）
 npm run e2e
 ```
 
@@ -22,5 +20,9 @@ npm run e2e
 
 - **不进 CI**：需真 PG+Neo4j+真模型，与 CI `-m "not db"` 纪律冲突；留痕锚点
   2026-W49 随审计硬化重评（P7 计划范围外表）。
-- 真模型回合耗时长：相关 spec `test.setTimeout` 放宽（qa 180s / analysis·agent 300s）。
+- 真模型回合耗时长：`workers: 1` 串行；qa 240s、analysis 600s、agent 900s。
+- analysis spec 先轮询 `/api/analysis/reports` 总数，确认新报告落库后单次导航；不再
+  `page.reload()` 循环（会打断 /auth/me 启动，停在 RequireAuth 骨架屏）。
+- agent spec 只验结构（回合落定 + 工具轨迹/预算收敛 + 接地度面板），不依赖具体答案
+  文本——慢模型触发预算收敛的 partial 也视为通过；答案质量由 `--real` 质量轨负责。
 - 浏览器经 `npx playwright install chromium` 安装（本地一次性）。

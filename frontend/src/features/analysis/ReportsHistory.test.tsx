@@ -49,6 +49,8 @@ function makeReport(overrides: Partial<ReportListItem>): ReportListItem {
     model: "test/stub",
     created_at: "2026-08-30T09:00:00Z",
     source_chunk_count: 2,
+    review_status: "draft",
+    current_version: 1,
     ...overrides,
   };
 }
@@ -83,10 +85,28 @@ const ENVELOPE: AnalysisEnvelope = {
   },
 };
 
-/** 后端 stub：列表（按 limit/offset 路由）+ 详情两端点。 */
+/** 后端 stub：列表（按 limit/offset 路由）+ 详情 + 删除 + 版本 / 验证端点。 */
 function mockBackend() {
   mockFetch.mockReset();
-  mockFetch.mockImplementation(async (url: string) => {
+  mockFetch.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url === "/api/analysis/reports/r-1" && init?.method === "DELETE") {
+      return new Response(
+        JSON.stringify({
+          id: "r-1",
+          status: "ok",
+          review_status: "draft",
+          current_version: 1,
+          deleted: true,
+        }),
+        { status: 200 }
+      );
+    }
+    if (url === "/api/analysis/reports/r-1/verification") {
+      return new Response(JSON.stringify({ verification: null }), { status: 200 });
+    }
+    if (url === "/api/analysis/reports/r-1/versions") {
+      return new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 });
+    }
     if (url === "/api/analysis/reports/r-1") {
       return new Response(JSON.stringify(ENVELOPE), { status: 200 });
     }
@@ -194,6 +214,80 @@ describe("详情 Dialog（懒加载信封）", () => {
     await screen.findByText(/历史详情摘要正文/);
     expect(screen.getByRole("button", { name: /导出 JSON/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /导出 MD/ })).toBeDisabled();
+  });
+});
+
+describe("P8 生命周期 UI", () => {
+  it("复核状态徽标与 needs_review 提示", async () => {
+    mockFetch.mockReset();
+    mockFetch.mockImplementation(async () =>
+      new Response(
+        JSON.stringify({
+          items: [
+            makeReport({
+              id: "r-9",
+              review_status: "pending",
+              verification: {
+                claims: 2,
+                supported: 1,
+                unsupported: 1,
+                uncertain: 0,
+                contradicted: 0,
+                uncited: 0,
+                claim_grounding: 0.5,
+                needs_review: true,
+              },
+            }),
+          ],
+          total: 1,
+        }),
+        { status: 200 }
+      )
+    );
+    render(wrap(<ReportsHistory />));
+    expect(await screen.findByText("待复核")).toBeInTheDocument();
+    expect(screen.getByText("需复核")).toBeInTheDocument();
+  });
+
+  it("删除需二次确认，确认后发 DELETE", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+    await user.click(screen.getAllByRole("button", { name: "删除" })[0]);
+    const confirm = screen.getByRole("button", { name: "确认删除" });
+    await user.click(confirm);
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/analysis/reports/r-1",
+        expect.objectContaining({ method: "DELETE" })
+      );
+    });
+  });
+
+  it("显示已删除：列表带 include_deleted 参数并渲染恢复按钮", async () => {
+    mockFetch.mockReset();
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/analysis/reports?")) {
+        return new Response(
+          JSON.stringify({
+            items: [makeReport({ id: "r-3", deleted: true, subject_label: "已删除报告" })],
+            total: 1,
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify({ detail: "not found" }), { status: 404 });
+    });
+    const user = userEvent.setup();
+    render(wrap(<ReportsHistory />));
+    await screen.findByText("已删除报告");
+    await user.click(screen.getByRole("button", { name: /显示已删除/ }));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/analysis/reports?limit=10&offset=0&include_deleted=true",
+        expect.anything()
+      );
+    });
+    expect(await screen.findByRole("button", { name: "恢复" })).toBeInTheDocument();
   });
 });
 

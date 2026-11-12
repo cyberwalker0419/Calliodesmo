@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from calliodesmo.analysis.schemas import AnalysisStatus, AnalysisType
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import ClearanceLevel, LibraryScope
-from calliodesmo.db.models_analysis import AnalysisReportORM
+from calliodesmo.db.models_analysis import AnalysisReportORM, AnalysisReportVersionORM
 from calliodesmo.stores.visibility import visible_to
 from calliodesmo.utils.json import json_safe
 
@@ -42,6 +42,29 @@ from calliodesmo.utils.json import json_safe
 _PERSISTABLE_STATUSES: frozenset[str] = frozenset(
     {AnalysisStatus.OK.value, AnalysisStatus.PARTIAL.value}
 )
+
+
+def build_snapshot(report: AnalysisReportORM) -> dict:
+    """报告行 -> 可恢复快照（版本行 / 回滚共用；写入前经 ``json_safe``）。
+
+    快照只含「可恢复的报告状态」，不含 id / owner / created_at 等身份字段：
+    回滚恢复内容与运行记录，不改变归属与创建时间。
+    """
+    return json_safe(
+        {
+            "payload": report.payload,
+            "verification": report.verification,
+            "status": report.status,
+            "subject_label": report.subject_label,
+            "model": report.model,
+            "prompt_version": report.prompt_version,
+            "usage": report.usage_,
+            "source_doc_ids": report.source_doc_ids,
+            "source_chunk_count": report.source_chunk_count,
+            "access_level": report.access_level,
+            "library_scope": report.library_scope,
+        }
+    )
 
 
 class AnalysisReportStore:
@@ -63,6 +86,7 @@ class AnalysisReportStore:
         model: str,
         prompt_version: str,
         usage: dict,
+        verification: dict | None = None,
     ) -> AnalysisReportORM:
         """落一条报告行：固定 personal scope + owner=提交者（决策 4）。
 
@@ -73,6 +97,7 @@ class AnalysisReportStore:
             status: 仅接受 ``ok`` / ``partial``（落库口径；``failed`` 抛 ``ValueError``）。
             payload: 完整信封（写入前经 ``json_safe`` 清洗）。
             access_level: 密级继承结果（``compute_report_access_level``，worker 算得传入）。
+            verification: P8 接地度侧车（可空；写入前经 ``json_safe``）。
 
         异常:
             ValueError: status 非 ok / partial，或 task_type 非 AnalysisType 合法值。
@@ -106,17 +131,39 @@ class AnalysisReportStore:
             model=model,
             prompt_version=prompt_version,
             usage_=json_safe(usage),
+            verification=json_safe(verification) if verification is not None else None,
         )
         session.add(report)
+        await session.flush()
+        # P8 生命周期：创建即追加 v1 快照（append-only 版本链起点）
+        session.add(
+            AnalysisReportVersionORM(
+                report_id=report.id,
+                version=1,
+                snapshot=build_snapshot(report),
+                created_by=user_id,
+            )
+        )
         await session.flush()
         return report
 
     async def get(
-        self, session: AsyncSession, report_id: uuid.UUID, *, access: AccessContext
+        self,
+        session: AsyncSession,
+        report_id: uuid.UUID,
+        *,
+        access: AccessContext,
+        include_deleted: bool = False,
     ) -> AnalysisReportORM | None:
-        """按 ID 取报告：不存在或 ``visible_to`` 不可见均返回 ``None``（不泄漏存在性）。"""
+        """按 ID 取报告：不存在 / 不可见 / 已软删除均返回 ``None``（同一 404 语义）。
+
+        ``include_deleted=True`` 仅供生命周期服务（恢复 / 版本管理）使用，
+        API 读取路径不得传入。
+        """
         report = await session.get(AnalysisReportORM, report_id)
         if report is None:
+            return None
+        if report.deleted_at is not None and not include_deleted:
             return None
         return report if visible_to(report, access) else None
 
@@ -127,6 +174,7 @@ class AnalysisReportStore:
         access: AccessContext,
         limit: int = 20,
         offset: int = 0,
+        include_deleted: bool = False,
     ) -> tuple[list[AnalysisReportORM], int]:
         """可见报告历史列表：三维过滤（clearance + scope + owner）+ limit/offset 分页。
 
@@ -141,9 +189,10 @@ class AnalysisReportStore:
             raise ValueError(
                 f"分页参数非法：limit={limit}, offset={offset}（须 limit>0 且 offset>=0）"
             )
-        stmt = select(AnalysisReportORM).order_by(
-            AnalysisReportORM.created_at.desc(), AnalysisReportORM.id
-        )
+        stmt = select(AnalysisReportORM)
+        if not include_deleted:
+            stmt = stmt.where(AnalysisReportORM.deleted_at.is_(None))
+        stmt = stmt.order_by(AnalysisReportORM.created_at.desc(), AnalysisReportORM.id)
         rows = (await session.execute(stmt)).scalars().all()
         visible = [r for r in rows if visible_to(r, access)]
         return visible[offset : offset + limit], len(visible)

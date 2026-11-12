@@ -1,0 +1,54 @@
+# P8 Task 5：意图路由标注集（确定性规则基线，intent_accuracy 消费）
+#
+# expected_mode ∈ native_rag / local / global / agent；显式模式不进本集
+# （显式模式零改写由 API 回归测试锁定）。
+cases:
+  # ---- native_rag（事实型；关联人问句归 local） ----
+  - question: "镨钕氧化物有什么用途？"
+    expected_mode: "native_rag"
+  - question: "北方稀土总部位于哪里？"
+    expected_mode: "native_rag"
+  - question: "APT28 又称什么？"
+    expected_mode: "native_rag"
+  - question: "Zebrocy 后门用什么语言重写？"
+    expected_mode: "native_rag"
+  - question: "夜莺组织有哪些关键关联人？"
+    expected_mode: "local"
+  - question: "本月镨钕氧化物报价走势如何？"
+    expected_mode: "native_rag"
+  # ---- local（实体关系 / 多跳） ----
+  - question: "夜莺组织与张三、李四之间是什么关系？"
+    expected_mode: "local"
+  - question: "Fancy Bear 与 APT28 是什么关系？"
+    expected_mode: "local"
+  - question: "APT28 使用什么后门？该后门用什么语言重写？"
+    expected_mode: "local"
+  - question: "夜莺组织与某国情报机构有何关联？"
+    expected_mode: "local"
+  - question: "张三和李四在图谱中如何连接？"
+    expected_mode: "local"
+  - question: "稀土供应商与下游磁材企业之间的路径是什么？"
+    expected_mode: "local"
+  # ---- global（全局主题） ----
+  - question: "总结本月稀土市场的整体趋势"
+    expected_mode: "global"
+  - question: "概述夜莺组织的总体威胁评估"
+    expected_mode: "global"
+  - question: "归纳 APT28 的主要结论"
+    expected_mode: "global"
+  - question: "全局来看稀土市场有哪些趋势？"
+    expected_mode: "global"
+  - question: "给出三份材料的综述"
+    expected_mode: "global"
+  # ---- agent（操作指令 / 多步行动） ----
+  - question: "帮我调查 APT28 的组织结构并生成报告"
+    expected_mode: "agent"
+  - question: "请分析夜莺组织的风险并制定计划"
+    expected_mode: "agent"
+  - question: "整理成多步评估工作流"
+    expected_mode: "agent"
+  # ---- 模糊查询（回退默认 native_rag） ----
+  - question: "稀土"
+    expected_mode: "native_rag"
+  - question: "威胁情报"
+    expected_mode: "native_rag"

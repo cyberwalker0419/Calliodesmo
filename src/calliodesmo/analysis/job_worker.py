@@ -63,6 +63,7 @@ from calliodesmo.auth.service import get_access_context
 from calliodesmo.config import get_settings
 from calliodesmo.db.models_job import Job, JobStatus
 from calliodesmo.interfaces.analysis import AnalysisEngine, AnalysisReport, AnalysisSpec
+from calliodesmo.verification.pipeline import build_verification
 
 
 async def run_analysis_job(
@@ -169,6 +170,14 @@ async def _finish_succeeded(
         source_chunk_ids=report.source_chunk_ids,
         payload=report.payload,
     )
+    # P8 接地度侧车：材料源文已按 visible_to 过滤（gathered.source_texts）
+    verification = build_verification(
+        source="analysis",
+        sources=gathered.source_texts,
+        payload=report.payload,
+        model=report.model,
+        prompt_version=report.prompt_version,
+    )
     report_row = await AnalysisReportStore().create(
         session,
         job_id=job_id,
@@ -183,6 +192,7 @@ async def _finish_succeeded(
         model=report.model,
         prompt_version=report.prompt_version,
         usage=report.usage,
+        verification=verification,
     )
     job = (await session.execute(select(Job).where(Job.id == job_id))).scalar_one()
     job.status = JobStatus.SUCCEEDED
@@ -191,6 +201,22 @@ async def _finish_succeeded(
     # result 最小指针（决策 2）：报告全文在 analysis_reports 表
     job.result = {"report_id": str(report_row.id), "status": report.status}
     job.finished_at = func.now()
+    await session.commit()
+    await record_audit(
+        session,
+        user_id=access.user_id,
+        action="evidence_verify",
+        resource_type="analysis_report",
+        resource_id=str(report_row.id),
+        detail={
+            "claims": verification["totals"]["claims"],
+            "supported": verification["totals"]["supported"],
+            "unsupported": verification["totals"]["unsupported"],
+            "contradicted": verification["totals"]["contradicted"],
+            "needs_review": verification["needs_review"],
+        },
+        source="analysis_worker",
+    )
     await session.commit()
     await record_audit(
         session,

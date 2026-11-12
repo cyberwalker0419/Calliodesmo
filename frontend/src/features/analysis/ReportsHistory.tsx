@@ -16,7 +16,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportDialog } from "./ReportViewer";
-import { useReports } from "./useAnalysis";
+import {
+  useDeleteReport,
+  useReports,
+  useRestoreReport,
+} from "./useAnalysis";
 
 /** 每页条数（后端 limit 上限 100；10 条便于分页器演示与滚动控制）。 */
 const PAGE_SIZE = 10;
@@ -38,16 +42,30 @@ function formatCreatedAt(iso: string): string {
   return iso.slice(0, 16).replace("T", " ");
 }
 
+const REVIEW_STATUS_LABEL: Record<string, string> = {
+  draft: "草稿",
+  pending: "待复核",
+  approved: "已通过",
+  rejected: "已驳回",
+};
+
 export function ReportsHistory() {
   const access = useAccess();
   const canAnalyze = access.can(PERMISSIONS.ANALYZE);
   const canExport = access.can(PERMISSIONS.EXPORT);
+  const canApprove = access.can(PERMISSIONS.APPROVE);
   const [page, setPage] = useState(0);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const deleteReport = useDeleteReport();
+  const restoreReport = useRestoreReport();
   const offset = page * PAGE_SIZE;
   const { data, isLoading, isError, error } = useReports(
-    canAnalyze ? { limit: PAGE_SIZE, offset } : { limit: PAGE_SIZE, offset, enabled: false }
+    canAnalyze
+      ? { limit: PAGE_SIZE, offset, includeDeleted: showDeleted }
+      : { limit: PAGE_SIZE, offset, enabled: false }
   );
 
   if (!canAnalyze) {
@@ -63,15 +81,29 @@ export function ReportsHistory() {
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
+  const detailReviewStatus =
+    items.find((r) => r.id === detailId)?.review_status ?? "draft";
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">报告历史</h2>
-        <span className="text-xs text-muted-foreground">
-          报告固定个人库（仅本人可见，含 admin）
-        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showDeleted ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setPage(0);
+            }}
+          >
+            {showDeleted ? "隐藏已删除" : "显示已删除"}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            报告固定个人库（仅本人可见，含 admin）
+          </span>
+        </div>
       </div>
 
       {isLoading ? (
@@ -93,6 +125,7 @@ export function ReportsHistory() {
                   <th className="p-2 text-left">类型</th>
                   <th className="p-2 text-left">分析对象</th>
                   <th className="p-2 text-left">状态</th>
+                  <th className="p-2 text-left">复核</th>
                   <th className="p-2 text-left">密级</th>
                   <th className="p-2 text-left">生成时间</th>
                   <th className="p-2 text-left">块数</th>
@@ -109,8 +142,21 @@ export function ReportsHistory() {
                       {r.subject_label}
                     </td>
                     <td className="p-2">
-                      <Badge className={STATUS_CLASS[r.status] ?? "bg-secondary"}>
-                        {r.status}
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge className={STATUS_CLASS[r.status] ?? "bg-secondary"}>
+                          {r.status}
+                        </Badge>
+                        {r.verification?.needs_review && (
+                          <Badge className="bg-amber-500 text-white text-[10px]">
+                            需复核
+                          </Badge>
+                        )}
+                        {r.deleted && <Badge variant="destructive">已删除</Badge>}
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <Badge variant="outline">
+                        {REVIEW_STATUS_LABEL[r.review_status] ?? r.review_status}
                       </Badge>
                     </td>
                     <td className="p-2">
@@ -123,16 +169,61 @@ export function ReportsHistory() {
                       {r.source_chunk_count}
                     </td>
                     <td className="p-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setDetailId(r.id);
-                          setDetailOpen(true);
-                        }}
-                      >
-                        详情
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {!r.deleted && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setDetailId(r.id);
+                              setDetailOpen(true);
+                            }}
+                          >
+                            详情
+                          </Button>
+                        )}
+                        {r.deleted ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={restoreReport.isPending}
+                            onClick={() => restoreReport.mutate(r.id)}
+                          >
+                            恢复
+                          </Button>
+                        ) : confirmDeleteId === r.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={deleteReport.isPending}
+                              onClick={() =>
+                                deleteReport.mutate(r.id, {
+                                  onSuccess: () => setConfirmDeleteId(null),
+                                })
+                              }
+                            >
+                              确认删除
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setConfirmDeleteId(null)}
+                            >
+                              取消
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => setConfirmDeleteId(r.id)}
+                          >
+                            删除
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -172,6 +263,9 @@ export function ReportsHistory() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         canExport={canExport}
+        canApprove={canApprove}
+        reviewStatus={detailReviewStatus}
+        onChanged={() => setDetailOpen(false)}
       />
     </div>
   );

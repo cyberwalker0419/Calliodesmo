@@ -8,13 +8,17 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON_DOWNLOADS: "never"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
+      - name: Install uv (PyPI)
+        # 2026-11-06：ghfast 镜像对 releases URL 返回 403，改从 PyPI 安装固定版本，
+        # 不依赖 GitHub Releases 直连。
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.13.0"
+          uv --version
 
       - name: Install dependencies
         # P7 T2：agent extra 进 CI（agent 离线测试为核心能力，桩/内存 stores 不连库）；

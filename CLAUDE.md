@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P7-agent-mode**（Agent 模式：ReAct 主链 + 工具定义 + 多轮对话状态，权限内行动；2026-08-31 完成并合入 main（PR #13）。P0-P6 均已完成并合入 main，后端 1124 passed）。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P8-evidence-verification**（证据验证与幻觉检测：答案-证据映射 / 接地度评分 / 幻觉标记 / ECE 校准 / 意图路由 / 报告生命周期；2026-11-06 T1–T7 + T9 完成，T8 条件任务留待 W49 重评；`--real` 已于 2026-11-11 执行（qwen3.8-flash-next），质量门槛未达（grounding 0.41 / 注入违规 2），硬化归 P9。P0-P7 均已完成并合入 main，后端 1288 passed / 1 skipped）。
 
 ## 当前阶段
 
@@ -23,7 +23,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P5** 高级 RAG 与智能检索 ✅ 完成（2026-08-19 合入，PR #10，431 passed：MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval；golden 基线 ctx_recall 0.4444；语义切分按证据跳过；详见 [docs/plans/phases/P5-advanced-rag.md](docs/plans/phases/P5-advanced-rag.md)）
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 [docs/plans/phases/P6-llm-analysis-tasks.md](docs/plans/phases/P6-llm-analysis-tasks.md) 与 [docs/verification/P6-verification.md](docs/verification/P6-verification.md)）
 - **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 合入 main：ReAct 主链 + 三重预算帽 + 只读工具七件/分析桥 + 三维门控（越权与不存在同消息）+ 会话 ORM 三表 + PG checkpointer + agent golden harness（离线 + --real 双轨）+ 前端聊天面 + e2e 六组；ReWOO 暂缓 / PlanExecute 门槛达标让位 / SSE 让位（锚点 2026-W49）；模板注册表评估结论顺延 P9；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md) 与 [docs/verification/P7-verification.md](docs/verification/P7-verification.md)）
-- **P8** 证据验证与幻觉检测（2026-W49 重评启动）：答案-证据映射 / 接地度评分 / 意图路由 / 报告生命周期 / 置信度校准（ECE）
+- **P8** 证据验证与幻觉检测 ✅ 完成（2026-11-06，T1–T7 + T9；T8 条件任务未启动）：答案-证据映射 / 接地度评分 / 幻觉标记 / 意图路由 / 报告版本·软删除·复核流 / 置信度校准（ECE）；`--real` 已执行（qwen3.8-flash-next，质量门槛未达，硬化归 P9）；详见 [docs/plans/phases/P8-evidence-verification.md](docs/plans/phases/P8-evidence-verification.md) 与 [docs/verification/P8-verification.md](docs/verification/P8-verification.md)
 - **P9** 动态更新与规模化（锚点 2026-W49）：审计硬化 / 压测 / VectorStore 置换 / 谓词下推 / Alembic + ReWOO·PlanExecute·SSE·RAG 记忆重评
 
 阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
@@ -70,12 +70,13 @@ src/calliodesmo/
 ├── audit/        审计日志（谁/何时/做了什么/从哪来）
 ├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / models_agent.py 会话三表 / migrate.py 幂等补列）
 ├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
-├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store）
+├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store / lifecycle）
+├── verification/ P8 证据验证域（models / engine / pipeline / calibration）
 ├── agent/        P7 Agent 域（errors / registry / tools / budget / graph / access / history / checkpoint / factory / job_worker）
 ├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis / agent（P7 契约）...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
 ├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
-├── eval/         P2 评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / harness
+├── eval/         评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / metrics_grounding(接地度·ECE) / harness
 ├── stores/       profile_card_store / visibility
 ├── config.py     pydantic-settings（CALLIODESMO_ 前缀）
 ├── models.py     ORM 模型集中导入（保证 Base.metadata 注册完整）

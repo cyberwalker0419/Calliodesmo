@@ -156,6 +156,98 @@ export interface QueryResponse {
   source_chunk_ids: string[];
   context_chunks: Array<{ chunk_id: string; content: string; score?: number }>;
   model: string;
+  // P8 接地度侧车（可空：历史响应 / 无证据答案）
+  verification?: VerificationSidecar | null;
+  // P8 意图路由（仅 mode=auto 时非空）
+  routed_mode?: string | null;
+  routing?: IntentRouting | null;
+}
+
+/** P8 意图路由决策回执（仅 auto 模式）。 */
+export interface IntentRouting {
+  requested_mode: string;
+  routed_mode: string;
+  executed_mode: string;
+  confidence: number;
+  reasons: string[];
+  fallback: boolean;
+}
+
+export type ClaimVerdict =
+  | "supported"
+  | "unsupported"
+  | "uncertain"
+  | "contradicted"
+  | "uncited";
+
+export interface VerificationEvidence {
+  chunk_id: string;
+  quote: string;
+  start: number;
+  end: number;
+  match_type: "quote" | "cross_document";
+}
+
+/** 声明级核验条目（与后端 verification/pipeline.py 侧车结构对齐）。 */
+export interface VerificationClaim {
+  text: string;
+  kind: "claim" | "citation";
+  cited: boolean;
+  chunk_id: string | null;
+  verdict: ClaimVerdict;
+  confidence: number;
+  calibrated_confidence: number;
+  reason: string;
+  evidence: VerificationEvidence[];
+}
+
+export interface VerificationTotals {
+  claims: number;
+  checkable: number;
+  supported: number;
+  unsupported: number;
+  uncertain: number;
+  contradicted: number;
+  uncited: number;
+  citations: number;
+  citations_supported: number;
+}
+
+export interface VerificationMetrics {
+  citation_precision: number;
+  claim_grounding: number;
+  unsupported_rate: number;
+  contradiction_rate: number;
+  uncited_claim_rate: number;
+  calibrated_confidence: number;
+}
+
+/** 接地度侧车（报告 / QA / Agent 共用；needs_review 供复核流消费）。 */
+export interface VerificationSidecar {
+  version: number;
+  source: "analysis" | "qa" | "agent";
+  claims: VerificationClaim[];
+  totals: VerificationTotals;
+  metrics: VerificationMetrics;
+  needs_review: boolean;
+  truncated?: boolean;
+  calibration?: {
+    model: string | null;
+    prompt_version: string | null;
+    warnings: string[];
+  };
+}
+
+/** 报告列表用侧车摘要（不含逐条 claim）。 */
+export interface VerificationSummary {
+  claims: number;
+  supported: number;
+  unsupported: number;
+  uncertain: number;
+  contradicted: number;
+  uncited: number;
+  claim_grounding: number;
+  needs_review: boolean;
 }
 
 export interface ContributionOut {
@@ -438,6 +530,34 @@ export interface ReportListItem {
   model: string;
   created_at: string;
   source_chunk_count: number;
+  verification?: VerificationSummary | null;
+  review_status: string;
+  current_version: number;
+  deleted?: boolean;
+}
+
+export interface AnalysisReportVersionOut {
+  version: number;
+  created_by: string;
+  created_at: string;
+  status: string;
+  subject_label: string;
+  model: string;
+}
+
+export interface AnalysisReportVersionsOut {
+  items: AnalysisReportVersionOut[];
+  total: number;
+}
+
+export type ReviewAction = "submit" | "approve" | "reject";
+
+export interface AnalysisReportActionOut {
+  id: string;
+  status: string;
+  review_status: string;
+  current_version: number;
+  deleted: boolean;
 }
 
 /** GET /analysis/reports 响应（total 为过滤后可见总行数，供分页器）。 */
@@ -454,7 +574,7 @@ export interface AnalysisDocumentOut {
   chunk_count: number;
 }
 
-export type SearchMode = "native_rag" | "local" | "global";
+export type SearchMode = "native_rag" | "local" | "global" | "auto";
 
 export const CLEARANCE_RANK: Record<string, number> = {
   PUBLIC: 0,
@@ -513,6 +633,8 @@ export interface AgentRunOut {
   }>;
   error: string | null;
   created_at: string;
+  // P8 接地度侧车（可空：P7 历史执行)
+  verification?: VerificationSidecar | null;
 }
 
 export interface AgentRunRequest {

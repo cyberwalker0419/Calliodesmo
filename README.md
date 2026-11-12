@@ -2,8 +2,8 @@
 
 > 三层知识图谱驱动的智能情报分析平台：GraphRAG 索引基座 + 混合检索 + LLM 分析 + Agent 模式，LLM / 嵌入 / 重排均可切换。
 
-[![phase: P7 done](https://img.shields.io/badge/phase-P7%20agent--mode%20done-22c55e)](docs/plans/phases/P7-agent-mode.md)
-[![phase: P8 next](https://img.shields.io/badge/phase-P8%20evidence--verification%20next-3b82f6)](docs/plans/phases/P7-agent-mode.md)
+[![phase: P8 done](https://img.shields.io/badge/phase-P8%20evidence--verification%20done-22c55e)](docs/plans/phases/P8-evidence-verification.md)
+[![phase: P9 next](https://img.shields.io/badge/phase-P9%20scale--up%20next-3b82f6)](docs/plans/phases/P8-evidence-verification.md)
 [![python: 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 
@@ -18,6 +18,7 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 | **高级 RAG** | MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval，评估 harness 回归 |
 | **LLM 分析** | 9 类结构化报告（摘要/关键信息/时间线/实体/关系/任务/概念/问答/自定义）+ 异步 job + 报告历史与导出 |
 | **Agent 模式** | ReAct 多轮对话（LangGraph）；只读工具七件 + 分析桥；三重预算帽；工具轨迹透明可审计 |
+| **证据验证** | 声明级 supported / unsupported / uncertain / contradicted 判定；接地度汇总与 `needs_review`；ECE 置信校准；报告版本 / 软删除 / 复核流；意图 auto 路由 |
 | **安全** | 三维权限贯穿全链路（检索 / 分析 / Agent 工具调用）；越权与不存在同消息不泄漏存在性；全程审计 |
 
 ## 技术栈
