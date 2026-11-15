@@ -324,9 +324,7 @@ async def test_audit_created_at_backfilled_to_timestamptz(legacy_db):
 
     async with engine.begin() as conn:
         row = (
-            await conn.execute(
-                text("SELECT created_at FROM audit_logs WHERE id = :i"), {"i": aid}
-            )
+            await conn.execute(text("SELECT created_at FROM audit_logs WHERE id = :i"), {"i": aid})
         ).scalar_one()
         index_names = {
             r[0]

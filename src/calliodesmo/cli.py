@@ -11,7 +11,6 @@ from sqlalchemy.orm import selectinload
 
 from calliodesmo import __version__
 from calliodesmo.config import get_settings
-from calliodesmo.db.base import Base
 from calliodesmo.ecl.engine import build_default_indexing_engine
 
 app = typer.Typer(help="Calliodesmo：三层知识图谱驱动的智能情报分析平台。")
@@ -49,26 +48,59 @@ def main(
     """Calliodesmo 命令行入口。"""
 
 
-async def _create_all(database_url: str) -> None:
-    import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
+async def _apply_schema(database_url: str) -> list[str]:
+    """建表 + 应用迁移步骤并记账（台账见 ``db/migrations``）。返回本次应用的版本。
+
+    步骤 0001 就是 ``create_all``（幂等），后续步骤补列 / 改列型——因此不必再单独
+    调一次 create_all；``Base`` 与模型注册由 migrations 内部负责。
+    """
+    from calliodesmo.db.migrations import apply_pending
 
     engine = create_async_engine(database_url)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    # P6 Task 11：create_all 不给既有表加列 / 改列型 -> 幂等补齐（jobs 补列 +
-    # contributions 时间列型回填）；全新库直出完整结构，此路径纯 no-op。
-    from calliodesmo.db.migrate import ensure_missing_columns
-
-    await ensure_missing_columns(engine)
-    await engine.dispose()
+    try:
+        return await apply_pending(engine)
+    finally:
+        await engine.dispose()
 
 
 @db_app.command("init")
 def db_init() -> None:
-    """按 Base.metadata 建表 + 幂等补齐既有库结构（未来迁移到 Alembic）。"""
+    """建表 + 应用全部迁移步骤（幂等，版本记入 schema_migrations）。"""
     settings = get_settings()
-    asyncio.run(_create_all(settings.database_url))
-    typer.echo("数据库表已创建。")
+    applied = asyncio.run(_apply_schema(settings.database_url))
+    typer.echo("数据库表已就绪。")
+    if applied:
+        typer.echo(f"已应用迁移：{', '.join(applied)}")
+
+
+@db_app.command("migrate")
+def db_migrate(
+    show: bool = typer.Option(False, "--show", help="只列步骤与是否已应用，不执行。"),
+) -> None:
+    """应用未记账的迁移步骤（可重复执行；失败不记账，重跑即续跑）。"""
+    from calliodesmo.db.migrations import apply_pending, migrate_report
+
+    settings = get_settings()
+
+    async def _run() -> tuple[list[str], list[dict]]:
+        engine = create_async_engine(settings.database_url)
+        try:
+            if show:
+                return [], await migrate_report(engine)
+            return await apply_pending(engine), await migrate_report(engine)
+        finally:
+            await engine.dispose()
+
+    applied, report = asyncio.run(_run())
+    if show:
+        for item in report:
+            mark = "已应用" if item["applied"] else "待应用"
+            typer.echo(f"{item['version']}	[{mark}]	{item['description']}")
+        return
+    if applied:
+        typer.echo(f"已应用迁移：{', '.join(applied)}")
+    else:
+        typer.echo("无待应用迁移（库结构已是最新；`db migrate --show` 查看清单）。")
 
 
 async def _seed(

@@ -10,8 +10,11 @@ datetime 即报错）。挂进 ``cli db init``（``create_all`` 之后）；全�
 
 幂等纪律：全部语句可重复执行（已补列跳过 / 已回填列型跳过 / 索引 ``IF NOT EXISTS``）。
 
-未竟：复杂迁移场景（列改名 / 降级回滚 / 数据回填脚本）需引入 Alembic，
-锚点 2026-W49（P9，与持久队列同批评估；cli db init docstring 早已注明去向）。
+P9 Task 6：本模块的补齐函数被 ``db/migrations.MIGRATION_STEPS`` 引用为有序步骤 +
+``schema_migrations`` 台账（``calliodesmo db migrate`` 据此判断哪台库升到哪个版本）；
+本模块函数保持可直接调用，旧调用点（``ensure_missing_columns``）行为不变。
+**新增结构变更只在 ``migrations.MIGRATION_STEPS`` 末尾追加一步**，不要在
+``ensure_missing_columns`` 里再加 run_sync。
 """
 
 from __future__ import annotations
@@ -57,16 +60,18 @@ _AUDIT_TSTZ_COLUMNS: tuple[str, ...] = ("created_at",)
 
 
 async def ensure_missing_columns(engine: AsyncEngine) -> None:
-    """幂等补齐既有库结构：jobs 补列 + contributions 时间列型回填。
+    """幂等补齐既有库结构（不记账的复跑路径）。
 
-    全新库经 ``create_all`` 直出完整结构，本函数为纯 no-op；既有库升级 P6 结构后
-    重跑 ``calliodesmo db init`` 即触发。全部操作幂等，重复执行安全。
+    全新库经 ``create_all`` 直出完整结构，本函数为纯 no-op。步骤清单与台账版迁移
+    同源（``db/migrations.MIGRATION_STEPS``）：**新增结构变更只改那一处**，
+    避免两套清单漂移。需要「哪台库升到哪个版本」的答案时用
+    ``migrations.apply_pending``（``calliodesmo db migrate``）。
     """
+    from calliodesmo.db.migrations import structural_steps
+
     async with engine.begin() as conn:
-        await conn.run_sync(_backfill_jobs_columns)
-        await conn.run_sync(_backfill_sidecar_columns)
-        await conn.run_sync(_backfill_contribution_timestamptz)
-        await conn.run_sync(_backfill_audit_timestamptz)
+        for step in structural_steps():
+            await conn.run_sync(step.apply)
 
 
 def _backfill_jobs_columns(conn: Connection) -> None:
