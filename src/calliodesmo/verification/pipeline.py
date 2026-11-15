@@ -40,12 +40,13 @@ from calliodesmo.eval.metrics_grounding import (
     uncited_claim_rate,
     unsupported_rate,
 )
+from calliodesmo.retrieval.answer_postprocess import is_meta_sentence, strip_answer_boilerplate
 from calliodesmo.verification.calibration import (
     Calibrator,
     default_calibrator,
     temperature_scale,
 )
-from calliodesmo.verification.engine import normalize_text, verify_claim
+from calliodesmo.verification.engine import normalize_text, verify_claim, verify_claim_against
 from calliodesmo.verification.models import Claim, EvidenceSpan, Verdict, VerificationResult
 
 #: 侧车版本（字段演进时递增，消费端按版本兼容）
@@ -112,7 +113,7 @@ def build_verification(
         citations_supported += sum(1 for c in citation_entries if c["verdict"] == "supported")
         claims.extend(_verify_uncited_text_claims(text_claims, sources))
     elif answer is not None:
-        answer_claims, cited, supported = _answer_entries(answer, sources)
+        answer_claims, cited, supported = _answer_entries(strip_answer_boilerplate(answer), sources)
         claims.extend(answer_claims)
         citations_total += cited
         citations_supported += supported
@@ -170,7 +171,11 @@ def build_answer_verification(
 
 
 def _answer_entries(answer: str, sources: Mapping[str, str]) -> tuple[list[dict], int, int]:
-    """QA / Agent 答案：按句子切分 + 引注解析（返回 entries / 引注数 / 支撑数）。"""
+    """QA / Agent 答案：按句子切分 + 引注解析（返回 entries / 引注数 / 支撑数）。
+
+    P9：引注句按**全部被引块联合核验**（一句引多块合法）；纯元话语句（「以上信息
+    仅供参考」）不参与核验，避免虚增 uncited。
+    """
     entries: list[dict] = []
     cited_total = 0
     cited_supported = 0
@@ -180,11 +185,13 @@ def _answer_entries(answer: str, sources: Mapping[str, str]) -> tuple[list[dict]
         if not text:
             continue
         if cited_ids:
-            visible = {cid: sources[cid] for cid in cited_ids if cid in sources}
-            result = verify_claim(Claim(text=text, quote=None), visible)
+            visible_ids = [cid for cid in cited_ids if cid in sources]
+            result = verify_claim_against(Claim(text=text, quote=None), sources, visible_ids)
             entries.append(_entry(text=text, kind="claim", cited=True, result=result))
             cited_total += 1
             cited_supported += 1 if result.verdict is Verdict.SUPPORTED else 0
+        elif is_meta_sentence(text):
+            continue
         else:
             entries.append(_uncited_entry(text))
     return entries, cited_total, cited_supported

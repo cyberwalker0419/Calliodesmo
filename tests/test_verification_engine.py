@@ -288,3 +288,71 @@ class TestGoldenContradictions:
                 sources,
             )
             assert result.verdict is Verdict.CONTRADICTED, item["id"]
+
+
+class TestMultiChunkVerification:
+    """P9 Task 1：一条声明可被多个被引块联合支撑。"""
+
+    def test_second_cited_chunk_supports(self, sources):
+        from calliodesmo.verification.engine import verify_claim_against
+
+        result = verify_claim_against(
+            Claim(text="APT28 是威胁组织"),
+            sources,
+            ["public__rare-earth-brief.md#0", "internal__apt28-tracking.md#0"],
+        )
+        assert result.verdict is Verdict.SUPPORTED
+        assert result.evidence[0].chunk_id == "internal__apt28-tracking.md#0"
+
+    def test_contradiction_wins_over_support(self):
+        from calliodesmo.verification.engine import verify_claim_against
+
+        sources = {"a": "镨钕氧化物报价小幅上行。", "b": "镨钕氧化物报价大幅下行。"}
+        result = verify_claim_against(Claim(text="镨钕氧化物报价大幅下行"), sources, ["a", "b"])
+        assert result.verdict is Verdict.CONTRADICTED
+
+    def test_no_visible_cited_chunk_unsupported(self, sources):
+        from calliodesmo.verification.engine import verify_claim_against
+
+        result = verify_claim_against(Claim(text="任意声明"), sources, ["no-such-chunk#0"])
+        assert result.verdict is Verdict.UNSUPPORTED
+
+    def test_empty_chunk_ids_unsupported(self, sources):
+        from calliodesmo.verification.engine import verify_claim_against
+
+        result = verify_claim_against(Claim(text="任意声明"), sources, [])
+        assert result.verdict is Verdict.UNSUPPORTED
+
+
+class TestParaphraseAndKeyFacts:
+    """P9 Task 1：转述 + 关键事实一致时的支撑判定（不放宽无据声明）。"""
+
+    def test_key_facts_and_char_overlap_support(self):
+        sources = {"doc#0": "谈判于 2024 年 5 月在日内瓦举行，共两轮。"}
+        result = verify_claim(Claim(text="会谈在 2024 年 5 月于日内瓦举行"), sources)
+        assert result.verdict is Verdict.SUPPORTED
+
+    def test_conflicting_number_not_supported(self):
+        sources = {"doc#0": "谈判于 2024 年 5 月在日内瓦举行，共两轮。"}
+        result = verify_claim(Claim(text="会谈在 2023 年 5 月于日内瓦举行"), sources)
+        assert result.verdict is not Verdict.SUPPORTED
+
+    def test_negation_exception_not_conflict(self):
+        sources = {"doc#0": "APT28 是威胁组织。"}
+        for claim_text in (
+            "APT28 不仅是威胁组织，还长期针对政府目标",
+            "APT28 未来可能扩大攻击范围",
+        ):
+            result = verify_claim(Claim(text=claim_text), sources)
+            assert result.verdict is not Verdict.CONTRADICTED, claim_text
+
+    def test_low_coverage_negation_not_conflict(self):
+        sources = {"doc#0": "APT28 是威胁组织。"}
+        result = verify_claim(Claim(text="APT28 未在火星设立分部"), sources)
+        assert result.verdict is not Verdict.CONTRADICTED
+
+    def test_coverage_helper_public(self):
+        from calliodesmo.verification.engine import evidence_coverage
+
+        assert evidence_coverage("镨钕氧化物报价小幅上行", "镨钕氧化物报价小幅上行") >= 0.99
+        assert evidence_coverage("火星基地", "镨钕氧化物报价小幅上行") < 0.2
