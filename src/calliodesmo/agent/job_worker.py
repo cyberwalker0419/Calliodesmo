@@ -18,13 +18,16 @@ from __future__ import annotations
 
 import re
 import uuid
+from dataclasses import replace
 
 import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
 from calliodesmo.agent.access import assert_evidence_within_session, verify_session_access
 from calliodesmo.audit.service import record_audit
 from calliodesmo.auth.service import get_access_context
+from calliodesmo.config import get_settings
 from calliodesmo.db.models_agent import AgentMessageORM, AgentRunORM, AgentSessionORM
 from calliodesmo.db.models_job import Job, JobStatus
+from calliodesmo.security.output_guard import guard_output
 from calliodesmo.stores.visibility import visible_to
 from calliodesmo.utils.json import json_safe
 from calliodesmo.verification.pipeline import build_verification
@@ -107,8 +110,26 @@ async def run_agent_job(
                 await session.commit()
                 return
 
-            # P8 接地度侧车：从工具轨迹回收 chunk_id，按当前权限取可见源文
-            verification = await _build_agent_verification(turn, access=access)
+            # P8 接地度侧车 + P9 输出层守卫：从工具轨迹回收 chunk_id，按当前权限取可见源文
+            sources = await _collect_agent_sources(turn, access=access)
+            guard = guard_output(turn.answer, sources=sources)
+            if guard.blocked:
+                turn = replace(turn, answer=guard.text)
+                await record_audit(
+                    session,
+                    user_id=job.user_id,
+                    action="output_guard",
+                    resource_type="agent_run",
+                    resource_id=str(run_id),
+                    detail={"kinds": sorted({v.kind for v in guard.violations})},
+                    source="agent_worker",
+                )
+            verification = build_verification(
+                source="agent",
+                sources=sources,
+                answer=turn.answer,
+                model=get_settings().llm_model,
+            )
             # persist 90：落库前密级断言钩子（证据密级不高于会话密级）
             assert_evidence_within_session(sess.access_level, session_level=sess.access_level)
             job.progress = 90
@@ -179,11 +200,12 @@ async def run_agent_job(
             barrier.set()
 
 
-async def _build_agent_verification(turn, *, access) -> dict:
-    """从工具轨迹回收 chunk_id → 取可见源文 → 生成接地度侧车。
+async def _collect_agent_sources(turn, *, access) -> dict[str, str]:
+    """从工具轨迹回收 chunk_id → 取可见源文（供输出守卫与接地度侧车共用）。
 
     工具输出 / 参数中的 ``[chunk_id]`` 为唯一证据线索；接口层 ``get_chunks_by_ids``
-    无 access 过滤，故此处逐条 ``visible_to`` 复核（与 ``GetChunkTool`` 同红线）。
+    在 P9 起支持 access 过滤，此处仍逐条 ``visible_to`` 复核（双保险，与
+    ``GetChunkTool`` 同红线）。
     """
     from calliodesmo.api.deps import get_app_stores  # 懒加载：域模块不顶层依赖 api 层
 
@@ -196,14 +218,6 @@ async def _build_agent_verification(turn, *, access) -> dict:
                 chunk_ids.update(str(v) for v in value if isinstance(v, str))
         if result.ok and isinstance(result.output, str):
             chunk_ids.update(_CHUNK_REF_RE.findall(result.output))
-    from calliodesmo.config import get_settings
-
     stores = get_app_stores()
     records = await stores.vector_store.get_chunks_by_ids(sorted(chunk_ids))
-    sources = {r.chunk_id: r.content for r in records if visible_to(r, access)}
-    return build_verification(
-        source="agent",
-        sources=sources,
-        answer=turn.answer,
-        model=get_settings().llm_model,
-    )
+    return {r.chunk_id: r.content for r in records if visible_to(r, access)}
