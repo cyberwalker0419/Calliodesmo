@@ -39,6 +39,11 @@ def qa_cases() -> list[dict]:
 
 
 @pytest.fixture(scope="module")
+def qa_cases_v3() -> list[dict]:
+    return _load_yaml("golden_qa_v3.yaml")["cases"]
+
+
+@pytest.fixture(scope="module")
 def verification_claims() -> list[dict]:
     return _load_yaml("golden_verification.yaml")["claims"]
 
@@ -83,11 +88,50 @@ class TestGoldenQaV2:
                 assert chunk_id in sources, f"{case['id']} 引用了不存在的 chunk: {chunk_id}"
 
 
+class TestGoldenQaV3:
+    """QA 语料 v3（P9 Task 3）：在 v2 之上扩充到 ≥70 例，为交叉验证 ECE 供样本。"""
+
+    def test_minimum_size(self, qa_cases_v3):
+        assert len(qa_cases_v3) >= 70
+
+    def test_superset_of_v2(self, qa_cases, qa_cases_v3):
+        """v3 完整包含 v2（历史口径可复现），且新增例 ID 连续。"""
+        v2_ids = {case["id"] for case in qa_cases}
+        v3_ids = {case["id"] for case in qa_cases_v3}
+        assert v2_ids <= v3_ids
+        assert len(v3_ids - v2_ids) >= 35
+
+    def test_category_minimums(self, qa_cases_v3):
+        counts = Counter(case["category"] for case in qa_cases_v3)
+        assert counts["answerable"] >= 25
+        assert counts["multi_hop"] >= 15
+        assert counts["no_answer"] >= 10
+        assert counts["distractor"] >= 10
+        assert counts["injection"] >= 6
+
+    def test_unique_ids(self, qa_cases_v3):
+        ids = [case["id"] for case in qa_cases_v3]
+        assert len(ids) == len(set(ids))
+
+    def test_modes_valid(self, qa_cases_v3):
+        assert {case["mode"] for case in qa_cases_v3} <= {"native_rag", "local", "global"}
+
+    def test_chunk_ids_exist(self, qa_cases_v3, sources):
+        for case in qa_cases_v3:
+            for chunk_id in case["relevant_chunk_ids"]:
+                assert chunk_id in sources, f"{case['id']} 引用了不存在的 chunk: {chunk_id}"
+
+    def test_no_answer_has_no_evidence(self, qa_cases_v3):
+        for case in qa_cases_v3:
+            if case["category"] == "no_answer":
+                assert case["relevant_chunk_ids"] == []
+
+
 class TestGoldenVerification:
     """claim 标注集：规模、四类平衡、引注可定位、注入探针。"""
 
     def test_minimum_size(self, verification_claims):
-        assert len(verification_claims) >= 40
+        assert len(verification_claims) >= 60
 
     def test_verdict_balance(self, verification_claims):
         counts = Counter(item["expected_verdict"] for item in verification_claims)
@@ -139,3 +183,17 @@ class TestGoldenContradictions:
     def test_claims_differ_from_source(self, contradiction_pairs):
         for item in contradiction_pairs:
             assert _norm(item["claim"]) != _norm(item["source_quote"])
+
+
+class TestEvalCorpus:
+    """P9 可追踪评估语料副本：与 tests/fixtures/demo 同名同内容，全新克隆可复现质量轨。"""
+
+    def test_files_exist_and_match_fixture(self):
+        eval_dir = _CONFIG / "eval_corpus"
+        assert eval_dir.is_dir()
+        fixtures = sorted(_DEMO.glob("*.md"))
+        assert len(fixtures) >= 3
+        for fixture in fixtures:
+            mirror = eval_dir / fixture.name
+            assert mirror.is_file(), f"缺少评估语料副本 {fixture.name}"
+            assert mirror.read_bytes() == fixture.read_bytes()

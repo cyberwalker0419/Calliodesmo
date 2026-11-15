@@ -41,24 +41,27 @@ from calliodesmo.retrieval.intent import route_intent
 from calliodesmo.verification.calibration import (
     CalibrationParams,
     CalibrationSlice,
+    cross_validated_calibration,
     fit_temperature,
     load_calibration,
     save_calibration,
-    temperature_scale,
 )
 from calliodesmo.verification.engine import verify_claims
 from calliodesmo.verification.models import Claim, Verdict
 from calliodesmo.verification.pipeline import build_verification
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUT = ROOT / "docs" / "verification" / "p8-regression.json"
+DEFAULT_OUT = ROOT / "docs" / "verification" / "p9-regression.json"
 REAL_DIR = ROOT / "docs" / "verification"
 QA_V2 = ROOT / "config" / "golden_qa_v2.yaml"
+QA_V3 = ROOT / "config" / "golden_qa_v3.yaml"
 VERIFICATION = ROOT / "config" / "golden_verification.yaml"
 CONTRADICTIONS = ROOT / "config" / "golden_contradictions.yaml"
 INTENT = ROOT / "config" / "golden_intent.yaml"
 CALIBRATION = ROOT / "config" / "calibration.yaml"
 DEMO_DIR = ROOT / "data" / "demo"
+#: 可追踪的评估语料副本（data/ 不入库；全新克隆无 data/demo 时回退到此处）
+EVAL_CORPUS = ROOT / "config" / "eval_corpus"
 
 OFFLINE_DISCLAIMER = (
     "离线证据≠质量证据：确定性核验与桩对真实幻觉发生率零区分度；"
@@ -89,9 +92,15 @@ ACCESS = AccessContext(
 )
 
 
+def evaluation_corpus_dir() -> Path:
+    """评估语料目录：优先 data/demo（含 seed 演示数据），缺失回退 config/eval_corpus。"""
+    return DEMO_DIR if DEMO_DIR.is_dir() else EVAL_CORPUS
+
+
 def load_sources() -> dict[str, str]:
-    """data/demo 三件语料 → chunk_id 映射（`<文件名>#0`）。"""
-    return {f"{p.name}#0": p.read_text(encoding="utf-8") for p in sorted(DEMO_DIR.glob("*.md"))}
+    """评估语料三件文档 → chunk_id 映射（`<文件名>#0`）。"""
+    corpus = evaluation_corpus_dir()
+    return {f"{p.name}#0": p.read_text(encoding="utf-8") for p in sorted(corpus.glob("*.md"))}
 
 
 def load_yaml(path: Path) -> dict:
@@ -137,10 +146,16 @@ def _claims_from(items: list[dict]) -> list[Claim]:
     ]
 
 
-def run_offline() -> dict:
+def qa_corpus(phase: str) -> Path:
+    """按阶段选择 QA 语料：P9 用 v3（70 例），P8 用 v2（35 例，历史口径）。"""
+    return QA_V3 if phase == "p9" else QA_V2
+
+
+def run_offline(*, phase: str = "p9") -> dict:
     """离线轨：语料统计 + 核验判定 + 结构指标。"""
     sources = load_sources()
-    qa_cases = load_yaml(QA_V2)["cases"]
+    corpus_path = qa_corpus(phase)
+    qa_cases = load_yaml(corpus_path)["cases"]
     verification_items = load_yaml(VERIFICATION)["claims"]
     contradiction_items = load_yaml(CONTRADICTIONS)["pairs"]
 
@@ -186,12 +201,12 @@ def run_offline() -> dict:
     qa_categories = Counter(case["category"] for case in qa_cases)
     intent = run_intent_eval()
     return {
-        "phase": "P8",
+        "phase": phase.upper(),
         "track": "offline",
         "disclaimer": OFFLINE_DISCLAIMER,
         "generated_at": datetime.now(UTC).isoformat(),
         "corpora": {
-            "golden_qa_v2": {
+            corpus_path.name: {
                 "cases": len(qa_cases),
                 "categories": dict(sorted(qa_categories.items())),
             },
@@ -283,7 +298,7 @@ def _eval_settings() -> Settings:
     return get_settings()
 
 
-async def _run_real(*, write_calibration: bool) -> dict:
+async def _run_real(*, write_calibration: bool, phase: str = "p9") -> dict:
     """真模型质量轨：灌库 → golden QA → 接地度核验 → 校准拟合 → 报告。"""
     settings = _eval_settings()
     from calliodesmo.api.deps import AppStores
@@ -307,7 +322,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
             community_store=stores.community_store,
             profile_card_store=stores.profile_card_store,
         )
-        await indexing.ingest(str(DEMO_DIR), access=ACCESS)
+        await indexing.ingest(str(evaluation_corpus_dir()), access=ACCESS)
     engine = build_default_search_engine(
         settings,
         vector_store=stores.vector_store,
@@ -316,7 +331,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
         sparse_index=stores.sparse_index,
     )
 
-    cases = load_yaml(QA_V2)["cases"]
+    cases = load_yaml(qa_corpus(phase))["cases"]
     rows: list[dict] = []
     pairs: list[tuple[float, bool]] = []
     totals = Counter()
@@ -375,18 +390,16 @@ async def _run_real(*, write_calibration: bool) -> dict:
         else 0.0
     )
 
-    # 训练 / 留出按声明序奇偶切分（确定性；样本不足时恒等温度 + 参考值）
-    train = pairs[::2]
-    holdout = pairs[1::2]
-    temperature = fit_temperature(
-        [confidence for confidence, _ in train], [correct for _, correct in train]
-    )
-    calibrated_holdout = [temperature_scale(confidence, temperature) for confidence, _ in holdout]
-    holdout_outcomes = [correct for _, correct in holdout]
-    before_ece, _, before_n = expected_calibration_error(
-        [confidence for confidence, _ in holdout], holdout_outcomes
-    )
-    after_ece, table, holdout_n = expected_calibration_error(calibrated_holdout, holdout_outcomes)
+    # P9：5 折交叉验证校准——每条声明由「不含自己的折」拟合的温度校准，
+    # 汇总 ECE 使用全部样本（样本利用率 100%）；同时保留原始置信 ECE 作对照。
+    confidences = [confidence for confidence, _ in pairs]
+    correctness = [correct for _, correct in pairs]
+    cv = cross_validated_calibration(confidences, correctness, folds=5)
+    before_ece, _, before_n = expected_calibration_error(confidences, correctness)
+    after_ece = cv.ece
+    table = cv.table
+    holdout_n = cv.sample_count
+    temperature = fit_temperature(confidences, correctness)
     ece_status = "ok" if holdout_n >= THRESHOLDS["ece_min_samples"] else "insufficient_samples"
 
     intent = run_intent_eval()
@@ -430,7 +443,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
                 model=model_name,
                 prompt_version=QA_PROMPT_VERSION,
                 temperature=temperature,
-                sample_count=len(train),
+                sample_count=len(pairs),
             )
         )
         save_calibration(
@@ -440,7 +453,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
         calibration_written = True
 
     return {
-        "phase": "P8",
+        "phase": phase.upper(),
         "track": "real",
         "model": model_name,
         "model_slug": _model_slug(model_name),
@@ -451,8 +464,8 @@ async def _run_real(*, write_calibration: bool) -> dict:
             "qa_cases": len(rows),
             "claims": totals["claims"],
             "checkable": totals["checkable"],
-            "calibration_train": len(train),
-            "calibration_holdout": len(holdout),
+            "calibration_samples": len(pairs),
+            "calibration_holdout": holdout_n,
         },
         "answer_accuracy": answer_accuracy,
         "metrics": metrics,
@@ -464,6 +477,10 @@ async def _run_real(*, write_calibration: bool) -> dict:
             "before_temperature": before_ece,
             "after_temperature": after_ece,
             "before_samples": before_n,
+            "method": "5-fold cross-validation",
+            "folds": cv.folds,
+            "fold_temperatures": list(cv.temperatures),
+            "fold_sizes": list(cv.fold_sizes),
             "reliability_table": [
                 {
                     "lower": bin_.lower,
@@ -478,7 +495,7 @@ async def _run_real(*, write_calibration: bool) -> dict:
         },
         "calibration": {
             "fitted_temperature": temperature,
-            "train_samples": len(train),
+            "train_samples": len(pairs),
             "written": calibration_written,
         },
         "injection": {
@@ -500,13 +517,19 @@ def main() -> int:
         help="--real 时把拟合温度写入 config/calibration.yaml",
     )
     parser.add_argument("--out", default=str(DEFAULT_OUT))
+    parser.add_argument(
+        "--phase",
+        choices=("p8", "p9"),
+        default="p9",
+        help="语料与证据前缀：p9（v3 70 例，默认）| p8（v2 35 例，历史口径）",
+    )
     args = parser.parse_args()
 
     if args.real:
-        report = asyncio.run(_run_real(write_calibration=args.write_calibration))
-        out = REAL_DIR / f"p8-real-{report['model_slug']}.json"
+        report = asyncio.run(_run_real(write_calibration=args.write_calibration, phase=args.phase))
+        out = REAL_DIR / f"{args.phase}-real-{report['model_slug']}.json"
     else:
-        report = run_offline()
+        report = run_offline(phase=args.phase)
         out = Path(args.out)
 
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from calliodesmo.eval.metrics_grounding import expected_calibration_error
+from calliodesmo.eval.metrics_grounding import ReliabilityBin, expected_calibration_error
 
 #: 样本不足阈值：低于该值只报参考值，不落拟合参数
 MIN_CALIBRATION_SAMPLES = 100
@@ -45,6 +45,82 @@ class CalibrationParams:
 
     default_temperature: float = 1.0
     slices: tuple[CalibrationSlice, ...] = ()
+
+
+@dataclass(frozen=True)
+class CrossValidatedECE:
+    """交叉验证校准报告：汇总 ECE、可靠性表、各折温度与留出样本数。
+
+    ``ece`` 在**全部样本**上计算：每条样本由「不含自己的那一折」拟合的温度校准，
+    再统一分箱——样本利用率 100%，统计上比单次奇偶留出更稳（P9 关键决策 4）。
+    """
+
+    ece: float
+    table: list[ReliabilityBin]
+    sample_count: int
+    folds: int
+    temperatures: tuple[float, ...]
+    fold_sizes: tuple[int, ...]
+
+
+def cross_validated_calibration(
+    confidences: list[float],
+    outcomes: list[bool],
+    *,
+    folds: int = 5,
+    bins: int = 10,
+    grid: tuple[float, ...] = DEFAULT_GRID,
+    min_train_samples: int = 30,
+) -> CrossValidatedECE:
+    """K 折交叉验证校准：按 ``index % folds`` 分折，逐折在训练集拟合温度并校准留出集。
+
+    参数:
+        confidences / outcomes: 等长的置信-正确性样本。
+        folds: 折数（≥2；样本不足折数时允许空折）。
+        bins: ECE 分箱数。
+        grid: 温度网格。
+        min_train_samples: 单折训练样本下限；不足时该折用恒等温度（防小样本过拟合）。
+
+    返回:
+        ``CrossValidatedECE``；空样本返回全零报告（``temperatures`` / ``fold_sizes`` 为空）。
+    """
+    if len(confidences) != len(outcomes):
+        raise ValueError("confidences 与 outcomes 长度必须一致")
+    if folds < 2:
+        raise ValueError("folds 必须 ≥ 2")
+    n = len(confidences)
+    if n == 0:
+        return CrossValidatedECE(
+            ece=0.0, table=[], sample_count=0, folds=folds, temperatures=(), fold_sizes=()
+        )
+
+    calibrated: list[float] = [0.0] * n
+    temperatures: list[float] = []
+    fold_sizes: list[int] = []
+    for fold in range(folds):
+        holdout = [i for i in range(n) if i % folds == fold]
+        train = [i for i in range(n) if i % folds != fold]
+        fold_sizes.append(len(holdout))
+        temperature = fit_temperature(
+            [confidences[i] for i in train],
+            [outcomes[i] for i in train],
+            grid=grid,
+            bins=bins,
+            min_samples=min_train_samples,
+        )
+        temperatures.append(temperature)
+        for i in holdout:
+            calibrated[i] = temperature_scale(confidences[i], temperature)
+
+    ece, table, sample_count = expected_calibration_error(calibrated, outcomes, bins=bins)
+    return CrossValidatedECE(
+        ece=ece,
+        table=table,
+        sample_count=sample_count,
+        folds=folds,
+        temperatures=tuple(temperatures),
+        fold_sizes=tuple(fold_sizes),
+    )
 
 
 @dataclass
@@ -112,17 +188,20 @@ def fit_temperature(
     *,
     grid: tuple[float, ...] = DEFAULT_GRID,
     bins: int = 10,
+    min_samples: int | None = None,
 ) -> float:
     """一维网格搜索最优温度（目标：缩放后 ECE 最小；同分取更接近 1.0）。
 
-    空样本、全同类样本（无置信-正确性区分度）或样本量 < ``MIN_CALIBRATION_SAMPLES``
-    时返回恒等温度 1.0（由调用方在报告中标注「参考值 / 未拟合」）。
+    空样本、全同类样本（无置信-正确性区分度）或样本量低于 ``min_samples``
+    （默认 ``MIN_CALIBRATION_SAMPLES``）时返回恒等温度 1.0（由调用方标注参考值）。
+    交叉验证按折调用时应传更低的 ``min_samples``（每折训练样本天然更少）。
     """
     if len(confidences) != len(outcomes):
         raise ValueError("confidences 与 outcomes 长度必须一致")
     if not confidences or len(set(outcomes)) < 2:
         return 1.0
-    if len(confidences) < MIN_CALIBRATION_SAMPLES:
+    threshold = MIN_CALIBRATION_SAMPLES if min_samples is None else min_samples
+    if len(confidences) < threshold:
         return 1.0
 
     best_temperature = 1.0
