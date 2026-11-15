@@ -130,6 +130,75 @@ def db_seed() -> None:
 
 
 @app.command()
+def doctor(
+    check_db: bool = typer.Option(
+        True, "--check-db/--no-check-db", help="是否做数据库 / 图库连通检查（离线可关）。"
+    ),
+) -> None:
+    """配置体检与就绪自检：部署 / 排障先跑这条，error 级问题非零退出。"""
+    from calliodesmo.api.observability import check_config, check_optional_extras
+    from calliodesmo.config_validation import summarize, validate_settings
+
+    settings = get_settings()
+    issues = validate_settings(settings)
+    checks: list[dict] = [{"name": "config", **check_config(settings)}]
+    if check_db:
+        checks += asyncio.run(_doctor_connectivity_checks(settings))
+        checks.append(asyncio.run(_doctor_extras_check(check_optional_extras)))
+
+    typer.echo(f"环境：{settings.environment}（version {__version__}）")
+    typer.echo("配置校验：")
+    if not issues:
+        typer.echo("  [ok] 无告警与错误")
+    for issue in issues:
+        typer.echo(f"  [{issue.level}] {issue.code}: {issue.message}")
+        if issue.hint:
+            typer.echo(f"        提示：{issue.hint}")
+    if check_db:
+        typer.echo("连通检查：")
+        for check in checks[1:]:
+            typer.echo(f"  [{check['status']}] {check['name']}: {check['detail']}")
+    summary = summarize(issues)
+    if summary["errors"]:
+        typer.echo(f"结论：存在 {summary['errors']} 个 error 级问题，修复后再启动。")
+        raise typer.Exit(code=1)
+    suffix = f"（{summary['warnings']} 个告警，按需处理）" if summary["warnings"] else ""
+    failed = [c["name"] for c in checks if c["status"] == "fail"]
+    if failed:
+        typer.echo(f"结论：配置无误，但 {len(failed)} 项连通检查失败：{', '.join(failed)}")
+        raise typer.Exit(code=1)
+    typer.echo(f"结论：可以启动{suffix}。")
+
+
+async def _doctor_connectivity_checks(settings) -> list[dict]:
+    """数据库 / 图库探活：建连失败也如实成一条 fail，不让 doctor 自己崩。"""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from calliodesmo.api.observability import check_database, check_graph, run_check
+
+    try:
+        engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    except Exception as exc:
+        detail = f"{type(exc).__name__}: {exc}"[:200]
+        return [{"name": "database", "status": "fail", "detail": detail}]
+    checks: list[dict] = []
+    try:
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            checks.append(await run_check("database", lambda: check_database(session)))
+        checks.append(await run_check("graph", lambda: check_graph(settings)))
+    finally:
+        await engine.dispose()
+    return checks
+
+
+async def _doctor_extras_check(probe) -> dict:
+    from calliodesmo.api.observability import run_check
+
+    return await run_check("agent_extra", probe)
+
+
+@app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="监听地址。"),
     port: int = typer.Option(8000, help="监听端口。"),
@@ -146,6 +215,9 @@ def serve(
     """
     import uvicorn
 
+    # P9 Task 5：启动前配置体检——生产环境的 error 级问题直接拒启（开发环境只提示）
+    _validate_for_serve(get_settings())
+
     if seed_demo:
         _seed_demo_for_serve()
     # P4.5 Task 5：启动恢复——遗留 pending/running job（进程内 worker 已随重启丢失）
@@ -160,6 +232,22 @@ def serve(
     uvicorn.run(
         "calliodesmo.api.app:app", host=host, port=port, reload=reload, **serve_loop_kwargs()
     )
+
+
+def _validate_for_serve(settings) -> None:
+    """启动前配置校验：error 级问题在生产拒启、在开发告警；warn 一律只提示。"""
+    from calliodesmo.config_validation import ERROR, validate_settings
+
+    issues = validate_settings(settings)
+    for issue in issues:
+        if issue.level == ERROR:
+            hint = issue.hint or "见 calliodesmo doctor"
+            typer.echo(f"[error] {issue.code}: {issue.message}｜提示：{hint}")
+        else:
+            typer.echo(f"[{issue.level}] {issue.code}: {issue.message}")
+    errors = [i for i in issues if i.level == ERROR]
+    if errors and settings.environment.lower() == "production":
+        raise typer.Exit(code=1)
 
 
 def _seed_demo_for_serve() -> None:

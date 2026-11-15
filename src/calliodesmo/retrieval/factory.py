@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from calliodesmo.config import Settings
+from calliodesmo.config_validation import is_local_endpoint
 from calliodesmo.interfaces.community_store import CommunityStore
 from calliodesmo.interfaces.embedding import EmbeddingProvider
 from calliodesmo.interfaces.graph_store import GraphStore
@@ -39,11 +40,7 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
         if getattr(settings, "llm_disable_thinking", True)
         else None
     )
-    local_hosts = ("localhost", "127.0.0.1", "0.0.0.0", "::1")
-    is_local = bool(settings.llm_api_base) and any(
-        h in (settings.llm_api_base or "") for h in local_hosts
-    )
-    exempt = model.startswith("ollama/") or model.startswith("lm-studio/") or is_local
+    exempt = is_local_endpoint(settings.llm_api_base, model)
     if not exempt and not settings.llm_api_key:
         raise RuntimeError(
             "LLM 缺 API key：设置环境变量 CALLIODESMO_LLM_API_KEY"
@@ -77,11 +74,7 @@ def build_vision_provider(settings: Settings):
         if getattr(settings, "llm_disable_thinking", True)
         else None
     )
-    local_hosts = ("localhost", "127.0.0.1", "0.0.0.0", "::1")
-    is_local = bool(settings.vision_api_base) and any(
-        h in (settings.vision_api_base or "") for h in local_hosts
-    )
-    exempt = model.startswith("ollama/") or model.startswith("lm-studio/") or is_local
+    exempt = is_local_endpoint(settings.vision_api_base, model)
     if not exempt and not settings.vision_api_key:
         raise RuntimeError(
             "识图模型缺 API key：设置环境变量 CALLIODESMO_VISION_API_KEY"
