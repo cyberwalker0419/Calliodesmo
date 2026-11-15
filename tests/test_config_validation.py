@@ -98,7 +98,9 @@ class TestModelStack:
 
     def test_llm_local_exempt(self):
         issues = validate_settings(
-            _settings(llm_model="openai/local", llm_api_key=None, llm_api_base="http://127.0.0.1:8080/v1")
+            _settings(
+                llm_model="openai/local", llm_api_key=None, llm_api_base="http://127.0.0.1:8080/v1"
+            )
         )
         assert _issue(issues, "llm_api_key") is None
 

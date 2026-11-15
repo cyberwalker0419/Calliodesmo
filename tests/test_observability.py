@@ -39,9 +39,11 @@ class TestReadyz:
         monkeypatch.setattr(
             observability,
             "check_config",
-            lambda: {"status": "fail", "detail": "存在 error 级配置问题", "issues": [
-                {"level": ERROR, "code": "jwt_default_secret", "message": "默认密钥"}
-            ]},
+            lambda: {
+                "status": "fail",
+                "detail": "存在 error 级配置问题",
+                "issues": [{"level": ERROR, "code": "jwt_default_secret", "message": "默认密钥"}],
+            },
         )
         resp = await client.get("/readyz")
         assert resp.status_code == 503

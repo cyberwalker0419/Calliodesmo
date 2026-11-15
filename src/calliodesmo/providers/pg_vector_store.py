@@ -2,7 +2,8 @@
 
 P4.5 Task 2 Step 2。对齐 :class:`~calliodesmo.interfaces.vector_store.VectorStore` 契约：
 ``upsert_chunks``（ON CONFLICT 幂等）/ ``search``（``<=>`` 余弦距离 + visible_to SQL 过滤）/
-``get_chunks_by_ids`` / ``list_chunks``。经 ``async_sessionmaker`` 自管会话。
+``get_chunks_by_ids``（P9 起支持可见性谓词下推）/ ``list_chunks``。
+经 ``async_sessionmaker`` 自管会话。
 """
 
 from __future__ import annotations
@@ -152,13 +153,17 @@ class PgVectorStore(VectorStore):
                 )
             return hits
 
-    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[ChunkRecord]:
+    async def get_chunks_by_ids(
+        self, chunk_ids: list[str], *, access: AccessContext | None = None
+    ) -> list[ChunkRecord]:
         if not chunk_ids:
             return []
+        stmt = select(ChunkRecordORM).where(ChunkRecordORM.chunk_id.in_(chunk_ids))
+        if access is not None:
+            # 谓词下推：可见性进 SQL WHERE（不把无权行取回内存再筛）
+            stmt = stmt.where(_visible_filter(ChunkRecordORM, access))
         async with self._session_factory() as session:
-            result = await session.execute(
-                select(ChunkRecordORM).where(ChunkRecordORM.chunk_id.in_(chunk_ids))
-            )
+            result = await session.execute(stmt)
             return [_row_to_chunk(row) for row in result.scalars()]
 
     async def list_chunks(self, *, access: AccessContext) -> list[ChunkRecord]:

@@ -69,8 +69,9 @@ class LocalSearchRetriever(Retriever):
         if not chunk_ids:
             return []
 
-        # 归一到 chunk
-        chunks = await self._vector_store.get_chunks_by_ids(list(chunk_ids))
+        # 归一到 chunk（P9：可见性谓词下推到取数层——图邻居的 source_chunk_ids
+        # 可能指向他文档的块，实体可见不等于块可见）
+        chunks = await self._vector_store.get_chunks_by_ids(list(chunk_ids), access=access)
         # 去重、按 chunk_id 排序（确定性），取 top_k
         chunks.sort(key=lambda c: c.chunk_id)
         result: list[Candidate] = []

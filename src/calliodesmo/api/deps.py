@@ -91,8 +91,11 @@ class AppStores:
                 self.community_store = PgCommunityStore(SessionLocal)
             else:
                 self.community_store = InMemoryCommunityStore()
-        # TODO(P9, 2026-W49)：ProfileCard 与 BM25 改 PG 数据源——与三 store list 谓词下推同批。
-        # （原锚点 2026-W33 逾期，P6 Task 1 显式顺延：P6 材料路径不依赖 BM25。）
+        # TODO(P9 移交, 2026-W52)：ProfileCard 与 BM25 稀疏索引改 PG 数据源。
+        # P9 Task 7 已把三维可见性谓词下推到取数层（vector / graph / community /
+        # sparse 预过滤），并补了两后端的契约对等测试；但 profile card 与 BM25 仍是
+        # 进程内单例——多进程 serve 下不可见（单进程演示无碍，横向扩展前必须改）。
+        # 判据与排期见 docs/plans/phases/P9-usable-scale.md「暂缓与移交记录」。
         if self.profile_card_store is None:
             self.profile_card_store = InMemoryProfileCardStore()
         if self.sparse_index is None:

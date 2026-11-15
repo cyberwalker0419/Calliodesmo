@@ -151,9 +151,7 @@ async def list_audit_logs(
     return entries, int(total)
 
 
-async def purge_expired_audit(
-    session: AsyncSession, *, retention_days: int | None = None
-) -> int:
+async def purge_expired_audit(session: AsyncSession, *, retention_days: int | None = None) -> int:
     """删除超过保留期的审计行，返回删除条数。
 
     ``retention_days`` 缺省取配置 ``audit_retention_days``；``<= 0`` 表示永久保留

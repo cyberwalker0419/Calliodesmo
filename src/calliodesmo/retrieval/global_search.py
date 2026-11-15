@@ -78,7 +78,8 @@ class GlobalSearchRetriever(Retriever):
         if not chunk_ids:
             return []
 
-        chunks = await self._vector_store.get_chunks_by_ids(list(chunk_ids))
+        # P9：可见性谓词下推到取数层（社区摘要可见不等于其引用的块可见）
+        chunks = await self._vector_store.get_chunks_by_ids(list(chunk_ids), access=access)
         chunks.sort(key=lambda c: c.chunk_id)
         result: list[Candidate] = []
         for i, chunk in enumerate(chunks[:top_k], 1):

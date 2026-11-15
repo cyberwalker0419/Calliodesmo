@@ -76,9 +76,14 @@ class InMemoryBM25Index(SparseIndex):
         if not q_tokens:
             return []
         n = len(self._docs)
+        # P9 谓词下推：先用倒排链取候选（评分面从「全库」缩到「含词项的块」），
+        # 再在候选上做可见性过滤——不可见块不参与打分，可见集判定与逐块过滤等价。
+        candidates: set[int] = set()
+        for term in set(q_tokens):
+            candidates.update(self._inverted.get(term, ()))
         scored: list[tuple[float, int]] = []
-        for i, doc in enumerate(self._docs):
-            if not visible_to(doc, access):
+        for i in sorted(candidates):
+            if not visible_to(self._docs[i], access):
                 continue
             score = self._bm25_score(q_tokens, i, n)
             if score > 0:

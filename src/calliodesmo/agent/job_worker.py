@@ -219,5 +219,5 @@ async def _collect_agent_sources(turn, *, access) -> dict[str, str]:
         if result.ok and isinstance(result.output, str):
             chunk_ids.update(_CHUNK_REF_RE.findall(result.output))
     stores = get_app_stores()
-    records = await stores.vector_store.get_chunks_by_ids(sorted(chunk_ids))
+    records = await stores.vector_store.get_chunks_by_ids(sorted(chunk_ids), access=access)
     return {r.chunk_id: r.content for r in records if visible_to(r, access)}
