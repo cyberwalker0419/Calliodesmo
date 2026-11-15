@@ -49,6 +49,12 @@ _SIDECAR_COLUMN_SPECS: dict[str, tuple[tuple[str, str], ...]] = {
 #: contributions 需回填列型的时间列（P6 Task 1 统一为 DateTime(timezone=True)）。
 _TSTZ_COLUMNS: tuple[str, ...] = ("reviewed_at", "merged_at", "created_at", "updated_at")
 
+#: audit_logs 需回填列型的时间列（P9 Task 4：留存 / 时间窗按 UTC 语义）。
+#: 存量值来自 ``now()::timestamp``（会话时区的墙上时间），故按
+#: ``current_setting('TimeZone')`` 解释——与 contributions 的「按 UTC 解释」不同，
+#: 因为那批值由应用侧写入（aware UTC），这批值由数据库默认值写入（本地时区）。
+_AUDIT_TSTZ_COLUMNS: tuple[str, ...] = ("created_at",)
+
 
 async def ensure_missing_columns(engine: AsyncEngine) -> None:
     """幂等补齐既有库结构：jobs 补列 + contributions 时间列型回填。
@@ -60,6 +66,7 @@ async def ensure_missing_columns(engine: AsyncEngine) -> None:
         await conn.run_sync(_backfill_jobs_columns)
         await conn.run_sync(_backfill_sidecar_columns)
         await conn.run_sync(_backfill_contribution_timestamptz)
+        await conn.run_sync(_backfill_audit_timestamptz)
 
 
 def _backfill_jobs_columns(conn: Connection) -> None:
@@ -130,3 +137,39 @@ def _backfill_contribution_timestamptz(conn: Connection) -> None:
             )
         )
         logger.info("db/migrate：contributions.%s 回填 TIMESTAMPTZ", column_name)
+
+
+def _backfill_audit_timestamptz(conn: Connection) -> None:
+    """audit_logs.created_at 回填 TIMESTAMPTZ + 补齐查询索引（P9 Task 4，幂等）。"""
+    insp = inspect(conn)
+    if not insp.has_table("audit_logs"):
+        return
+    names = ", ".join(f"'{c}'" for c in _AUDIT_TSTZ_COLUMNS)
+    rows = conn.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = 'audit_logs' "
+            f"AND column_name IN ({names}) AND data_type = 'timestamp without time zone'"
+        )
+    ).fetchall()
+    for (column_name,) in rows:
+        # 存量值为会话时区墙上时间：按 current_setting('TimeZone') 解释，时刻不漂移
+        conn.execute(
+            text(
+                f'ALTER TABLE audit_logs ALTER COLUMN "{column_name}" TYPE TIMESTAMPTZ '
+                f"USING \"{column_name}\" AT TIME ZONE current_setting('TimeZone')"
+            )
+        )
+        logger.info("db/migrate：audit_logs.%s 回填 TIMESTAMPTZ", column_name)
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_audit_logs_action_created_at "
+            "ON audit_logs (action, created_at)"
+        )
+    )
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_audit_logs_user_created_at "
+            "ON audit_logs (user_id, created_at)"
+        )
+    )

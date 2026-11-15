@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str | None = None
 
+    # P9 审计硬化：审计日志保留天数（0 = 永久保留；仅 `calliodesmo audit purge-expired` 显式清理）
+    audit_retention_days: int = 0
+
     # P3 Web UI
     allow_self_register: bool = False  # 自注册默认关；开启时 clearance 上限 INTERNAL
     cors_origins: list[str] = []  # 兜底（默认空 = 关）；dev 走 Vite proxy 同源

@@ -4,8 +4,9 @@
 """
 
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.api.deps import (
@@ -14,6 +15,8 @@ from calliodesmo.api.deps import (
     require_permission,
 )
 from calliodesmo.api.schemas import (
+    AuditEntryOut,
+    AuditListOut,
     CommunityMergeRequest,
     CommunityOut,
     CommunityPatchRequest,
@@ -33,7 +36,7 @@ from calliodesmo.api.schemas import (
     UserRoleOut,
     UserUpdate,
 )
-from calliodesmo.audit.service import record_audit
+from calliodesmo.audit.service import list_audit_logs, record_audit
 from calliodesmo.auth.context import AccessContext
 from calliodesmo.auth.models import ClearanceLevel, LibraryScope, Permission, User
 from calliodesmo.auth.service import (
@@ -83,6 +86,60 @@ def _user_out(user: User) -> UserOut:
         roles=[UserRoleOut(role=ur.role.name, scope=ur.scope.value) for ur in user.roles],
         team_ids=[m.team_id for m in user.team_memberships],
         project_ids=[m.project_id for m in user.project_memberships],
+    )
+
+
+@router.get("/audit", response_model=AuditListOut)
+async def list_audit_endpoint(
+    ctx: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+    action: str | None = Query(default=None, max_length=64),
+    user_id: uuid.UUID | None = Query(default=None),
+    source: str | None = Query(default=None, max_length=64),
+    since: datetime | None = Query(default=None),
+    until: datetime | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> AuditListOut:
+    """审计查询（仅 manage_users）：按动作 / 操作者 / 来源 / 时间窗过滤 + 分页。"""
+    require_permission(ctx, _GUARD)
+    entries, total = await list_audit_logs(
+        session,
+        action=action,
+        user_id=user_id,
+        source=source,
+        since=since,
+        until=until,
+        limit=limit,
+        offset=offset,
+    )
+    await record_audit(
+        session,
+        user_id=ctx.user_id,
+        action="audit_query",
+        resource_type="audit_log",
+        detail={"action_filter": action, "total": total, "limit": limit, "offset": offset},
+        source="api",
+    )
+    await session.commit()
+    return AuditListOut(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[
+            AuditEntryOut(
+                id=entry.id,
+                user_id=entry.user_id,
+                username=entry.username,
+                action=entry.action,
+                resource_type=entry.resource_type,
+                resource_id=entry.resource_id,
+                detail=entry.detail,
+                source=entry.source,
+                created_at=entry.created_at,
+            )
+            for entry in entries
+        ],
     )
 
 

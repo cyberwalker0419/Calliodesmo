@@ -609,3 +609,26 @@ class AgentRunOut(BaseModel):
     created_at: datetime
     # P8 接地度侧车（可空：P7 历史执行无侧车）
     verification: dict[str, Any] | None = None
+
+
+class AuditEntryOut(BaseModel):
+    """GET /admin/audit 单行：detail 已在写入时脱敏（不含凭据类字段值）。"""
+
+    id: uuid.UUID
+    user_id: uuid.UUID | None
+    username: str | None
+    action: str
+    resource_type: str | None
+    resource_id: str | None
+    detail: dict[str, Any]
+    source: str | None
+    created_at: datetime | None
+
+
+class AuditListOut(BaseModel):
+    """审计查询列表：当前页条目 + 命中总数（分页 UI 用）。"""
+
+    total: int
+    limit: int
+    offset: int
+    items: list[AuditEntryOut]

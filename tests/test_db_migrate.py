@@ -64,6 +64,22 @@ CREATE TABLE contributions (
 """
 
 
+# 旧结构 audit_logs 表（P9 Task 4 前形态：created_at 为 TIMESTAMP WITHOUT TZ，
+# 在 TimeZone=Asia/Shanghai 的库里落本地墙上时间，与留存 / 时间窗的 UTC 语义差 8h）
+_LEGACY_AUDIT_DDL = """
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    action VARCHAR(64) NOT NULL,
+    resource_type VARCHAR(64),
+    resource_id VARCHAR(128),
+    detail JSON DEFAULT '{}'::json,
+    source VARCHAR(64),
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+)
+"""
+
+
 @pytest.fixture
 async def legacy_db():
     """一次性旧结构 schema：legacy jobs / contributions 表 + search_path 绑定 engine。
@@ -78,6 +94,7 @@ async def legacy_db():
         await conn.execute(text(f'SET search_path TO "{schema}"'))
         await conn.execute(text(_LEGACY_JOBS_DDL))
         await conn.execute(text(_LEGACY_CONTRIBUTIONS_DDL))
+        await conn.execute(text(_LEGACY_AUDIT_DDL))
     await setup.dispose()
     engine = create_async_engine(
         settings.database_url,
@@ -282,6 +299,55 @@ async def test_contribution_time_columns_backfilled_to_timestamptz(legacy_db):
     await ensure_missing_columns(engine)
     cols_after = await _column_info(engine, schema, "contributions")
     assert cols == cols_after
+
+
+# ---------- ensure_missing_columns：audit_logs 列型回填（P9 Task 4） ----------
+
+
+async def test_audit_created_at_backfilled_to_timestamptz(legacy_db):
+    """旧型 audit_logs.created_at -> TIMESTAMPTZ + 查询索引；存量行按会话时区解释。"""
+    engine, schema = legacy_db
+    aid = uuid.uuid4()
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO audit_logs (id, action, created_at) "
+                "VALUES (:i, 'login', '2026-11-01 08:00:00')"
+            ),
+            {"i": aid},
+        )
+
+    await ensure_missing_columns(engine)
+
+    cols = await _column_info(engine, schema, "audit_logs")
+    assert cols["created_at"]["data_type"] == "timestamp with time zone"
+
+    async with engine.begin() as conn:
+        row = (
+            await conn.execute(
+                text("SELECT created_at FROM audit_logs WHERE id = :i"), {"i": aid}
+            )
+        ).scalar_one()
+        index_names = {
+            r[0]
+            for r in (
+                await conn.execute(
+                    text(
+                        "SELECT indexname FROM pg_indexes "
+                        "WHERE schemaname = :s AND tablename = 'audit_logs'"
+                    ),
+                    {"s": schema},
+                )
+            ).fetchall()
+        }
+    # 会话时区 Asia/Shanghai：本地 08:00 == UTC 00:00（不漂移）
+    assert row == datetime(2026, 11, 1, 0, 0, tzinfo=UTC), row
+    assert {"ix_audit_logs_action_created_at", "ix_audit_logs_user_created_at"} <= index_names
+
+    # 幂等：重跑结构不变
+    before = await _column_info(engine, schema, "audit_logs")
+    await ensure_missing_columns(engine)
+    assert await _column_info(engine, schema, "audit_logs") == before
 
 
 # ---------- JobOut 兼容扩展（纯 pydantic，离线可测） ----------

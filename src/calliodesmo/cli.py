@@ -27,6 +27,8 @@ templates_app = typer.Typer(help="抽取模板审核命令。")
 app.add_typer(templates_app, name="templates")
 reports_app = typer.Typer(help="分析报告生命周期命令（版本 / 软删除 / 复核）。")
 app.add_typer(reports_app, name="reports")
+audit_app = typer.Typer(help="审计日志运维命令（查询 / 留存清理）。")
+app.add_typer(audit_app, name="audit")
 
 #: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -1021,8 +1023,12 @@ def templates_approve_type(
 # ---- P8 报告生命周期命令（版本 / 软删除 / 复核） ----
 
 
-async def _reports_session(fn):
-    """以管理员身份开会话执行 fn(session, access)：报告固定 personal，owner=管理员。"""
+async def _with_admin_session(fn):
+    """以管理员身份开会话执行 fn(session, access)。
+
+    报告生命周期 / 审计运维等 CLI 命令共用：这些动作都以配置里的管理员账户身份执行，
+    权限与 API 侧的 manage_users 守卫等价（CLI 为运维入口，不携带浏览器会话）。
+    """
     import calliodesmo.models  # noqa: F401
     from calliodesmo.auth.models import User
     from calliodesmo.auth.service import get_access_context
@@ -1069,7 +1075,7 @@ def reports_versions(report_id: str = typer.Argument(..., help="报告 id。")) 
         return await list_versions(session, rid, access=access)
 
     try:
-        rows = asyncio.run(_reports_session(_op))
+        rows = asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1098,7 +1104,7 @@ def reports_rollback(
         return await rollback(session, rid, version=version, access=access, source="cli")
 
     try:
-        new_version = asyncio.run(_reports_session(_op))
+        new_version = asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1116,7 +1122,7 @@ def reports_delete(report_id: str = typer.Argument(..., help="报告 id。")) ->
         return await soft_delete(session, rid, access=access, source="cli")
 
     try:
-        asyncio.run(_reports_session(_op))
+        asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1134,7 +1140,7 @@ def reports_restore(report_id: str = typer.Argument(..., help="报告 id。")) -
         return await restore(session, rid, access=access, source="cli")
 
     try:
-        asyncio.run(_reports_session(_op))
+        asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1165,8 +1171,80 @@ def reports_review(
         return await handlers[action](session, rid, access=access, note=note or None, source="cli")
 
     try:
-        report = asyncio.run(_reports_session(_op))
+        report = asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"复核动作已执行：报告 {rid} -> {report.review_status}。")
+
+
+@audit_app.command("list")
+def audit_list(
+    action: str | None = typer.Option(None, "--action", help="按动作过滤（如 query / login）。"),
+    user: str | None = typer.Option(None, "--user", help="按操作者用户名过滤。"),
+    source: str | None = typer.Option(None, "--source", help="按来源过滤（api / cli）。"),
+    limit: int = typer.Option(50, "--limit", help="返回条数（1-500）。"),
+    offset: int = typer.Option(0, "--offset", help="分页偏移。"),
+) -> None:
+    """查询审计日志（时间倒序；detail 已在写入时脱敏）。"""
+    from calliodesmo.audit.service import list_audit_logs
+    from calliodesmo.auth.models import User
+
+    if limit < 1 or limit > 500:
+        typer.echo("错误：--limit 须在 1-500 之间。", err=True)
+        raise typer.Exit(code=2)
+
+    async def _op(session, access):
+        user_id = None
+        if user:
+            user_id = (
+                await session.execute(select(User.id).where(User.username == user))
+            ).scalar_one_or_none()
+            if user_id is None:
+                raise RuntimeError(f"用户不存在：{user}")
+        return await list_audit_logs(
+            session, action=action, user_id=user_id, source=source, limit=limit, offset=offset
+        )
+
+    entries, total = asyncio.run(_with_admin_session(_op))
+    typer.echo(f"命中 {total} 条（本页 {len(entries)} 条，偏移 {offset}）：")
+    for entry in entries:
+        typer.echo(
+            f"{entry.created_at.isoformat() if entry.created_at else '?'}	"
+            f"{entry.username or '-'}	{entry.action}	"
+            f"{entry.resource_type or '-'}	{entry.source or '-'}"
+        )
+
+
+@audit_app.command("purge-expired")
+def audit_purge_expired(
+    days: int | None = typer.Option(
+        None, "--days", help="保留天数（缺省取配置 audit_retention_days；<=0 = 永久保留）。"
+    ),
+    yes: bool = typer.Option(False, "--yes", help="确认执行删除（不加则中止）。"),
+) -> None:
+    """删除超过保留期的审计行（不可逆；默认不自动执行，需显式 --yes）。"""
+    from calliodesmo.audit.service import purge_expired_audit
+
+    effective = get_settings().audit_retention_days if days is None else days
+    if effective <= 0:
+        typer.echo("保留天数为 0（永久保留），未执行清理。")
+        return
+    if not yes:
+        typer.echo(
+            f"将删除 {effective} 天前的审计日志（不可逆）。确认请加 --yes。",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    from calliodesmo.audit.service import record_audit
+
+    async def _op(session, access):
+        removed = await purge_expired_audit(session, retention_days=effective)
+        await record_audit(
+            session, user_id=access.user_id, action="audit_purge", detail={"removed": removed}
+        )
+        return removed
+
+    removed = asyncio.run(_with_admin_session(_op))
+    typer.echo(f"已删除 {removed} 条过期审计日志。")
