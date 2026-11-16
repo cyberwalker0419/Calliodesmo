@@ -193,3 +193,22 @@ class TestDoctorCli:
             get_settings.cache_clear()
         assert result.exit_code == 1
         assert "database_url_scheme" in result.output
+
+
+class TestDatabasePoolSettings:
+    def test_pool_params_valid_by_default(self):
+        assert _issue(validate_settings(_settings()), "db_pool") is None
+
+    def test_zero_pool_size_is_error(self):
+        issues = validate_settings(_settings(db_pool_size=0))
+        assert _issue(issues, "db_pool").level == ERROR
+
+    def test_negative_overflow_is_error(self):
+        issues = validate_settings(_settings(db_max_overflow=-1))
+        assert _issue(issues, "db_pool").level == ERROR
+
+    def test_sql_echo_decoupled_from_debug(self):
+        """echo 不再跟随 debug：DEBUG=true 也不默认回显 SQL。"""
+        from calliodesmo.config import Settings
+
+        assert Settings(debug=True, _env_file=None).db_echo is False

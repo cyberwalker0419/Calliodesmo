@@ -380,6 +380,16 @@ def _check_agent(settings: Settings) -> list[Issue]:
 
 def _check_ops(settings: Settings, *, production: bool) -> list[Issue]:
     issues: list[Issue] = []
+    if settings.db_pool_size < 1 or settings.db_max_overflow < 0:
+        issues.append(
+            _missing(
+                "db_pool",
+                "db_pool_size / db_max_overflow",
+                "连接池参数非法"
+                f"（pool_size={settings.db_pool_size}, max_overflow={settings.db_max_overflow}）",
+                "pool_size ≥ 1；max_overflow ≥ 0（常驻 + 突发 = 可并发请求数）",
+            )
+        )
     if settings.audit_retention_days < 0:
         issues.append(
             _missing(

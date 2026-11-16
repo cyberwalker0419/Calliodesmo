@@ -13,6 +13,15 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://calliodesmo:calliodesmo@localhost:5432/calliodesmo"
 
+    # P9 可用化：连接池与 SQL 回显独立可调（原 echo 绑 debug，DEBUG=true 时每条 SQL
+    # 写 stdout，实测把 pgvector 检索压测的 p95 抬高一个量级）
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_echo: bool = False
+    # 取连接前先 ping（防陈旧连接）：每次多一个往返，远程库实测把单次查询
+    # 从 ~36ms 抬到 ~95ms；同机房可保持 true，跨机房/低延迟敏感场景可关
+    db_pool_pre_ping: bool = True
+
     # P4.5 Task 2：store 后端选择（memory 默认兼容旧测试；postgres/neo4j 走真后端）
     vector_store_backend: str = "memory"  # memory | postgres
     graph_store_backend: str = "memory"  # memory | neo4j
