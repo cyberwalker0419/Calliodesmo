@@ -117,8 +117,10 @@ async def apply_pending(
     也不会留下「改了结构但没记账」，重跑从失败步续上。
     """
     plan = tuple(steps if steps is not None else MIGRATION_STEPS)
-    done = await applied_versions(engine)
+    # 先建台账再读版本：search_path 里若另有他 schema 的旧台账（测试多 schema 场景），
+    # 先建自己的表才能让「本库没跑过迁移」不被别人的台账冒充。
     await ensure_ledger(engine)
+    done = await applied_versions(engine)
     applied: list[str] = []
     for step in plan:
         if step.version in done:
