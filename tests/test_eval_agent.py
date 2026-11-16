@@ -138,6 +138,7 @@ def test_eval_agent_script_real_requires_nonstub():
         [sys.executable, "scripts/eval_agent.py", "--real"],
         capture_output=True,
         text=True,
+        encoding="utf-8",  # 子进程中文提示按 UTF-8 解码（Windows 默认跟随控制台代码页）
         env=env,
     )
     assert proc.returncode != 0
@@ -154,6 +155,7 @@ def test_eval_agent_script_offline_writes_regression(tmp_path, monkeypatch):
         [sys.executable, "scripts/eval_agent.py", "--out", str(out)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         cwd=".",
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr

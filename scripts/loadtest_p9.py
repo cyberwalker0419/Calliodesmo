@@ -287,7 +287,7 @@ async def _run_levels(
         per_level = requests
         counted = {"with_hits": 0}
 
-        async def worker(index: int) -> bool:
+        async def worker(index: int, counted_local: dict = counted) -> bool:
             # 规模轨固定走 native 混合检索路（local / global 依赖图与社区摘要，
             # 压测语料不建图，用它们只会测到空返回）
             answer = await engine.query(  # type: ignore[attr-defined]
@@ -298,7 +298,7 @@ async def _run_levels(
             )
             hits = {str(chunk.get("chunk_id")) for chunk in answer.context_chunks}
             if hits:
-                counted["with_hits"] += 1
+                counted_local["with_hits"] += 1
             # 越权泄漏：PUBLIC 视角看到了 confidential 块
             return bool(hits & confidential)
 

@@ -105,26 +105,16 @@ def test_db_migrate_show_and_run(cli_db, cli_inspect):
     assert [r[0] for r in rows][:1] == ["0001_baseline"]
 
 
-def test_doctor_reports_config_without_db(cli_db):
-    """doctor --no-check-db：只看配置面，error 级问题非零退出。"""
+def test_doctor_reports_config_without_db(cli_db, monkeypatch):
+    """doctor --no-check-db：只看配置面，error 级问题非零退出（monkeypatch 自动复原）。"""
     from calliodesmo.config import get_settings
 
-    monkeypatch_env = {
-        "CALLIODESMO_LLM_MODEL": "ollama/qwen2.5",
-        "CALLIODESMO_JWT_SECRET_KEY": "y" * 40,
-    }
-    for key, value in monkeypatch_env.items():
-        import os
-
-        os.environ[key] = value
+    monkeypatch.setenv("CALLIODESMO_LLM_MODEL", "ollama/qwen2.5")
+    monkeypatch.setenv("CALLIODESMO_JWT_SECRET_KEY", "y" * 40)
     get_settings.cache_clear()
     try:
         result = runner.invoke(app, ["doctor", "--no-check-db"])
         assert result.exit_code == 0, result.output
         assert "配置校验" in result.output
     finally:
-        import os
-
-        for key in monkeypatch_env:
-            os.environ.pop(key, None)
         get_settings.cache_clear()

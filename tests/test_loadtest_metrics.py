@@ -160,6 +160,7 @@ class TestLoadtestScript:
             cwd=root,
             capture_output=True,
             text=True,
+            encoding="utf-8",  # 子进程中文输出按 UTF-8 解码（控制台代码页无关）
             timeout=300,
         )
         assert completed.returncode == 0, completed.stderr[-800:]
@@ -200,6 +201,7 @@ class TestLoadtestScript:
             cwd=root,
             capture_output=True,
             text=True,
+            encoding="utf-8",  # 子进程中文输出按 UTF-8 解码（控制台代码页无关）
             timeout=300,
         )
         assert completed.returncode == 0, completed.stderr[-800:]
