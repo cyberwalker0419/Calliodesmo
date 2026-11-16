@@ -12,7 +12,8 @@ created: 2026-07-27
 
 ## 1. 组件
 
-`docker-compose.yml` 编排三个服务；`Dockerfile` 多阶段构建；`docker-entrypoint.sh` 自动 `db init` -> `db seed`（设了管理员密码才执行）-> `serve`。
+`docker-compose.yml` 编排三个服务；`Dockerfile` 多阶段构建；`docker-entrypoint.sh` 自动
+`db init`（建表 + 迁移台账）-> `db seed`（设了管理员密码才执行）-> `doctor`（体检，只报不阻断）-> `serve`。
 
 | 服务 | 镜像 | 作用 | 端口 |
 | --- | --- | --- | --- |
@@ -61,7 +62,9 @@ docker compose logs -f app     # 跟踪日志
 
 - 应用：http://127.0.0.1:8000（SPA + API + `/docs`）
 - Neo4j 浏览器：http://127.0.0.1:7474（`neo4j` / `calliodesmo`）
-- 健康检查：`docker compose ps`（app 带 healthcheck，curl `/healthz`）
+- 健康检查：`docker compose ps`（app 带 healthcheck，curl `/healthz` 存活探针）
+- 就绪自检：`docker compose exec app curl -fsS http://127.0.0.1:8000/readyz`
+  （数据库 / 图库 / 配置 / agent extra 逐项；任一 fail 返回 503）
 
 ## 4. 建图（ingest）
 

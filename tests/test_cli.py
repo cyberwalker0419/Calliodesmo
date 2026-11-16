@@ -84,3 +84,47 @@ def test_serve_defaults(monkeypatch):
     assert calls["host"] == "127.0.0.1"
     assert calls["port"] == 8000
     assert calls["reload"] is True
+
+
+def test_db_migrate_show_and_run(cli_db, cli_inspect):
+    """P9 Task 9：db init 记账后，db migrate 为 no-op；--show 列清单。"""
+    from calliodesmo.config import get_settings
+
+    get_settings.cache_clear()
+    try:
+        assert runner.invoke(app, ["db", "init"]).exit_code == 0
+        shown = runner.invoke(app, ["db", "migrate", "--show"])
+        assert shown.exit_code == 0, shown.output
+        assert "0005_audit_timestamptz" in shown.output
+        again = runner.invoke(app, ["db", "migrate"])
+        assert again.exit_code == 0, again.output
+        assert "无待应用" in again.output
+    finally:
+        get_settings.cache_clear()
+    rows = list(cli_inspect("SELECT version FROM schema_migrations ORDER BY version"))
+    assert [r[0] for r in rows][:1] == ["0001_baseline"]
+
+
+def test_doctor_reports_config_without_db(cli_db):
+    """doctor --no-check-db：只看配置面，error 级问题非零退出。"""
+    from calliodesmo.config import get_settings
+
+    monkeypatch_env = {
+        "CALLIODESMO_LLM_MODEL": "ollama/qwen2.5",
+        "CALLIODESMO_JWT_SECRET_KEY": "y" * 40,
+    }
+    for key, value in monkeypatch_env.items():
+        import os
+
+        os.environ[key] = value
+    get_settings.cache_clear()
+    try:
+        result = runner.invoke(app, ["doctor", "--no-check-db"])
+        assert result.exit_code == 0, result.output
+        assert "配置校验" in result.output
+    finally:
+        import os
+
+        for key in monkeypatch_env:
+            os.environ.pop(key, None)
+        get_settings.cache_clear()

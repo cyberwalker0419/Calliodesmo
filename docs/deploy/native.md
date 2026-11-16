@@ -66,15 +66,22 @@ CALLIODESMO_NEO4J_PASSWORD=<改后的密码>
 CALLIODESMO_JWT_SECRET_KEY=<≥32 字节随机串>   # 生产必改（python -c "import secrets;print(secrets.token_urlsafe(32))"）
 CALLIODESMO_ADMIN_PASSWORD=<初始管理员密码>    # 仅 db seed 用
 CALLIODESMO_ALLOW_SELF_REGISTER=false
+CALLIODESMO_AUDIT_RETENTION_DAYS=0     # 审计保留天数（0 = 永久；清理只走显式命令）
 ```
 
 ## 5. 初始化与启动
 
 ```bash
-uv run calliodesmo db init      # 建表（幂等）
+uv run calliodesmo db init      # 建表 + 应用迁移台账（幂等，版本记 schema_migrations）
 uv run calliodesmo db seed      # 角色/权限 + 初始管理员（幂等）
+uv run calliodesmo db migrate   # 只补未应用的迁移（既有库升级入口；--show 看清单）
+uv run calliodesmo doctor       # 配置体检 + 数据库/图库连通检查（error 级非零退出）
 uv run calliodesmo serve        # API + SPA：http://127.0.0.1:8000
 ```
+
+> `serve` 启动前自动跑一次配置体检：生产环境（`CALLIODESMO_ENVIRONMENT=production`）
+> 遇 error 级问题直接拒启，开发环境只告警。
+> 一键引导：`scripts/bootstrap.sh` / `scripts/bootstrap.ps1`（含以上全部步骤）。
 
 建图：`uv run calliodesmo ingest <path>`（文件或目录）；演示数据：`uv run calliodesmo serve --seed-demo`。
 

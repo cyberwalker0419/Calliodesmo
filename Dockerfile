@@ -61,6 +61,9 @@ ENV PATH="/app/.venv/bin:$PATH" \
 USER appuser
 EXPOSE 8000
 
+# 存活探针用 /healthz（零依赖，进程在跑就 200）。就绪状态看 /readyz：它会把
+# 「模型 key 未配 / 图库不可达」判 503，用作 liveness 会误杀容器。
+# 手工查就绪：docker compose exec app curl -fsS http://127.0.0.1:8000/readyz
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=5 \
     CMD curl -fsS http://127.0.0.1:8000/healthz || exit 1
 
