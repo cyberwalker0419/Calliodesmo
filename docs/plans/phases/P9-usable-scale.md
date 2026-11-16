@@ -91,10 +91,10 @@ created: 2026-11-15
 
 **Files:** 新 `src/calliodesmo/retrieval/answer_postprocess.py` · 改 `src/calliodesmo/retrieval/answer_synthesizer.py`（prompt v2 + 后处理）· 改 `src/calliodesmo/verification/engine.py` · 改 `src/calliodesmo/verification/pipeline.py` · 测试 `tests/test_answer_postprocess.py` / `tests/test_verification_engine.py` / `tests/test_answer_synthesizer.py`。
 
-- [ ] **Step 1:** 写失败测试：模板前缀剥离（根据提供的上下文 / 基于上述材料 / 综上所述）、连接词剥离、句级引注补全只在覆盖率达标时发生、多块联合核验、关键事实（数字 / 日期 / 英文实体）匹配、否定词误报（不仅 / 未来 / 不同）不判矛盾。
-- [ ] **Step 2:** 跑确认失败 → 实现 `answer_postprocess.py`（纯函数：`strip_answer_boilerplate` / `attach_sentence_citations`）与引擎扩展（`verify_claim_against` 多块联合、`_key_facts` 匹配、矛盾阈值收紧）。
-- [ ] **Step 3:** `answer_synthesizer` prompt v2：逐句引注、直接作答不写 preamble、禁止输出内部元数据；合成后经后处理再接输出层守卫。
-- [ ] **Step 4:** 跑绿 + 离线评估不倒退（43/43 判定、矛盾 10/10）；提交：`feat(retrieval): QA 答案接地硬化与引注纪律`。
+- [x] **Step 1:** 写失败测试：模板前缀剥离（根据提供的上下文 / 基于上述材料 / 综上所述）、连接词剥离、句级引注补全只在覆盖率达标时发生、多块联合核验、关键事实（数字 / 日期 / 英文实体）匹配、否定词误报（不仅 / 未来 / 不同）不判矛盾。
+- [x] **Step 2:** 跑确认失败 → 实现 `answer_postprocess.py`（纯函数：`strip_answer_boilerplate` / `attach_sentence_citations`）与引擎扩展（`verify_claim_against` 多块联合、`_key_facts` 匹配、矛盾阈值收紧）。
+- [x] **Step 3:** `answer_synthesizer` prompt v2：逐句引注、直接作答不写 preamble、禁止输出内部元数据；合成后经后处理再接输出层守卫。
+- [x] **Step 4:** 跑绿 + 离线评估不倒退（43/43 判定、矛盾 10/10）；提交：`feat(retrieval): QA 答案接地硬化与引注纪律`。
 
 **验收：** 后处理纯函数确定性可测；多块联合核验有专项用例；离线判定与矛盾黄金集不倒退。
 
@@ -106,10 +106,10 @@ created: 2026-11-15
 
 **Files:** 新 `src/calliodesmo/security/__init__.py` / `output_guard.py` · 改 `retrieval/answer_synthesizer.py` · 改 `agent/job_worker.py` · 改 `analysis/engine.py`（文本字段扫描）· 测试 `tests/test_output_guard.py` / 三输出面接入测试。
 
-- [ ] **Step 1:** 写失败测试：源文连续 200 字符倾倒被拦截、`access_level` 等元数据泄漏被脱敏、系统提示回声被拦截、正常拒绝话术（「不能泄露系统提示」）不误伤、注入服从话术标记。
-- [ ] **Step 2:** 跑确认失败 → 实现 `output_guard.guard_output`（纯函数，返回 `GuardResult(clean_text, violations, action)`）；单源覆盖度 / 连续重合用最长公共子串近似（滑窗长度固定，确定性）。
-- [ ] **Step 3:** 接入 QA 合成器、Agent 回合落库前、分析报告文本字段；拦截事件写审计 `output_guard`（只记类别与计数，不记原文）。
-- [ ] **Step 4:** 跑绿 + 提交：`feat(security): 输出层注入防御与敏感输出护栏`。
+- [x] **Step 1:** 写失败测试：源文连续 200 字符倾倒被拦截、`access_level` 等元数据泄漏被脱敏、系统提示回声被拦截、正常拒绝话术（「不能泄露系统提示」）不误伤、注入服从话术标记。
+- [x] **Step 2:** 跑确认失败 → 实现 `output_guard.guard_output`（纯函数，返回 `GuardResult(clean_text, violations, action)`）；单源覆盖度 / 连续重合用最长公共子串近似（滑窗长度固定，确定性）。
+- [x] **Step 3:** 接入 QA 合成器、Agent 回合落库前、分析报告文本字段；拦截事件写审计 `output_guard`（只记类别与计数，不记原文）。
+- [x] **Step 4:** 跑绿 + 提交：`feat(security): 输出层注入防御与敏感输出护栏`。
 
 **验收：** 四类违规各有拦截用例；拒绝话术零误伤；三输出面接线完整。
 
@@ -121,10 +121,10 @@ created: 2026-11-15
 
 **Files:** 改 `config/golden_qa_v2.yaml`（新增至 v3，保留 v2 兼容注释）· 改 `config/golden_verification.yaml` · 新 `config/eval_corpus/`（可追踪的评估语料副本，`data/demo` 缺失时回退）· 改 `scripts/eval_p8.py`（语料版本 / 交叉验证）· 改 `src/calliodesmo/eval/metrics_grounding.py`（`cross_validated_ece`）· 测试 `tests/test_metrics_grounding.py` / `tests/test_golden_verification.py`。
 
-- [ ] **Step 1:** 写失败测试：5 折切分确定性（同输入同折）、空样本 / 单样本、交叉验证 ECE 聚合公式、语料规模下限断言（QA ≥70、claim ≥60）。
-- [ ] **Step 2:** 跑确认失败 → 实现 `cross_validated_ece(confidences, outcomes, folds=5)`；`eval_p8.py` 用交叉验证 ECE 并保留单留出对照。
-- [ ] **Step 3:** 扩语料：QA 新增 35 例（正例 / 多跳 / 无答案 / 干扰 / 注入五类平衡）；verification 新增 17 条（含 3 条注入探针）；新增 `config/eval_corpus/` 三件语料副本（与 `data/demo` 同名同内容）。
-- [ ] **Step 4:** 跑绿 + 落离线基线；提交：`feat(eval): P9 评估语料 v3 与交叉验证 ECE`。
+- [x] **Step 1:** 写失败测试：5 折切分确定性（同输入同折）、空样本 / 单样本、交叉验证 ECE 聚合公式、语料规模下限断言（QA ≥70、claim ≥60）。
+- [x] **Step 2:** 跑确认失败 → 实现 `cross_validated_ece(confidences, outcomes, folds=5)`；`eval_p8.py` 用交叉验证 ECE 并保留单留出对照。
+- [x] **Step 3:** 扩语料：QA 新增 35 例（正例 / 多跳 / 无答案 / 干扰 / 注入五类平衡）；verification 新增 17 条（含 3 条注入探针）；新增 `config/eval_corpus/` 三件语料副本（与 `data/demo` 同名同内容）。
+- [x] **Step 4:** 跑绿 + 落离线基线；提交：`feat(eval): P9 评估语料 v3 与交叉验证 ECE`。
 
 **验收：** 语料规模满足下限；交叉验证 ECE 有单测；离线基线可复现。
 
@@ -136,9 +136,9 @@ created: 2026-11-15
 
 **Files:** 改 `src/calliodesmo/audit/service.py`（`sanitize_audit_detail` / `list_audit_logs` / `purge_expired_audit`）· 改 `src/calliodesmo/api/admin.py`（`GET /admin/audit`）· 改 `src/calliodesmo/config.py` + `.env.example`（`audit_retention_days`）· 测试 `tests/test_audit_hardening.py` / `tests/test_admin_api.py`。
 
-- [ ] **Step 1:** 写失败测试：detail 内 `password` / `token` / `secret` 键值脱敏为 `***`；按 action / user / 时间过滤与分页；无 `manage_users` 403；留存清理只删过期行。
-- [ ] **Step 2:** 跑确认失败 → 实现脱敏与查询服务 + API + 配置；`db seed`/CLI 不动，清理走显式函数（不自动删）。
-- [ ] **Step 3:** 跑绿 + 提交：`feat(audit): 审计查询、脱敏与留存策略`。
+- [x] **Step 1:** 写失败测试：detail 内 `password` / `token` / `secret` 键值脱敏为 `***`；按 action / user / 时间过滤与分页；无 `manage_users` 403；留存清理只删过期行。
+- [x] **Step 2:** 跑确认失败 → 实现脱敏与查询服务 + API + 配置；`db seed`/CLI 不动，清理走显式函数（不自动删）。
+- [x] **Step 3:** 跑绿 + 提交：`feat(audit): 审计查询、脱敏与留存策略`。
 
 **验收：** 脱敏对嵌套 detail 生效；查询过滤与分页正确；越权 403；清理函数幂等。
 
@@ -150,9 +150,9 @@ created: 2026-11-15
 
 **Files:** 新 `src/calliodesmo/api/observability.py`（请求 ID 中间件 + readyz 组装）· 新 `src/calliodesmo/config_validation.py` · 改 `src/calliodesmo/api/app.py` · 改 `src/calliodesmo/cli.py`（`doctor`）· 改 `src/calliodesmo/config.py` + `.env.example` · 测试 `tests/test_observability.py` / `tests/test_config_validation.py`。
 
-- [ ] **Step 1:** 写失败测试：`/readyz` 在 DB 不可达时 503 且组件明细可读、可用时 200；响应头回显 / 生成 `X-Request-ID`；doctor 检出默认 JWT 密钥（生产为 error）、非法 store 后端、缺 LLM key、非法数据库 URL。
-- [ ] **Step 2:** 跑确认失败 → 实现配置校验（纯函数 `validate_settings`）+ 中间件 + readyz（DB `SELECT 1`，Neo4j 后端时校验连接，LLM/嵌入只查配置不连外网）+ CLI。
-- [ ] **Step 3:** 跑绿 + 提交：`feat(api): 就绪探针、请求 ID 与配置体检`。
+- [x] **Step 1:** 写失败测试：`/readyz` 在 DB 不可达时 503 且组件明细可读、可用时 200；响应头回显 / 生成 `X-Request-ID`；doctor 检出默认 JWT 密钥（生产为 error）、非法 store 后端、缺 LLM key、非法数据库 URL。
+- [x] **Step 2:** 跑确认失败 → 实现配置校验（纯函数 `validate_settings`）+ 中间件 + readyz（DB `SELECT 1`，Neo4j 后端时校验连接，LLM/嵌入只查配置不连外网）+ CLI。
+- [x] **Step 3:** 跑绿 + 提交：`feat(api): 就绪探针、请求 ID 与配置体检`。
 
 **验收：** readyz 不泄漏密钥；请求 ID 恒存在；doctor 退出码与级别正确；生产默认密钥被拦截。
 
@@ -164,9 +164,9 @@ created: 2026-11-15
 
 **Files:** 新 `src/calliodesmo/db/migrations.py` · 改 `src/calliodesmo/db/migrate.py`（接入台账）· 改 `src/calliodesmo/cli.py`（`db migrate`）· 测试 `tests/test_db_migrations.py`（db 标记）。
 
-- [ ] **Step 1:** 写失败测试：首次执行应用全部迁移并记录版本；重复执行零改动（幂等）；失败步骤不记账、可重试；`db init` 后 `db migrate` 为纯 no-op。
-- [ ] **Step 2:** 跑确认失败 → 实现台账（`CREATE TABLE IF NOT EXISTS schema_migrations`）+ 迁移清单（版本 / 描述 / 可重入函数）+ CLI。
-- [ ] **Step 3:** 文档记录 Alembic 决策（P10 再评估，判据见关键决策 5）；跑绿 + 提交：`feat(db): 版本化迁移台账与 db migrate`。
+- [x] **Step 1:** 写失败测试：首次执行应用全部迁移并记录版本；重复执行零改动（幂等）；失败步骤不记账、可重试；`db init` 后 `db migrate` 为纯 no-op。
+- [x] **Step 2:** 跑确认失败 → 实现台账（`CREATE TABLE IF NOT EXISTS schema_migrations`）+ 迁移清单（版本 / 描述 / 可重入函数）+ CLI。
+- [x] **Step 3:** 文档记录 Alembic 决策（P10 再评估，判据见关键决策 5）；跑绿 + 提交：`feat(db): 版本化迁移台账与 db migrate`。
 
 **验收：** 幂等与失败重试有专项测试；既有 `ensure_missing_columns` 行为不变。
 
@@ -178,9 +178,9 @@ created: 2026-11-15
 
 **Files:** 改 `src/calliodesmo/interfaces/vector_store.py`（`get_chunks_by_ids(..., access=)`）· 改 `providers/in_memory_vector_store.py` / `pg_vector_store.py` · 改 `retrieval/local_search.py` / `global_search.py` / `in_memory_sparse_index.py`（预过滤）· 测试 `tests/test_vector_store_contract.py` / `tests/test_local_search.py` / `tests/test_library_scope_filter.py`。
 
-- [ ] **Step 1:** 写失败测试：`get_chunks_by_ids` 传 access 时过滤不可见块；local / global 检索越权块零泄漏；sparse 预过滤等价于原后置过滤（结果集合一致）；两种后端对同一数据返回一致可见集。
-- [ ] **Step 2:** 跑确认失败 → 实现接口扩展（默认 `access=None` 保持向后兼容）+ 两后端过滤 + 调用方传 access + sparse 预过滤。
-- [ ] **Step 3:** 跑绿 + 提交：`refactor(retrieval): 谓词下推与向量后端契约对等`。
+- [x] **Step 1:** 写失败测试：`get_chunks_by_ids` 传 access 时过滤不可见块；local / global 检索越权块零泄漏；sparse 预过滤等价于原后置过滤（结果集合一致）；两种后端对同一数据返回一致可见集。
+- [x] **Step 2:** 跑确认失败 → 实现接口扩展（默认 `access=None` 保持向后兼容）+ 两后端过滤 + 调用方传 access + sparse 预过滤。
+- [x] **Step 3:** 跑绿 + 提交：`refactor(retrieval): 谓词下推与向量后端契约对等`。
 
 **验收：** 越权零泄漏；两后端契约对等；既有检索结果不变。
 
@@ -192,9 +192,9 @@ created: 2026-11-15
 
 **Files:** 新 `scripts/loadtest_p9.py` · 新 `src/calliodesmo/eval/loadtest.py`（分位数与并发 runner 纯函数）· 测试 `tests/test_loadtest_metrics.py` · 证据 `docs/verification/p9-loadtest.json`。
 
-- [ ] **Step 1:** 写失败测试：分位数计算（含边界 / 空样本）、并发 runner 计数（成功 / 失败 / 泄漏）、结果确定性结构。
-- [ ] **Step 2:** 跑确认失败 → 实现 runner（内存 stores + 桩 LLM + 固定语料，并发梯度 1/5/20，每级 N 次查询）与脚本。
-- [ ] **Step 3:** 跑离线压测落证据；提交：`feat(eval): P9 压测基线与分位数工具`。
+- [x] **Step 1:** 写失败测试：分位数计算（含边界 / 空样本）、并发 runner 计数（成功 / 失败 / 泄漏）、结果确定性结构。
+- [x] **Step 2:** 跑确认失败 → 实现 runner（内存 stores + 桩 LLM + 固定语料，并发梯度 1/5/20，每级 N 次查询）与脚本。
+- [x] **Step 3:** 跑离线压测落证据；提交：`feat(eval): P9 压测基线与分位数工具`。
 
 **验收：** 脚本可重复执行且数字稳定；越权泄漏 0；证据 JSON 登记。
 
@@ -206,23 +206,44 @@ created: 2026-11-15
 
 **Files:** 改 `scripts/bootstrap.sh` / `bootstrap.ps1` · 改 `docker-compose.yml`（app healthcheck）· 改 `README.md` / `docs/deploy/native.md` / `docs/deploy/docker.md` / `docs/deploy/testing.md` · 测试 `tests/test_cli.py`（doctor / db migrate 冒烟）。
 
-- [ ] **Step 1:** bootstrap 增加 `db migrate` 与 `doctor` 步骤；compose app 服务 healthcheck 指向 `/readyz`；文档补三处命令与故障排查。
-- [ ] **Step 2:** 本地跑 bootstrap 的幂等验证（不重复安装依赖的部分用 dry-run 说明）；提交：`chore(deploy): 引导脚本、健康检查与文档同步`。
+- [x] **Step 1:** bootstrap 增加 `db migrate` 与 `doctor` 步骤；compose app 服务 healthcheck 指向 `/readyz`；文档补三处命令与故障排查。
+- [x] **Step 2:** 本地跑 bootstrap 的幂等验证（不重复安装依赖的部分用 dry-run 说明）；提交：`chore(deploy): 引导脚本、健康检查与文档同步`。
 
 **验收：** 新库从零到 serve 的命令链最短且可重复；文档命令与代码一致。
 
 ---
 
-## Task 10: W49 重评决策（SSE / ReWOO / PlanExecute / RAG 记忆 / Agent 会话生命周期）✅ 必做
+## Task 10: W49 重评决策 + Agent 会话生命周期 ✅ 必做
 
-**目标：** 对 P7/P8 移交项逐项给结论：做，或明确移交并写判据与锚点。
+**目标：** 对 P7/P8 移交到 W49 的五项逐条给结论（做 / 移交 + 判据 + 锚点），并把「做」的
+那一项（会话生命周期）实现到位。
 
-**Files:** 改本计划「暂缓与移交记录」· 改 `docs/plans/phases/P7-agent-mode.md` 附录（如有结论变化）· 改 `docs/plans/phases/P8-evidence-verification.md` T8 状态。
+**Files:** 新 `src/calliodesmo/agent/session_lifecycle.py` · 改 `agent/access.py`（已删除即不可用）·
+改 `api/agent.py`（DELETE / restore / include_deleted）· 改 `db/models_agent.py` + `db/migrations.py`
+（0006 步骤）· 前端 `features/agent/{AgentPage.tsx,api.ts,useAgent.ts}` + `api/types.ts` ·
+改本计划「暂缓与移交记录」· 测试 `tests/test_agent_session_lifecycle.py`。
 
-- [ ] **Step 1:** 按判据表逐项评估（用户可感知收益 / 实现成本 / 回归风险 / 证据支撑），形成结论。
-- [ ] **Step 2:** 写入计划与验证报告；提交：`docs(plans): P9 重评结论与移交清单`。
+- [x] **Step 1:** 写失败测试：软删除后默认列表不可见、恢复后可见、重复删幂等、越权与不存在
+  同文案、已删除会话跑回合 404、admin 可代删、API 三端点与权限矩阵。
+- [x] **Step 2:** 跑确认失败 → 实现服务层（谓词下推 + 密级不洗白复检）与 API / 迁移步骤 0006。
+- [x] **Step 3:** 前端：侧栏行内二次确认删除 + 「显示已删除」恢复入口；移动端同等入口；
+  修「新会话命名用 total+1 导致删除后撞名」。
+- [x] **Step 4:** 跑绿（vitest + 三件套 + preview 桌面闭环）+ 提交：`feat(agent): Agent 会话软删除与恢复`。
+- [x] **Step 5:** 五项重评结论写进「暂缓与移交记录」与本 Task 结论段；提交 `docs(plans)`。
 
-**验收：** 五项均有明确「做 / 不做 + 理由 + 锚点」，无隐式尾巴。
+**验收：** 会话可删可恢复且权限/审计齐备；五项均有明确结论，无隐式尾巴。
+
+**W49 重评结论（判据：用户可感知收益 / 实现成本 / 回归风险 / 有无数据支撑）**
+
+| 项 | 结论 | 依据 | 锚点 |
+| --- | --- | --- | --- |
+| Agent 会话生命周期（P8 T8） | ✅ 做（本 Task 闭合软删除 + 恢复） | 隐私与列表噪声是可用级缺口；复用报告生命周期范式，成本低 | 本阶段 |
+| 会话归档 / 共享范围变更 | ⏸ 移交 P10 | 归档只是折叠（收益低）；共享要重推三维权限与会话密级快照语义（风险高） | 2026-W49 |
+| SSE 回合流式（P7 T21） | ⏸ 移交 P10 体验批 | 收益真实（首字延迟），但要动 API/前端/代理缓冲与取消语义四端；本轮先把质量与安全做扎实 | 2026-W49 |
+| ReWOO / PlanExecute（P7 T20/T22） | ⏸ 移交 P10 模型层 | 无区分度数据：agent golden 多步场景样本仍小，先按压测与质量轨补齐证据再决策 | 2026-W49 |
+| RAG 记忆（跨会话长期记忆） | ⏸ 移交 P10 数据层 | 需要先有「记忆」的权限归属与留存策略（与审计留存同批设计），否则越权面扩大 | 2026-W49 |
+| Alembic 迁移 | ⏸ 不引入（台账替代） | 需求全是加可空列 / 补索引 / 列型 widening；判据：出现改名 / 回滚 / 数据回填类需求 ≥2 次再切 | 2026-W49 |
+| BM25 / ProfileCard 改 PG | ⏸ 移交 P10 | 单机内存后端可用；横向扩展（多进程 serve）前必须改，判据已写进 `api/deps.py` TODO | 2026-W52 |
 
 ---
 
@@ -230,13 +251,25 @@ created: 2026-11-15
 
 **Files:** 新 `docs/verification/P9-verification.md` · 改 `docs/verification/README.md` · 改 `CLAUDE.md` / `AGENTS.md` / `README.md` · 证据 `docs/verification/p9-real-<模型>.json` / `p9-regression.json` / `p9-loadtest.json`。
 
-- [ ] **Step 1:** 离线轨：全量 `pytest -q` 绿（≥1288 基线）+ `ruff check` / `format --check`；前端 `lint` / `test` / `build`；e2e 14/14。
-- [ ] **Step 2:** 质量轨：`scripts/eval_p8.py --real` 于 head 端点执行，落证据并按门槛如实判定；未达则写明差距与锚点。
-- [ ] **Step 3:** 写 P9 验证报告（四要素 + Task 闭合矩阵 + 未竟清单 + 口径变更说明）。
-- [ ] **Step 4:** 文档同步：阶段与结构段、README badge、验证索引。
+- [x] **Step 1:** 离线轨：全量 `pytest -q` 绿（≥1288 基线）+ `ruff check` / `format --check`；前端 `lint` / `test` / `build`；e2e 14/14。
+- [ ] **Step 2:** ⏸ 受阻（真模型端点 `115:8888` 连接被拒，2026-11-16 起不可达；恢复清单见验证报告，锚点 2026-W47） 质量轨：`scripts/eval_p8.py --real` 于 head 端点执行，落证据并按门槛如实判定；未达则写明差距与锚点。
+- [x] **Step 3:** 写 P9 验证报告（四要素 + Task 闭合矩阵 + 未竟清单 + 口径变更说明）。
+- [x] **Step 4:** 文档同步：阶段与结构段、README badge、验证索引。
 - [ ] **Step 5:** 提交 + 推送分支 + 创建 PR；CI 绿后合入 main 并同步 Gitea 镜像。
 
 **验收：** 三类证据齐备；文档与代码一致；PR 合入 main。
+
+---
+
+**闭合实录（2026-11-16）**：T1–T10 全部闭合并逐 Task 提交（提交链见
+[[docs/verification/P9-verification|P9 验证报告]] 的 Task 闭合矩阵）。结构轨全绿：
+后端 1438 passed / 1 skipped、离线判定 60/60 与矛盾 10/10 不倒退、审计/探针/台账/
+下推/压测/会话生命周期均有专项测试；运维轨三份压测证据 + readyz/doctor 实测；
+前端 82 vitest 与三件套绿、e2e 12/14（2 例 agent 需真模型 tool calls，桩模型下
+`steps=1 / tool_trace=0`，属环境降级非回归）、preview 桌面闭环通过（移动像素复检因
+窗口最小化受阻，已登记未竟）。**质量轨 `--real` 未执行**——head 真模型端点自 2026-11-16 起连接被拒，
+故本报告不宣称质量达标，P8 的 0.4091 等数字仍为最新可用结论；端点恢复后按验证报告
+的「质量轨恢复清单」四条执行并把结果回填本 Task Step 2（锚点 2026-W47）。
 
 ---
 

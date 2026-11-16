@@ -2,8 +2,8 @@
 
 > 三层知识图谱驱动的智能情报分析平台：GraphRAG 索引基座 + 混合检索 + LLM 分析 + Agent 模式，LLM / 嵌入 / 重排均可切换。
 
-[![phase: P8 done](https://img.shields.io/badge/phase-P8%20evidence--verification%20done-22c55e)](docs/plans/phases/P8-evidence-verification.md)
-[![phase: P9 next](https://img.shields.io/badge/phase-P9%20scale--up%20next-3b82f6)](docs/plans/phases/P8-evidence-verification.md)
+[![phase: P9 done](https://img.shields.io/badge/phase-P9%20quality--usability%20done-22c55e)](docs/plans/phases/P9-usable-scale.md)
+[![phase: P10 next](https://img.shields.io/badge/phase-P10%20scale--up%20next-3b82f6)](docs/plans/phases/P9-usable-scale.md)
 [![python: 3.11+](https://img.shields.io/badge/python-3.11%2B-3776ab)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-7c3aed)](LICENSE)
 
@@ -18,7 +18,9 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 | **高级 RAG** | MultiQuery / RAGFusion / CRAG / SelfCheck / contextual retrieval，评估 harness 回归 |
 | **LLM 分析** | 9 类结构化报告（摘要/关键信息/时间线/实体/关系/任务/概念/问答/自定义）+ 异步 job + 报告历史与导出 |
 | **Agent 模式** | ReAct 多轮对话（LangGraph）；只读工具七件 + 分析桥；三重预算帽；工具轨迹透明可审计 |
-| **证据验证** | 声明级 supported / unsupported / uncertain / contradicted 判定；接地度汇总与 `needs_review`；ECE 置信校准；报告版本 / 软删除 / 复核流；意图 auto 路由 |
+| **证据验证** | 声明级 supported / unsupported / uncertain / contradicted 判定；接地度汇总与 `needs_review`；ECE 置信校准（5 折交叉验证）；报告版本 / 软删除 / 复核流；意图 auto 路由 |
+| **输出层护栏** | 全文倾倒 / 内部元数据 / 系统提示回声 / 注入服从话术在交付前拦截（提示层之外的最后一道闸），事件入审计 |
+| **运维可观测** | `/healthz` 存活 + `/readyz` 组件级就绪、请求 ID 贯穿、`calliodesmo doctor` 配置体检、`schema_migrations` 迁移台账、压测基线脚本 |
 | **安全** | 三维权限贯穿全链路（检索 / 分析 / Agent 工具调用）；越权与不存在同消息不泄漏存在性；全程审计 |
 
 ## 技术栈
@@ -61,8 +63,9 @@ uv sync --extra persistence     # 安装依赖（含 pgvector/neo4j，P4.5 起�
 uv sync --extra agent           # Agent 模式（langgraph 家族，按需）
 cp .env.example .env            # 填 PG/Neo4j 连接串、模型配置；设管理员密码
 
-uv run calliodesmo db init      # 建表（幂等）
+uv run calliodesmo db init      # 建表 + 应用迁移台账（幂等）
 uv run calliodesmo db seed      # 内置角色/权限 + 初始管理员（幂等）
+uv run calliodesmo doctor       # 配置体检 + 数据库/图库连通检查（生产 error 级拒启）
 uv run calliodesmo serve        # 启动 API + Web UI：http://127.0.0.1:8000
 ```
 
@@ -85,9 +88,10 @@ uv run calliodesmo serve        # 启动 API + Web UI：http://127.0.0.1:8000
 
 ```
 src/calliodesmo/   FastAPI 后端 + Typer CLI
-├── api/ auth/ audit/ db/          Web / 三维权限 / 审计 / ORM
+├── api/ auth/ audit/ db/          Web（存活 + 就绪探针）/ 三维权限 / 审计 / ORM
 ├── ecl/                           ECL 建图管线（抽取→消解→社区→落库）
-├── retrieval/ eval/               检索域 + 评估 harness（golden 回归）
+├── retrieval/ eval/               检索域 + 评估 harness（golden 回归 + 压测 runner）
+├── verification/ security/        证据验证侧车 + 输出层安全护栏
 ├── analysis/                      P6 分析域（9 类报告 + 异步 job）
 ├── agent/                         P7 Agent 域（工具注册表 / ReAct 图 / 预算帽 / 会话持久）
 └── interfaces/ providers/         可插拔抽象 + 默认实现（LiteLLM / BGE-M3 / 内存与真后端 stores）
@@ -98,10 +102,11 @@ tests/             pytest（真实 PG+pgvector+Neo4j，`-m "not db"` 跑纯逻�
 
 ## 文档导航
 
+- 🩺 部署前先跑 `uv run calliodesmo doctor`（配置 + 连通体检）
 - 🚀 [Docker 部署指南](docs/deploy/docker.md) - 一键全栈生产
 - 💻 [本地原生部署指南](docs/deploy/native.md) - 无 Docker 生产
 - 🧪 [测试/开发环境](docs/deploy/testing.md) - 桩模型冒烟、pytest、前端联调
-- 🗺️ [阶段计划](docs/plans/phases/) - P0-P7 阶段任务（唯一计划层；未竟重评议程随计划附录）
+- 🗺️ [阶段计划](docs/plans/phases/) - P0-P9 阶段任务（唯一计划层；未竟重评议程随计划附录）
 - ✅ [验证报告索引](docs/verification/README.md) - 各阶段测试证据
 - 🤖 [P7 Agent 模式](docs/plans/phases/P7-agent-mode.md) - 设计决策 / 权限红线 / 评估双轨
 
