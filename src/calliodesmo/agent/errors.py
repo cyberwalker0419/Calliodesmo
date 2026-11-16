@@ -18,3 +18,14 @@ def tool_unavailable_error() -> str:
 def parameter_validation_error(detail: str) -> str:
     """参数门（JSON Schema 校验）拒畸形入参文案——与存在性无关，可独立。"""
     return f"工具参数校验失败：{detail}"
+
+
+#: 会话「越权 / 不存在 / 已删除」统一文案（API 与生命周期服务共用，禁手写）
+SESSION_GONE_MESSAGE = "会话不存在或不可见"
+
+
+class AgentAccessError(Exception):
+    """会话不可见（越权 / 不存在 / 已删除）：消息恒为统一文案，不泄漏存在性。"""
+
+    def __init__(self, message: str = SESSION_GONE_MESSAGE) -> None:
+        super().__init__(message)

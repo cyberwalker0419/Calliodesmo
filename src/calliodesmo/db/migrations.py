@@ -61,6 +61,23 @@ def _create_all(conn: Connection) -> None:
     Base.metadata.create_all(conn)
 
 
+def _agent_session_lifecycle(conn: Connection) -> None:
+    """P9 Task 10：既有库补 ``agent_sessions.deleted_at`` 与索引（幂等）。"""
+    from sqlalchemy import inspect as sa_inspect
+
+    insp = sa_inspect(conn)
+    if not insp.has_table("agent_sessions"):
+        return
+    existing = {c["name"] for c in insp.get_columns("agent_sessions")}
+    if "deleted_at" not in existing:
+        conn.execute(text('ALTER TABLE agent_sessions ADD COLUMN "deleted_at" TIMESTAMPTZ'))
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_agent_sessions_deleted_at ON agent_sessions (deleted_at)"
+        )
+    )
+
+
 #: 有序步骤清单（新增结构变更只在末尾追加，禁止改写历史条目）
 MIGRATION_STEPS: tuple[MigrationStep, ...] = (
     MigrationStep("0001_baseline", "按 ORM 元数据建表（create_all 幂等）", _create_all),
@@ -83,6 +100,11 @@ MIGRATION_STEPS: tuple[MigrationStep, ...] = (
         "0005_audit_timestamptz",
         "audit_logs.created_at 回填 TIMESTAMPTZ + 查询索引",
         legacy_migrate._backfill_audit_timestamptz,
+    ),
+    MigrationStep(
+        "0006_agent_session_lifecycle",
+        "agent_sessions.deleted_at 软删除列 + 列表过滤索引",
+        _agent_session_lifecycle,
     ),
 )
 

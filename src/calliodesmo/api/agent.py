@@ -21,7 +21,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from calliodesmo.agent.access import verify_session_access
+from calliodesmo.agent.errors import SESSION_GONE_MESSAGE, AgentAccessError
 from calliodesmo.agent.job_worker import run_agent_job
+from calliodesmo.agent.session_lifecycle import (
+    list_sessions_for_access,
+    restore_session,
+    soft_delete_session,
+)
 from calliodesmo.api.deps import get_current_context, get_job_session_factory
 from calliodesmo.api.schemas import (
     AgentMessageOut,
@@ -43,7 +49,7 @@ from calliodesmo.utils.json import json_safe
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
-_SESSION_GONE = "会话不存在或不可见"
+_SESSION_GONE = SESSION_GONE_MESSAGE
 _V1_MODES = {"react"}  # plan_execute 为批 2 可选（T20）；rewoo 预留不注册
 
 
@@ -55,6 +61,7 @@ def _session_out(s: AgentSessionORM) -> AgentSessionOut:
         access_level=s.access_level.name,
         library_scope=s.library_scope.value,
         created_at=s.created_at,
+        deleted_at=s.deleted_at,
     )
 
 
@@ -94,20 +101,55 @@ async def create_session(
 async def list_sessions(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    include_deleted: bool = Query(False, description="是否带出已软删除会话（恢复入口用）"),
     context: AccessContext = Depends(get_current_context),
     session: AsyncSession = Depends(get_session),
 ) -> AgentSessionListOut:
     if not context.has_permission(Permission.QUERY):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
-    rows = (
-        (await session.execute(select(AgentSessionORM).order_by(AgentSessionORM.created_at.desc())))
-        .scalars()
-        .all()
+    # P9 T10：过滤下推到 SQL（deleted_at + owner），再复检密级不洗白与 scope
+    visible = await list_sessions_for_access(
+        session, access=context, include_deleted=include_deleted
     )
-    visible = [s for s in rows if verify_session_access(s, access=context)]
     total = len(visible)
     page = visible[offset : offset + limit]
     return AgentSessionListOut(items=[_session_out(s) for s in page], total=total)
+
+
+@router.delete("/sessions/{session_id}", response_model=AgentSessionOut)
+async def delete_session(
+    session_id: uuid.UUID,
+    context: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AgentSessionOut:
+    """软删除会话（可恢复；消息与执行记录不硬删，保留可追溯链）。"""
+    if not context.has_permission(Permission.QUERY) and not context.has_permission(
+        Permission.MANAGE_USERS
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
+    try:
+        row = await soft_delete_session(session, session_id, access=context)
+    except AgentAccessError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return _session_out(row)
+
+
+@router.post("/sessions/{session_id}/restore", response_model=AgentSessionOut)
+async def restore_session_endpoint(
+    session_id: uuid.UUID,
+    context: AccessContext = Depends(get_current_context),
+    session: AsyncSession = Depends(get_session),
+) -> AgentSessionOut:
+    """恢复已软删除的会话（与删除同一权限口径）。"""
+    if not context.has_permission(Permission.QUERY) and not context.has_permission(
+        Permission.MANAGE_USERS
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无 query 权限")
+    try:
+        row = await restore_session(session, session_id, access=context)
+    except AgentAccessError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return _session_out(row)
 
 
 @router.post("/sessions/{session_id}/runs", response_model=AgentRunAccepted, status_code=202)

@@ -605,6 +605,8 @@ export interface AgentSessionOut {
   access_level: string;
   library_scope: string;
   created_at: string;
+  /** P9 T10：软删除时间戳；null = 正常会话 */
+  deleted_at?: string | null;
 }
 
 export interface AgentSessionListOut {

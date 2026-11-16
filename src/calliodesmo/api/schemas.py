@@ -567,6 +567,8 @@ class AgentSessionOut(BaseModel):
     access_level: str
     library_scope: str
     created_at: datetime
+    # P9 T10：软删除时间戳（None = 正常；非空仅在 include_deleted=true 时出现在列表里）
+    deleted_at: datetime | None = None
 
 
 class AgentSessionListOut(BaseModel):

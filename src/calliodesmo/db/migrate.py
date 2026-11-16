@@ -47,6 +47,8 @@ _SIDECAR_COLUMN_SPECS: dict[str, tuple[tuple[str, str], ...]] = {
         ("review_note", "TEXT"),
     ),
     "agent_runs": (("verification", "JSON"),),
+    # P9 Task 10：会话软删除列（带 server_default NULL）+ 列表过滤索引
+    "agent_sessions": (("deleted_at", "TIMESTAMPTZ"),),
 }
 
 #: contributions 需回填列型的时间列（P6 Task 1 统一为 DateTime(timezone=True)）。
