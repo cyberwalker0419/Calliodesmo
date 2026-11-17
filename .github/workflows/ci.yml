@@ -13,6 +13,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        # 2026-11-16：ubuntu-latest 迁到 Ubuntu 26 后镜像内不再有系统 Python 3.12，
+        # 而下面 UV_PYTHON_DOWNLOADS=never 禁止 uv 自管下载 → uv sync 报
+        # "No interpreter found for Python 3.12" 直接失败。显式装解释器，
+        # 保持「不由 uv 偷偷拉 Python」的口径。
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install uv (PyPI)
         # 2026-11-06：ghfast 镜像对 releases URL 返回 403，改从 PyPI 安装固定版本，
         # 不依赖 GitHub Releases 直连。

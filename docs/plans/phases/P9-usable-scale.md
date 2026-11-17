@@ -204,10 +204,16 @@ created: 2026-11-15
 
 **目标：** 拿到源码即可跑：bootstrap 接入 `db migrate` 与 `doctor`，compose 增加应用健康检查，文档与 README 同步新命令。
 
-**Files:** 改 `scripts/bootstrap.sh` / `bootstrap.ps1` · 改 `docker-compose.yml`（app healthcheck）· 改 `README.md` / `docs/deploy/native.md` / `docs/deploy/docker.md` / `docs/deploy/testing.md` · 测试 `tests/test_cli.py`（doctor / db migrate 冒烟）。
+**Files:** 改 `scripts/bootstrap.sh` / `bootstrap.ps1` · 改 `Dockerfile`（健康检查注释与口径）·
+改 `README.md` / `docs/deploy/native.md` / `docs/deploy/docker.md` / `docs/deploy/testing.md` ·
+测试 `tests/test_cli.py`（doctor / db migrate 冒烟）。
 
-- [x] **Step 1:** bootstrap 增加 `db migrate` 与 `doctor` 步骤；compose app 服务 healthcheck 指向 `/readyz`；文档补三处命令与故障排查。
-- [x] **Step 2:** 本地跑 bootstrap 的幂等验证（不重复安装依赖的部分用 dry-run 说明）；提交：`chore(deploy): 引导脚本、健康检查与文档同步`。
+- [x] **Step 1:** bootstrap 增加 `db migrate` 与 `doctor` 步骤；容器 HEALTHCHECK 保持指向
+  `/healthz`（存活），`/readyz` 作为人工 / LB 就绪查法写进文档——就绪探针会把「模型 key
+  未配」判 503，用作 liveness 会误杀容器，原计划的 compose healthcheck 指向 /readyz 就此修正；
+  文档补命令与故障排查。
+- [x] **Step 2:** 本地实跑 bootstrap 全链（建表 → 种子 → 迁移核对 → 体检）验证幂等；
+  提交：`chore(deploy): 引导脚本接入迁移核对与体检，存活/就绪探针分家`。
 
 **验收：** 新库从零到 serve 的命令链最短且可重复；文档命令与代码一致。
 
