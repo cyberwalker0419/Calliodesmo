@@ -61,9 +61,20 @@ class InMemoryVectorStore(VectorStore):
         scored.sort(key=lambda h: (-h.score, h.chunk_id))
         return scored[:top_k]
 
-    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[ChunkRecord]:
-        """按 chunk_id 批量查记录（图/社区召回归一 chunk 时用）。"""
-        return [self._records[cid] for cid in chunk_ids if cid in self._records]
+    async def get_chunks_by_ids(
+        self, chunk_ids: list[str], *, access: AccessContext | None = None
+    ) -> list[ChunkRecord]:
+        """按 chunk_id 批量查记录（图/社区召回归一 chunk 时用）。
+
+        传 ``access`` 时在取数层做可见性过滤（与 pgvector 后端同语义）：越权与不存在
+        同样缺席（不区分原因）；不传保持旧行为，由调用方自付红线。
+        """
+        found = [self._records[cid] for cid in chunk_ids if cid in self._records]
+        if access is None:
+            return found
+        from calliodesmo.stores.visibility import visible_to
+
+        return [c for c in found if visible_to(c, access)]
 
     async def list_chunks(self, *, access: AccessContext) -> list[ChunkRecord]:
         """枚举当前可见的全部 chunk（按 visible_to 过滤），供推送收集。"""

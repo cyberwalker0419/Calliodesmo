@@ -24,6 +24,8 @@ def verify_session_access(session_row, *, access: AccessContext) -> bool:
     """
     if access.clearance < session_row.clearance_at_create:
         return False
+    if getattr(session_row, "deleted_at", None) is not None:  # P9 T10：软删除即不可用
+        return False
     return visible_to(session_row, access)
 
 

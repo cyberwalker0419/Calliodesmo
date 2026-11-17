@@ -1,7 +1,7 @@
 #!/bin/sh
-# 容器入口：按需建表 + 种子（设了管理员密码时）+ 启动服务。
+# 容器入口：建表与迁移 + 种子（设了管理员密码时）+ 配置体检 + 启动服务。
 # 用法：
-#   docker run calliodesmo                         # 默认：init + seed(可选) + serve
+#   docker run calliodesmo                         # 默认：init + seed(可选) + doctor + serve
 #   docker run calliodesmo serve --host 0.0.0.0    # 透传 CLI 参数
 #   docker run calliodesmo ingest /app/data/docs   # 跑其他子命令（跳过 serve）
 set -e
@@ -20,7 +20,11 @@ else
     echo "[entrypoint] 跳过 db seed（未设 CALLIODESMO_ADMIN_PASSWORD）"
 fi
 
-# 3) 执行传入命令；无参则默认 serve
+# 3) 配置与连通体检：只报问题不阻断启动（首启常未配模型 key）
+echo "[entrypoint] doctor（配置体检）..."
+calliodesmo doctor --check-db || echo "[entrypoint] doctor 报告问题（不阻断启动；见 docs/deploy/docker.md）"
+
+# 4) 执行传入命令；无参则默认 serve
 if [ "$#" -gt 0 ]; then
     exec calliodesmo "$@"
 else

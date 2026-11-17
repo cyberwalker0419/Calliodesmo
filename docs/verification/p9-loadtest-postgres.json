@@ -1,0 +1,77 @@
+{
+  "phase": "P9",
+  "track": "loadtest",
+  "generated_at": "2026-11-16T18:30:19.268308+00:00",
+  "environment": {
+    "python": "3.12.13",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64",
+    "backend": "postgres",
+    "embedding": "hash(确定性，不含真模型时延)",
+    "llm": "stub"
+  },
+  "corpus": {
+    "documents": 200,
+    "chunks": 200,
+    "confidential_chunks": 100,
+    "note": "合成语料（确定性）"
+  },
+  "requests_per_level": 120,
+  "top_k": 5,
+  "mode": "native_rag",
+  "levels": {
+    "1": {
+      "total": 120,
+      "ok": 120,
+      "failed": 0,
+      "leaks": 0,
+      "concurrency": 1,
+      "error_samples": [],
+      "wall_seconds": 8.0704,
+      "throughput_rps": 14.8692,
+      "count": 120,
+      "mean": 67.2319,
+      "p50": 66.1346,
+      "p95": 72.201,
+      "p99": 76.6009,
+      "max": 107.8821,
+      "with_hits": 120
+    },
+    "5": {
+      "total": 120,
+      "ok": 120,
+      "failed": 0,
+      "leaks": 0,
+      "concurrency": 5,
+      "error_samples": [],
+      "wall_seconds": 3.0223,
+      "throughput_rps": 39.7044,
+      "count": 120,
+      "mean": 123.6703,
+      "p50": 110.8882,
+      "p95": 139.2313,
+      "p99": 583.6196,
+      "max": 639.9217,
+      "with_hits": 120
+    },
+    "20": {
+      "total": 120,
+      "ok": 120,
+      "failed": 0,
+      "leaks": 0,
+      "concurrency": 20,
+      "error_samples": [],
+      "wall_seconds": 2.3692,
+      "throughput_rps": 50.6509,
+      "count": 120,
+      "mean": 353.7273,
+      "p50": 311.5723,
+      "p95": 705.4613,
+      "p99": 1087.8451,
+      "max": 1151.6254,
+      "with_hits": 120
+    }
+  },
+  "leaks_total": 0,
+  "failed_total": 0
+}

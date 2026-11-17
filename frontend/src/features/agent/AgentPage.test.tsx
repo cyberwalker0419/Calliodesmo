@@ -1,7 +1,7 @@
 // AgentPage 测试（P7 T15）：会话列表 + 消息流渲染 + ToolTrace 展开 + 轮询终态停。
 // 克隆 ReportsHistory.test.tsx / useAnalysis.test.tsx 范式（mock fetch + renderHook）。
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -14,8 +14,10 @@ vi.stubGlobal("fetch", mockFetch);
 
 function wrap() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return { wrapper: ({ children }: { children: React.ReactNode }) =>
-    createElement(QueryClientProvider, { client: qc }, children) };
+  return {
+    wrapper: ({ children }: { children: React.ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children),
+  };
 }
 
 const SESSIONS = {
@@ -60,7 +62,11 @@ const RUNS = [
     usage: { total_tokens: 5 },
     tool_trace: [
       {
-        call: { id: "c1", name: "search_knowledge", arguments: { question: "q" } },
+        call: {
+          id: "c1",
+          name: "search_knowledge",
+          arguments: { question: "q" },
+        },
         result: { ok: true, output: "OpenAI 开发了 GPT-4。", error: null },
       },
     ],
@@ -75,7 +81,8 @@ beforeEach(() => {
     const u = String(url);
     if (u.includes("/messages")) return new Response(JSON.stringify(MESSAGES));
     if (u.includes("/runs")) return new Response(JSON.stringify(RUNS));
-    if (u.includes("/agent/sessions")) return new Response(JSON.stringify(SESSIONS));
+    if (u.includes("/agent/sessions"))
+      return new Response(JSON.stringify(SESSIONS));
     return new Response(JSON.stringify({}), { status: 404 });
   });
 });
@@ -88,6 +95,90 @@ describe("AgentPage", () => {
     await userEvent.click(screen.getByText("会话 1"));
     await screen.findByText("GPT-4 由谁开发？");
     expect(await screen.findByText("GPT-4 由 OpenAI 开发。")).toBeTruthy();
+  });
+
+  it("会话软删除：行内确认后发 DELETE，并从默认列表消失", async () => {
+    const { wrapper } = wrap();
+    render(createElement(AgentPage), { wrapper });
+    await screen.findByText("会话 1");
+    // 选中的会话在移动端条上也应有删除入口（两端等价，不让窄视口成为功能死角）
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.selectOptions(screen.getByRole("combobox"), "s-1");
+    expect(
+      screen.getAllByRole("button", { name: "删除会话" }).length,
+    ).toBeGreaterThanOrEqual(2);
+    await userEvent.click(
+      within(screen.getByRole("complementary")).getByRole("button", {
+        name: "删除会话",
+      }),
+    );
+    await userEvent.click(
+      within(screen.getByRole("complementary")).getByRole("button", {
+        name: "确认删除会话",
+      }),
+    );
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/agent/sessions/s-1",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+  });
+
+  it("显示已删除：列表带 include_deleted 并出恢复入口", async () => {
+    mockFetch.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("include_deleted=true")) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: "s-1",
+                mode: "react",
+                label: "会话 1",
+                access_level: "INTERNAL",
+                library_scope: "personal",
+                created_at: "2026-08-31T00:00:00Z",
+                deleted_at: "2026-08-31T00:05:00Z",
+              },
+            ],
+            total: 1,
+          }),
+        );
+      }
+      if (u.includes("/restore")) {
+        return new Response(
+          JSON.stringify({
+            id: "s-1",
+            mode: "react",
+            label: "会话 1",
+            access_level: "INTERNAL",
+            library_scope: "personal",
+            created_at: "2026-08-31T00:00:00Z",
+            deleted_at: null,
+          }),
+        );
+      }
+      if (u.includes("/messages")) return new Response(JSON.stringify([]));
+      return new Response(JSON.stringify(SESSIONS));
+    });
+    const { wrapper } = wrap();
+    render(createElement(AgentPage), { wrapper });
+    await userEvent.click(await screen.findByRole("checkbox"));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("include_deleted=true"),
+        expect.anything(),
+      ),
+    );
+    const restore = await screen.findByRole("button", { name: "恢复会话" });
+    await userEvent.click(restore);
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/agent/sessions/s-1/restore",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
   });
 
   it("ToolTrace chip 展开输出", async () => {
@@ -104,10 +195,14 @@ describe("useAgentJob（轮询终态停）", () => {
   it("非终态 1200ms 续轮 -> 终态停", async () => {
     mockFetch.mockReset();
     mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: "j-1", status: "running", task_type: "agent" }))
+      new Response(
+        JSON.stringify({ id: "j-1", status: "running", task_type: "agent" }),
+      ),
     );
     mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ id: "j-1", status: "succeeded", task_type: "agent" }))
+      new Response(
+        JSON.stringify({ id: "j-1", status: "succeeded", task_type: "agent" }),
+      ),
     );
     const { wrapper } = wrap();
     const { result } = renderHook(() => useAgentJob("j-1"), { wrapper });

@@ -52,7 +52,7 @@ CALLIODESMO_ADMIN_PASSWORD=admin-123456   # 仅 db seed 用
 ## 3. 跑测试套件
 
 ```bash
-uv run calliodesmo db init     # 建表（幂等；PG 需已 CREATE EXTENSION vector）
+uv run calliodesmo db init     # 建表 + 迁移台账（幂等；PG 需已 CREATE EXTENSION vector）
 uv run pytest -v              # 全量测试（连 .env 的 PG+Neo4j）
 uv run pytest -m "not db"     # 仅纯逻辑（CI 等价，不连库）
 uv run ruff check .
@@ -73,7 +73,8 @@ uv run calliodesmo serve --seed-demo    # 对 data/demo/ 跑桩 ECL，启动后 
 登录 `admin` / `admin-123456`，走问答 / 浏览 / 管理。
 
 ```bash
-curl http://127.0.0.1:8000/healthz
+curl http://127.0.0.1:8000/healthz   # 存活
+curl http://127.0.0.1:8000/readyz    # 就绪（组件级明细；配置或依赖不通时 503）
 ```
 
 > `--seed-demo`：对 `data/demo/` 在 serve 进程内跑 ECL，产物落盘 `data/demo/seed-cache.json`，二次启动命中缓存跳过 LLM。桩抽取是写死的，只验证管线/UI/权限，**不验证抽取质量**。

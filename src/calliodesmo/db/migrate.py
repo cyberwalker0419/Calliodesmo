@@ -10,8 +10,11 @@ datetime 即报错）。挂进 ``cli db init``（``create_all`` 之后）；全�
 
 幂等纪律：全部语句可重复执行（已补列跳过 / 已回填列型跳过 / 索引 ``IF NOT EXISTS``）。
 
-未竟：复杂迁移场景（列改名 / 降级回滚 / 数据回填脚本）需引入 Alembic，
-锚点 2026-W49（P9，与持久队列同批评估；cli db init docstring 早已注明去向）。
+P9 Task 6：本模块的补齐函数被 ``db/migrations.MIGRATION_STEPS`` 引用为有序步骤 +
+``schema_migrations`` 台账（``calliodesmo db migrate`` 据此判断哪台库升到哪个版本）；
+本模块函数保持可直接调用，旧调用点（``ensure_missing_columns``）行为不变。
+**新增结构变更只在 ``migrations.MIGRATION_STEPS`` 末尾追加一步**，不要在
+``ensure_missing_columns`` 里再加 run_sync。
 """
 
 from __future__ import annotations
@@ -44,22 +47,33 @@ _SIDECAR_COLUMN_SPECS: dict[str, tuple[tuple[str, str], ...]] = {
         ("review_note", "TEXT"),
     ),
     "agent_runs": (("verification", "JSON"),),
+    # P9 Task 10：会话软删除列（带 server_default NULL）+ 列表过滤索引
+    "agent_sessions": (("deleted_at", "TIMESTAMPTZ"),),
 }
 
 #: contributions 需回填列型的时间列（P6 Task 1 统一为 DateTime(timezone=True)）。
 _TSTZ_COLUMNS: tuple[str, ...] = ("reviewed_at", "merged_at", "created_at", "updated_at")
 
+#: audit_logs 需回填列型的时间列（P9 Task 4：留存 / 时间窗按 UTC 语义）。
+#: 存量值来自 ``now()::timestamp``（会话时区的墙上时间），故按
+#: ``current_setting('TimeZone')`` 解释——与 contributions 的「按 UTC 解释」不同，
+#: 因为那批值由应用侧写入（aware UTC），这批值由数据库默认值写入（本地时区）。
+_AUDIT_TSTZ_COLUMNS: tuple[str, ...] = ("created_at",)
+
 
 async def ensure_missing_columns(engine: AsyncEngine) -> None:
-    """幂等补齐既有库结构：jobs 补列 + contributions 时间列型回填。
+    """幂等补齐既有库结构（不记账的复跑路径）。
 
-    全新库经 ``create_all`` 直出完整结构，本函数为纯 no-op；既有库升级 P6 结构后
-    重跑 ``calliodesmo db init`` 即触发。全部操作幂等，重复执行安全。
+    全新库经 ``create_all`` 直出完整结构，本函数为纯 no-op。步骤清单与台账版迁移
+    同源（``db/migrations.MIGRATION_STEPS``）：**新增结构变更只改那一处**，
+    避免两套清单漂移。需要「哪台库升到哪个版本」的答案时用
+    ``migrations.apply_pending``（``calliodesmo db migrate``）。
     """
+    from calliodesmo.db.migrations import structural_steps
+
     async with engine.begin() as conn:
-        await conn.run_sync(_backfill_jobs_columns)
-        await conn.run_sync(_backfill_sidecar_columns)
-        await conn.run_sync(_backfill_contribution_timestamptz)
+        for step in structural_steps():
+            await conn.run_sync(step.apply)
 
 
 def _backfill_jobs_columns(conn: Connection) -> None:
@@ -130,3 +144,39 @@ def _backfill_contribution_timestamptz(conn: Connection) -> None:
             )
         )
         logger.info("db/migrate：contributions.%s 回填 TIMESTAMPTZ", column_name)
+
+
+def _backfill_audit_timestamptz(conn: Connection) -> None:
+    """audit_logs.created_at 回填 TIMESTAMPTZ + 补齐查询索引（P9 Task 4，幂等）。"""
+    insp = inspect(conn)
+    if not insp.has_table("audit_logs"):
+        return
+    names = ", ".join(f"'{c}'" for c in _AUDIT_TSTZ_COLUMNS)
+    rows = conn.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = current_schema() AND table_name = 'audit_logs' "
+            f"AND column_name IN ({names}) AND data_type = 'timestamp without time zone'"
+        )
+    ).fetchall()
+    for (column_name,) in rows:
+        # 存量值为会话时区墙上时间：按 current_setting('TimeZone') 解释，时刻不漂移
+        conn.execute(
+            text(
+                f'ALTER TABLE audit_logs ALTER COLUMN "{column_name}" TYPE TIMESTAMPTZ '
+                f"USING \"{column_name}\" AT TIME ZONE current_setting('TimeZone')"
+            )
+        )
+        logger.info("db/migrate：audit_logs.%s 回填 TIMESTAMPTZ", column_name)
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_audit_logs_action_created_at "
+            "ON audit_logs (action, created_at)"
+        )
+    )
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_audit_logs_user_created_at "
+            "ON audit_logs (user_id, created_at)"
+        )
+    )

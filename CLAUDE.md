@@ -10,7 +10,7 @@
 
 Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义层 / 社区摘要层），支撑从精准检索到全局研判的多层问答，以**三维正交权限模型**（角色 RBAC + 访问等级 clearance + 库范围 scope）和 **Git-like 协作推送**保证多用户情报生产的安全与可追溯。
 
-语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P8-evidence-verification**（证据验证与幻觉检测：答案-证据映射 / 接地度评分 / 幻觉标记 / ECE 校准 / 意图路由 / 报告生命周期；2026-11-06 T1–T7 + T9 完成，T8 条件任务留待 W49 重评；`--real` 已于 2026-11-11 执行（qwen3.8-flash-next），质量门槛未达（grounding 0.41 / 注入违规 2），硬化归 P9。P0-P7 均已完成并合入 main，后端 1288 passed / 1 skipped）。
+语言：Python 3.11+；uv 管理依赖，hatchling 打包。语料中英双语。当前阶段 **P9-quality-hardening-and-usability**（质量硬化与可用化：答案接地与引注纪律 / 输出层注入防御 / 语料 v3 与交叉验证 ECE / 审计硬化 / readyz 与 doctor / 迁移台账 / 谓词下推与后端置换 / 压测基线 / 会话生命周期；P0-P8 均已完成并合入 main，后端 1438 passed / 1 skipped；P8 `--real` 质量门槛未达（grounding 0.41 / 注入违规 2），P9 硬化改动已落地但 `--real` 因真模型端点不可达尚未重测）。
 
 ## 当前阶段
 
@@ -24,7 +24,8 @@ Calliodesmo 把原始文档加工成**三层知识图谱**（情景层 / 语义�
 - **P6** LLM 分析任务 ✅ 完成（2026-08-30 合入，PR #11，1015 passed：9 类分析结构化报告 + 评估两件套 + 前端两批/自定义 + 注入防御；`--real` 质量补跑提前于 2026-W35 执行完毕、证据入库；详见 [docs/plans/phases/P6-llm-analysis-tasks.md](docs/plans/phases/P6-llm-analysis-tasks.md) 与 [docs/verification/P6-verification.md](docs/verification/P6-verification.md)）
 - **P7** Agent 模式 ✅ 完成（2026-08-31，PR #13 合入 main：ReAct 主链 + 三重预算帽 + 只读工具七件/分析桥 + 三维门控（越权与不存在同消息）+ 会话 ORM 三表 + PG checkpointer + agent golden harness（离线 + --real 双轨）+ 前端聊天面 + e2e 六组；ReWOO 暂缓 / PlanExecute 门槛达标让位 / SSE 让位（锚点 2026-W49）；模板注册表评估结论顺延 P9；详见 [docs/plans/phases/P7-agent-mode.md](docs/plans/phases/P7-agent-mode.md) 与 [docs/verification/P7-verification.md](docs/verification/P7-verification.md)）
 - **P8** 证据验证与幻觉检测 ✅ 完成（2026-11-06，T1–T7 + T9；T8 条件任务未启动）：答案-证据映射 / 接地度评分 / 幻觉标记 / 意图路由 / 报告版本·软删除·复核流 / 置信度校准（ECE）；`--real` 已执行（qwen3.8-flash-next，质量门槛未达，硬化归 P9）；详见 [docs/plans/phases/P8-evidence-verification.md](docs/plans/phases/P8-evidence-verification.md) 与 [docs/verification/P8-verification.md](docs/verification/P8-verification.md)
-- **P9** 动态更新与规模化（锚点 2026-W49）：审计硬化 / 压测 / VectorStore 置换 / 谓词下推 / Alembic + ReWOO·PlanExecute·SSE·RAG 记忆重评
+- **P9** 质量硬化与可用化 ✅ 结构与运维闭合（2026-11-16）：答案接地硬化（套话剥离 / 句级引注纪律 / 多块联合核验 / 转述支撑）、输出层注入防御（`security/output_guard`）、语料 v3（QA 70 例 / claim 60 条）+ 5 折交叉验证 ECE、审计查询与脱敏与留存、`/readyz` + 请求 ID + `doctor` 配置体检、`schema_migrations` 迁移台账（Alembic 判据留痕）、谓词下推与向量后端契约对等、压测基线（memory / OSINT / pgvector 三份证据）、引导脚本与部署文档、Agent 会话软删除·恢复（P8 T8 移交项闭合）。后端 **1438 passed / 1 skipped**、前端 82 vitest + 三件套绿。**质量轨 `--real` 受阻**（head `115:8888` 连接被拒），P8 质量数字仍为最新，达标与否待重测；详见 [docs/plans/phases/P9-usable-scale.md](docs/plans/phases/P9-usable-scale.md) 与 [docs/verification/P9-verification.md](docs/verification/P9-verification.md)
+- **P10** 动态更新与规模化（锚点 2027-W01）：SSE 流式 / ReWOO·PlanExecute / RAG 跨会话记忆 / 会话归档与共享 / checkpointer 物理清理 / BM25 与 ProfileCard 改 PG / Alembic 再评估 / pgvector 并发扩展（判据见 P9 计划「暂缓与移交记录」）
 
 阶段任务计划见 `docs/plans/phases/`（唯一计划层；2026-08-31 重构撤销年/月/周层）。
 
@@ -65,20 +66,22 @@ LLMProvider / EmbeddingProvider / VectorStore / GraphStore / DocumentLoader / In
 
 ```
 src/calliodesmo/
-├── api/          FastAPI 应用（/healthz、/auth/token、/auth/me、/query）
+├── api/          FastAPI 应用（/healthz 存活、/readyz 就绪、/auth/token、/auth/me、/query；observability.py 请求 ID 与探针）
 ├── auth/         三维权限：models / security(Argon2+JWT) / context / service
-├── audit/        审计日志（谁/何时/做了什么/从哪来）
-├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / models_agent.py 会话三表 / migrate.py 幂等补列）
+├── audit/        审计日志（谁/何时/做了什么/从哪来；P9 查询 + 脱敏 + 留存）
+├── db/           异步 SQLAlchemy 引擎与声明式基类（models_analysis.py 报告 ORM / models_agent.py 会话三表 / migrate.py 幂等补列 / migrations.py P9 迁移台账）
 ├── ecl/          Extract-Cognify-Load 管线（chunker / extractor / cognify / community / load / engine / chunk_summarizer）
 ├── analysis/     P6 分析域（schemas / specs / prompts / parser / evidence / access / materials / engine / sanitize / factory / job_worker / report_store / lifecycle）
-├── verification/ P8 证据验证域（models / engine / pipeline / calibration）
+├── verification/ P8 证据验证域（models / engine / pipeline / calibration；P9 口径 v3 + 5 折 CV）
+├── security/     P9 输出层护栏（output_guard：全文倾倒 / 内部元数据 / 提示回声 / 注入服从）
 ├── agent/        P7 Agent 域（errors / registry / tools / budget / graph / access / history / checkpoint / factory / job_worker）
 ├── interfaces/   抽象接口（ABC）：LLM / Embedding / DocumentLoader / VectorStore / GraphStore / CommunityStore / Retriever / SearchEngine / analysis / agent（P7 契约）...
 ├── providers/    默认实现：LiteLLM / BGE-M3 / Hash / 各格式加载器 / 内存 stores / StubLLM
 ├── retrieval/    P2 检索域：fusion(RRF) / hybrid_retriever / bge_reranker / local_search / global_search / answer_synthesizer / search_engine
-├── eval/         评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / metrics_grounding(接地度·ECE) / harness
+├── eval/         评估 harness：golden(Q&A) / metrics(context_recall/faithfulness/answer_relevance) / metrics_grounding(接地度·ECE) / loadtest(P9 压测 runner) / harness
 ├── stores/       profile_card_store / visibility
-├── config.py     pydantic-settings（CALLIODESMO_ 前缀）
+├── config.py     pydantic-settings（CALLIODESMO_ 前缀；P9 增 db 池 / echo / 审计留存）
+├── config_validation.py  P9 配置体检内核（doctor / serve 启动前 / readyz 共用，纯函数分级）
 ├── models.py     ORM 模型集中导入（保证 Base.metadata 注册完整）
 └── cli.py        Typer：db init / db seed / serve / ingest / ask
 frontend/                独立 SPA（React 19 + Vite 6），与 src/ 平级；详见下「前端开发验证闭环」
@@ -92,7 +95,7 @@ docs/
 └── model-selection.md    模型选型说明
 tests/                     pytest 测试（真实 PG+pgvector+Neo4j，走 `.env`；CI 以 `-m "not db"` 跳过 DB 测试）
 config/                    extraction_templates.example.yaml（团队抽取模板）+ golden_qa.example.yaml + analysis_prompts/（P6 九类模板）+ golden_analysis.yaml（P6 评估 golden）
-scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+冒烟）+ eval_p5.py / eval_p6.py / eval_agent.py（评估回归，--real 切真模型）
+scripts/                   bootstrap.ps1 / bootstrap.sh（一键引导：建表+种子+迁移核对+体检）+ eval_p5.py / eval_p6.py / eval_agent.py / eval_p8.py（评估回归，--real 切真模型）+ loadtest_p9.py（压测基线）
 .github/workflows/ci.yml   CI：ruff + pytest
 ```
 

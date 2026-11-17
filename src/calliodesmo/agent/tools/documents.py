@@ -1,8 +1,9 @@
 """list_documents / get_chunk：文档聚合枚举 + 块取回。
 
-**红线**：``VectorStore.get_chunks_by_ids`` 接口无 access 过滤——``get_chunk`` 工具层
-必须自补 ``visible_to`` 逐条复核（跨密级泄漏通道）；越权 / 不存在同一语义（LookupError
-由注册表收统一消息，不泄漏存在性）。
+**红线**：``VectorStore.get_chunks_by_ids`` 的可见性谓词下推在 P9 Task 7 落地（传
+``access`` 即在取数层过滤），但工具层仍逐条 ``visible_to`` 复核——后端实现退化时
+不至于把跨密级块漏出去；越权 / 不存在同一语义（LookupError 由注册表收统一消息，
+不泄漏存在性）。
 """
 
 from __future__ import annotations
@@ -61,8 +62,8 @@ class GetChunkTool:
         self.store = store
 
     async def run(self, arguments: dict, *, access: AccessContext) -> str:
-        chunks = await self.store.get_chunks_by_ids(list(arguments["chunk_ids"]))
-        # 红线：接口无 access 过滤——工具层逐条 visible_to 复核
+        chunks = await self.store.get_chunks_by_ids(list(arguments["chunk_ids"]), access=access)
+        # 红线：取数层已下推过滤，工具层再复核一次（双保险，防后端实现退化）
         visible = [c for c in chunks if visible_to(c, access)]
         if not visible:
             # 越权与不存在同一语义（不泄漏存在性）

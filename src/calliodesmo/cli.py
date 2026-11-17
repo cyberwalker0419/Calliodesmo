@@ -11,7 +11,6 @@ from sqlalchemy.orm import selectinload
 
 from calliodesmo import __version__
 from calliodesmo.config import get_settings
-from calliodesmo.db.base import Base
 from calliodesmo.ecl.engine import build_default_indexing_engine
 
 app = typer.Typer(help="Calliodesmo：三层知识图谱驱动的智能情报分析平台。")
@@ -27,6 +26,8 @@ templates_app = typer.Typer(help="抽取模板审核命令。")
 app.add_typer(templates_app, name="templates")
 reports_app = typer.Typer(help="分析报告生命周期命令（版本 / 软删除 / 复核）。")
 app.add_typer(reports_app, name="reports")
+audit_app = typer.Typer(help="审计日志运维命令（查询 / 留存清理）。")
+app.add_typer(audit_app, name="audit")
 
 #: CLI ingest 使用的系统用户（个人库 owner；审计 user_id 留空表示系统动作）
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -47,26 +48,59 @@ def main(
     """Calliodesmo 命令行入口。"""
 
 
-async def _create_all(database_url: str) -> None:
-    import calliodesmo.models  # noqa: F401  注册全部 ORM 模型
+async def _apply_schema(database_url: str) -> list[str]:
+    """建表 + 应用迁移步骤并记账（台账见 ``db/migrations``）。返回本次应用的版本。
+
+    步骤 0001 就是 ``create_all``（幂等），后续步骤补列 / 改列型——因此不必再单独
+    调一次 create_all；``Base`` 与模型注册由 migrations 内部负责。
+    """
+    from calliodesmo.db.migrations import apply_pending
 
     engine = create_async_engine(database_url)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    # P6 Task 11：create_all 不给既有表加列 / 改列型 -> 幂等补齐（jobs 补列 +
-    # contributions 时间列型回填）；全新库直出完整结构，此路径纯 no-op。
-    from calliodesmo.db.migrate import ensure_missing_columns
-
-    await ensure_missing_columns(engine)
-    await engine.dispose()
+    try:
+        return await apply_pending(engine)
+    finally:
+        await engine.dispose()
 
 
 @db_app.command("init")
 def db_init() -> None:
-    """按 Base.metadata 建表 + 幂等补齐既有库结构（未来迁移到 Alembic）。"""
+    """建表 + 应用全部迁移步骤（幂等，版本记入 schema_migrations）。"""
     settings = get_settings()
-    asyncio.run(_create_all(settings.database_url))
-    typer.echo("数据库表已创建。")
+    applied = asyncio.run(_apply_schema(settings.database_url))
+    typer.echo("数据库表已就绪。")
+    if applied:
+        typer.echo(f"已应用迁移：{', '.join(applied)}")
+
+
+@db_app.command("migrate")
+def db_migrate(
+    show: bool = typer.Option(False, "--show", help="只列步骤与是否已应用，不执行。"),
+) -> None:
+    """应用未记账的迁移步骤（可重复执行；失败不记账，重跑即续跑）。"""
+    from calliodesmo.db.migrations import apply_pending, migrate_report
+
+    settings = get_settings()
+
+    async def _run() -> tuple[list[str], list[dict]]:
+        engine = create_async_engine(settings.database_url)
+        try:
+            if show:
+                return [], await migrate_report(engine)
+            return await apply_pending(engine), await migrate_report(engine)
+        finally:
+            await engine.dispose()
+
+    applied, report = asyncio.run(_run())
+    if show:
+        for item in report:
+            mark = "已应用" if item["applied"] else "待应用"
+            typer.echo(f"{item['version']}	[{mark}]	{item['description']}")
+        return
+    if applied:
+        typer.echo(f"已应用迁移：{', '.join(applied)}")
+    else:
+        typer.echo("无待应用迁移（库结构已是最新；`db migrate --show` 查看清单）。")
 
 
 async def _seed(
@@ -128,6 +162,75 @@ def db_seed() -> None:
 
 
 @app.command()
+def doctor(
+    check_db: bool = typer.Option(
+        True, "--check-db/--no-check-db", help="是否做数据库 / 图库连通检查（离线可关）。"
+    ),
+) -> None:
+    """配置体检与就绪自检：部署 / 排障先跑这条，error 级问题非零退出。"""
+    from calliodesmo.api.observability import check_config, check_optional_extras
+    from calliodesmo.config_validation import summarize, validate_settings
+
+    settings = get_settings()
+    issues = validate_settings(settings)
+    checks: list[dict] = [{"name": "config", **check_config(settings)}]
+    if check_db:
+        checks += asyncio.run(_doctor_connectivity_checks(settings))
+        checks.append(asyncio.run(_doctor_extras_check(check_optional_extras)))
+
+    typer.echo(f"环境：{settings.environment}（version {__version__}）")
+    typer.echo("配置校验：")
+    if not issues:
+        typer.echo("  [ok] 无告警与错误")
+    for issue in issues:
+        typer.echo(f"  [{issue.level}] {issue.code}: {issue.message}")
+        if issue.hint:
+            typer.echo(f"        提示：{issue.hint}")
+    if check_db:
+        typer.echo("连通检查：")
+        for check in checks[1:]:
+            typer.echo(f"  [{check['status']}] {check['name']}: {check['detail']}")
+    summary = summarize(issues)
+    if summary["errors"]:
+        typer.echo(f"结论：存在 {summary['errors']} 个 error 级问题，修复后再启动。")
+        raise typer.Exit(code=1)
+    suffix = f"（{summary['warnings']} 个告警，按需处理）" if summary["warnings"] else ""
+    failed = [c["name"] for c in checks if c["status"] == "fail"]
+    if failed:
+        typer.echo(f"结论：配置无误，但 {len(failed)} 项连通检查失败：{', '.join(failed)}")
+        raise typer.Exit(code=1)
+    typer.echo(f"结论：可以启动{suffix}。")
+
+
+async def _doctor_connectivity_checks(settings) -> list[dict]:
+    """数据库 / 图库探活：建连失败也如实成一条 fail，不让 doctor 自己崩。"""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from calliodesmo.api.observability import check_database, check_graph, run_check
+
+    try:
+        engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    except Exception as exc:
+        detail = f"{type(exc).__name__}: {exc}"[:200]
+        return [{"name": "database", "status": "fail", "detail": detail}]
+    checks: list[dict] = []
+    try:
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            checks.append(await run_check("database", lambda: check_database(session)))
+        checks.append(await run_check("graph", lambda: check_graph(settings)))
+    finally:
+        await engine.dispose()
+    return checks
+
+
+async def _doctor_extras_check(probe) -> dict:
+    from calliodesmo.api.observability import run_check
+
+    return await run_check("agent_extra", probe)
+
+
+@app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="监听地址。"),
     port: int = typer.Option(8000, help="监听端口。"),
@@ -144,6 +247,9 @@ def serve(
     """
     import uvicorn
 
+    # P9 Task 5：启动前配置体检——生产环境的 error 级问题直接拒启（开发环境只提示）
+    _validate_for_serve(get_settings())
+
     if seed_demo:
         _seed_demo_for_serve()
     # P4.5 Task 5：启动恢复——遗留 pending/running job（进程内 worker 已随重启丢失）
@@ -158,6 +264,22 @@ def serve(
     uvicorn.run(
         "calliodesmo.api.app:app", host=host, port=port, reload=reload, **serve_loop_kwargs()
     )
+
+
+def _validate_for_serve(settings) -> None:
+    """启动前配置校验：error 级问题在生产拒启、在开发告警；warn 一律只提示。"""
+    from calliodesmo.config_validation import ERROR, validate_settings
+
+    issues = validate_settings(settings)
+    for issue in issues:
+        if issue.level == ERROR:
+            hint = issue.hint or "见 calliodesmo doctor"
+            typer.echo(f"[error] {issue.code}: {issue.message}｜提示：{hint}")
+        else:
+            typer.echo(f"[{issue.level}] {issue.code}: {issue.message}")
+    errors = [i for i in issues if i.level == ERROR]
+    if errors and settings.environment.lower() == "production":
+        raise typer.Exit(code=1)
 
 
 def _seed_demo_for_serve() -> None:
@@ -1021,8 +1143,12 @@ def templates_approve_type(
 # ---- P8 报告生命周期命令（版本 / 软删除 / 复核） ----
 
 
-async def _reports_session(fn):
-    """以管理员身份开会话执行 fn(session, access)：报告固定 personal，owner=管理员。"""
+async def _with_admin_session(fn):
+    """以管理员身份开会话执行 fn(session, access)。
+
+    报告生命周期 / 审计运维等 CLI 命令共用：这些动作都以配置里的管理员账户身份执行，
+    权限与 API 侧的 manage_users 守卫等价（CLI 为运维入口，不携带浏览器会话）。
+    """
     import calliodesmo.models  # noqa: F401
     from calliodesmo.auth.models import User
     from calliodesmo.auth.service import get_access_context
@@ -1069,7 +1195,7 @@ def reports_versions(report_id: str = typer.Argument(..., help="报告 id。")) 
         return await list_versions(session, rid, access=access)
 
     try:
-        rows = asyncio.run(_reports_session(_op))
+        rows = asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1098,7 +1224,7 @@ def reports_rollback(
         return await rollback(session, rid, version=version, access=access, source="cli")
 
     try:
-        new_version = asyncio.run(_reports_session(_op))
+        new_version = asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1116,7 +1242,7 @@ def reports_delete(report_id: str = typer.Argument(..., help="报告 id。")) ->
         return await soft_delete(session, rid, access=access, source="cli")
 
     try:
-        asyncio.run(_reports_session(_op))
+        asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1134,7 +1260,7 @@ def reports_restore(report_id: str = typer.Argument(..., help="报告 id。")) -
         return await restore(session, rid, access=access, source="cli")
 
     try:
-        asyncio.run(_reports_session(_op))
+        asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -1165,8 +1291,80 @@ def reports_review(
         return await handlers[action](session, rid, access=access, note=note or None, source="cli")
 
     try:
-        report = asyncio.run(_reports_session(_op))
+        report = asyncio.run(_with_admin_session(_op))
     except ReportLifecycleError as exc:
         typer.echo(f"错误：{exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"复核动作已执行：报告 {rid} -> {report.review_status}。")
+
+
+@audit_app.command("list")
+def audit_list(
+    action: str | None = typer.Option(None, "--action", help="按动作过滤（如 query / login）。"),
+    user: str | None = typer.Option(None, "--user", help="按操作者用户名过滤。"),
+    source: str | None = typer.Option(None, "--source", help="按来源过滤（api / cli）。"),
+    limit: int = typer.Option(50, "--limit", help="返回条数（1-500）。"),
+    offset: int = typer.Option(0, "--offset", help="分页偏移。"),
+) -> None:
+    """查询审计日志（时间倒序；detail 已在写入时脱敏）。"""
+    from calliodesmo.audit.service import list_audit_logs
+    from calliodesmo.auth.models import User
+
+    if limit < 1 or limit > 500:
+        typer.echo("错误：--limit 须在 1-500 之间。", err=True)
+        raise typer.Exit(code=2)
+
+    async def _op(session, access):
+        user_id = None
+        if user:
+            user_id = (
+                await session.execute(select(User.id).where(User.username == user))
+            ).scalar_one_or_none()
+            if user_id is None:
+                raise RuntimeError(f"用户不存在：{user}")
+        return await list_audit_logs(
+            session, action=action, user_id=user_id, source=source, limit=limit, offset=offset
+        )
+
+    entries, total = asyncio.run(_with_admin_session(_op))
+    typer.echo(f"命中 {total} 条（本页 {len(entries)} 条，偏移 {offset}）：")
+    for entry in entries:
+        typer.echo(
+            f"{entry.created_at.isoformat() if entry.created_at else '?'}	"
+            f"{entry.username or '-'}	{entry.action}	"
+            f"{entry.resource_type or '-'}	{entry.source or '-'}"
+        )
+
+
+@audit_app.command("purge-expired")
+def audit_purge_expired(
+    days: int | None = typer.Option(
+        None, "--days", help="保留天数（缺省取配置 audit_retention_days；<=0 = 永久保留）。"
+    ),
+    yes: bool = typer.Option(False, "--yes", help="确认执行删除（不加则中止）。"),
+) -> None:
+    """删除超过保留期的审计行（不可逆；默认不自动执行，需显式 --yes）。"""
+    from calliodesmo.audit.service import purge_expired_audit
+
+    effective = get_settings().audit_retention_days if days is None else days
+    if effective <= 0:
+        typer.echo("保留天数为 0（永久保留），未执行清理。")
+        return
+    if not yes:
+        typer.echo(
+            f"将删除 {effective} 天前的审计日志（不可逆）。确认请加 --yes。",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    from calliodesmo.audit.service import record_audit
+
+    async def _op(session, access):
+        removed = await purge_expired_audit(session, retention_days=effective)
+        await record_audit(
+            session, user_id=access.user_id, action="audit_purge", detail={"removed": removed}
+        )
+        return removed
+
+    removed = asyncio.run(_with_admin_session(_op))
+    typer.echo(f"已删除 {removed} 条过期审计日志。")

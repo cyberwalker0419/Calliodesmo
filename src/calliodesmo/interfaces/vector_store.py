@@ -45,7 +45,16 @@ class VectorStore(ABC):
     ) -> list[VectorHit]: ...
 
     @abstractmethod
-    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[ChunkRecord]: ...
+    async def get_chunks_by_ids(
+        self, chunk_ids: list[str], *, access: AccessContext | None = None
+    ) -> list[ChunkRecord]:
+        """按 ID 取块。
+
+        P9 谓词下推：传 ``access`` 时**在取数层过滤**（pgvector 走 SQL WHERE、内存
+        走 ``visible_to``），不可见与不存在同义（返回集里直接没有，不给「存在但无权」
+        的信号）；不传保持旧行为（内部管线按 ID 直取，调用方自负红线）。
+        """
+        ...
 
     @abstractmethod
     async def list_chunks(self, *, access: AccessContext) -> list[ChunkRecord]:

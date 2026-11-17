@@ -1,12 +1,14 @@
 // Agent 域 TanStack Query hooks（P7 T15）。
 // 克隆 features/analysis/useAnalysis.ts 范式：提交 useMutation（202 + job_id）；
 // 轮询 useQuery + refetchInterval 函数式（非终态 1200ms、终态返回 false 停）。
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createAgentSession,
+  deleteAgentSession,
   listAgentMessages,
   listAgentRuns,
   listAgentSessions,
+  restoreAgentSession,
   submitAgentRun,
 } from "./api";
 import { api } from "@/api/client";
@@ -14,10 +16,28 @@ import type { AgentRunRequest, JobOut } from "@/api/types";
 
 const TERMINAL = new Set(["succeeded", "failed"]);
 
-export function useAgentSessions() {
+export function useAgentSessions(includeDeleted = false) {
   return useQuery({
-    queryKey: ["agent-sessions"],
-    queryFn: () => listAgentSessions(),
+    queryKey: ["agent-sessions", { includeDeleted }],
+    queryFn: () => listAgentSessions({ includeDeleted }),
+  });
+}
+
+/** 软删除会话（成功后失效列表查询；被删会话正被选中时由页面负责切走）。 */
+export function useDeleteAgentSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteAgentSession,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["agent-sessions"] }),
+  });
+}
+
+/** 恢复会话（与删除同一失效口径）。 */
+export function useRestoreAgentSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: restoreAgentSession,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["agent-sessions"] }),
   });
 }
 

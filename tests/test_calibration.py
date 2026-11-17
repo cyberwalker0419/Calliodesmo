@@ -142,3 +142,66 @@ class TestPersistence:
         params = load_calibration(path)
         assert params.default_temperature == 1.0
         assert params.slices[0].temperature == 1.0
+
+
+class TestCrossValidatedECE:
+    """P9 Task 3：5 折交叉验证 ECE（每条样本恰好进入一次留出集）。"""
+
+    def _pairs(self, n: int = 100):
+        # 0.8 置信、80% 正确（确定性构造；正确性不按折对齐，避免每折同质）
+        confidences = [0.8] * n
+        outcomes = [((i * 37) % 100) < 80 for i in range(n)]
+        return confidences, outcomes
+
+    def test_empty(self):
+        from calliodesmo.verification.calibration import cross_validated_calibration
+
+        report = cross_validated_calibration([], [])
+        assert report.sample_count == 0
+        assert report.ece == 0.0
+        assert report.table == []
+
+    def test_mismatched_lengths_raise(self):
+        from calliodesmo.verification.calibration import cross_validated_calibration
+
+        with pytest.raises(ValueError):
+            cross_validated_calibration([0.5], [])
+
+    def test_sample_count_and_fold_sizes(self):
+        from calliodesmo.verification.calibration import cross_validated_calibration
+
+        confidences, outcomes = self._pairs(103)
+        report = cross_validated_calibration(confidences, outcomes, folds=5)
+        assert report.sample_count == 103
+        assert sum(report.fold_sizes) == 103
+        assert len(report.fold_sizes) == 5
+        assert max(report.fold_sizes) - min(report.fold_sizes) <= 1
+
+    def test_deterministic(self):
+        from calliodesmo.verification.calibration import cross_validated_calibration
+
+        confidences, outcomes = self._pairs()
+        first = cross_validated_calibration(confidences, outcomes, folds=5)
+        second = cross_validated_calibration(confidences, outcomes, folds=5)
+        assert first == second
+
+    def test_calibrated_case_low_ece(self):
+        from calliodesmo.verification.calibration import cross_validated_calibration
+
+        confidences, outcomes = self._pairs(100)
+        report = cross_validated_calibration(confidences, outcomes, folds=5)
+        assert report.ece < 0.2
+        assert report.temperatures and all(t > 0 for t in report.temperatures)
+
+    def test_single_sample(self):
+        from calliodesmo.verification.calibration import cross_validated_calibration
+
+        report = cross_validated_calibration([0.8], [True], folds=5)
+        assert report.sample_count == 1
+        assert report.ece == pytest.approx(0.2)
+
+    def test_fit_temperature_min_samples_override(self):
+        confidences = [0.9] * 40
+        outcomes = [i % 4 != 0 for i in range(40)]
+        assert fit_temperature(confidences, outcomes) == 1.0  # 默认样本不足
+        assert fit_temperature(confidences, outcomes, min_samples=20) != 0.0

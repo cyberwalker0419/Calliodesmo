@@ -55,6 +55,7 @@ from calliodesmo.interfaces.analysis import (
 )
 from calliodesmo.interfaces.llm import LLMMessage, LLMProvider, LLMResponse
 from calliodesmo.interfaces.retriever import SearchEngine, SearchMode
+from calliodesmo.security.output_guard import guard_payload
 
 #: QA 类提示词版本：QA 经 SearchEngine 合成、不渲染分析模板，版本号与
 #: ``config/analysis_prompts/qa.txt`` 对齐，评估按此切片（口径留痕见模块 docstring）。
@@ -196,15 +197,22 @@ class DefaultAnalysisEngine(AnalysisEngine):
             payload=outcome.report.model_dump(),
         )
         # 证据自验（轻量：quote 去空白子串匹配）；源文映射取引擎实际消费的材料文本
-        verified = verify_evidence(envelope, {m.chunk_id: m.text for m in materials})
+        source_map = {m.chunk_id: m.text for m in materials}
+        verified = verify_evidence(envelope, source_map)
+        # P9 输出层守卫：文本字段全文倾倒 / 内部元数据 / 系统提示回声拦截
+        guarded_payload, guard_violations = guard_payload(verified.payload, sources=source_map)
+        final_warnings = list(verified.warnings)
+        if guard_violations:
+            kinds = ",".join(sorted({v.kind for v in guard_violations}))
+            final_warnings.append(f"输出层安全拦截：{kinds}")
         return AnalysisReport(
             task_type=task_type,
             status=verified.status.value,
-            payload=verified.payload,
+            payload=guarded_payload,
             model=model,
             prompt_version=rendered.prompt_version,
             usage=usage,
-            warnings=verified.warnings,
+            warnings=final_warnings,
             source_chunk_ids=source_chunk_ids,
         )
 

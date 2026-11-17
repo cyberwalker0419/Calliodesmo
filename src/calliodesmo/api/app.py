@@ -22,6 +22,10 @@ from calliodesmo.api.deps import SESSION_COOKIE, get_current_context, get_search
 from calliodesmo.api.ingest import router as ingest_router
 from calliodesmo.api.jobs import router as jobs_router
 from calliodesmo.api.library import router as library_router
+from calliodesmo.api.observability import (
+    RequestContextMiddleware,
+    build_observability_router,
+)
 from calliodesmo.api.query_with_image import router as query_image_router
 from calliodesmo.api.schemas import (
     ChangePasswordRequest,
@@ -278,6 +282,12 @@ async def _lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Calliodesmo", version=__version__, lifespan=_lifespan)
+    # 请求 ID + 访问日志（最外层，覆盖含静态资源在内的全部请求）
+    app.add_middleware(RequestContextMiddleware)
+
+    observability_router = build_observability_router()
+    app.include_router(observability_router)
+    app.include_router(observability_router, prefix="/api", include_in_schema=False)
 
     core = build_router()
     app.include_router(core)

@@ -18,7 +18,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Enum, Integer, String, Text, Uuid, func
+from sqlalchemy import JSON, DateTime, Enum, Integer, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from calliodesmo.auth.models import ClearanceLevel, LibraryScope
@@ -49,6 +49,10 @@ class AgentSessionORM(Base):
     )
     scope_at_create: Mapped[LibraryScope] = mapped_column(
         Enum(LibraryScope, native_enum=False), default=LibraryScope.PERSONAL
+    )
+    # P9 T10：软删除时间戳（None = 未删）；删除不硬删消息 / 执行，可恢复
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

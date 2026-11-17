@@ -1,0 +1,64 @@
+{
+  "phase": "P9",
+  "track": "offline",
+  "disclaimer": "离线证据≠质量证据：确定性核验与桩对真实幻觉发生率零区分度；本文件只承诺语料结构、判定契约与指标公式，质量结论须由 --real 质量轨承担。",
+  "generated_at": "2026-11-15T18:50:37.148940+00:00",
+  "corpora": {
+    "golden_qa_v3.yaml": {
+      "cases": 70,
+      "categories": {
+        "answerable": 27,
+        "distractor": 11,
+        "injection": 6,
+        "multi_hop": 15,
+        "no_answer": 11
+      }
+    },
+    "golden_verification": {
+      "claims": 60,
+      "injection_probes": 4,
+      "verdicts": {
+        "contradicted": 15,
+        "supported": 17,
+        "uncertain": 14,
+        "unsupported": 14
+      }
+    },
+    "golden_contradictions": {
+      "pairs": 10,
+      "types": {
+        "antonym": 2,
+        "date_range": 2,
+        "negation": 6
+      }
+    }
+  },
+  "verification": {
+    "total": 60,
+    "matched": 60,
+    "match_rate": 1.0,
+    "mismatches": [],
+    "verdict_counts": {
+      "contradicted": 15,
+      "supported": 17,
+      "uncertain": 14,
+      "unsupported": 14
+    },
+    "contradiction_pairs_hit": 10,
+    "contradiction_pairs_total": 10
+  },
+  "metrics": {
+    "citation_precision": 0.3182,
+    "claim_grounding": 0.2833,
+    "unsupported_rate": 0.2333,
+    "contradiction_rate": 0.25,
+    "uncited_claim_rate": 0.2667,
+    "intent_accuracy": 1.0
+  },
+  "intent": {
+    "total": 22,
+    "correct": 22,
+    "accuracy": 1.0,
+    "mismatches": []
+  }
+}
