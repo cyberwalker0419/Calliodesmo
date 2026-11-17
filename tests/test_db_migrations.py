@@ -107,6 +107,7 @@ async def legacy_audit_engine():
             await cleanup.dispose()
 
 
+@pytest.mark.db  # 自建 engine 夹具不在 conftest 名单内，须显式标记（CI 无 PG）
 async def test_legacy_audit_table_migrated_and_recorded(legacy_audit_engine):
     """旧结构库：只跑审计步骤即可升级，且版本进台账（下次跳过）。"""
     engine, schema = legacy_audit_engine

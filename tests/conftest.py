@@ -65,6 +65,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         "cli_db",
         "cli_inspect",
         "legacy_db",
+        "legacy_audit_engine",
     )
     for item in items:
         if any(f in item.fixturenames for f in db_fixtures):

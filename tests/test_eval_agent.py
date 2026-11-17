@@ -133,12 +133,19 @@ def test_eval_agent_script_real_requires_nonstub():
     import subprocess
     import sys
 
-    env = dict(os.environ, CALLIODESMO_LLM_MODEL="test/stub", CALLIODESMO_AGENT_MODEL="")
+    # 子进程的中文提示必须「写 UTF-8 + 读 UTF-8」两头固定：只设 decoding 时，
+    # 父进程无 PYTHONIOENCODING 会让子进程按控制台代码页（GBK）写，读回即乱码。
+    env = dict(
+        os.environ,
+        CALLIODESMO_LLM_MODEL="test/stub",
+        CALLIODESMO_AGENT_MODEL="",
+        PYTHONIOENCODING="utf-8",
+    )
     proc = subprocess.run(
         [sys.executable, "scripts/eval_agent.py", "--real"],
         capture_output=True,
         text=True,
-        encoding="utf-8",  # 子进程中文提示按 UTF-8 解码（Windows 默认跟随控制台代码页）
+        encoding="utf-8",
         env=env,
     )
     assert proc.returncode != 0
@@ -147,6 +154,7 @@ def test_eval_agent_script_real_requires_nonstub():
 
 def test_eval_agent_script_offline_writes_regression(tmp_path, monkeypatch):
     """默认用法落盘 agent-regression.json（CI 可跑口径）。"""
+    import os
     import subprocess
     import sys
 
@@ -156,6 +164,7 @@ def test_eval_agent_script_offline_writes_regression(tmp_path, monkeypatch):
         capture_output=True,
         text=True,
         encoding="utf-8",
+        env=dict(os.environ, PYTHONIOENCODING="utf-8"),
         cwd=".",
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
