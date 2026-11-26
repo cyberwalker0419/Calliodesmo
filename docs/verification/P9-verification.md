@@ -89,6 +89,7 @@ created: 2026-11-15
 - 后端为本地 `serve --seed-demo`（演示语料命中 3 块）+ **桩生成模型**（`test/stub`，
   真模型端点本轮不可达）。结果 **12/14 通过**：登录 / 错误凭据 / 登出 / 管理越权 /
   QA 三模式与 Auto / 库浏览 / 分析提交与报告历史 / 权限矩阵，桌面 + 移动两视口。
+- 移动视口的像素级复检已于 2026-11-26 补做（见上「preview 交互闭环」段），此项未竟闭合。
 - 2 例失败均为 `agent.spec.ts`「Agent 两回合」：断言要看到工具轨迹
   （`search_knowledge`）或预算收敛文案，而桩模型不发起 tool calls
   （实测 `steps=1 / tool_trace=0`，回合与侧车均正常落库）——与 P8 用真模型跑的
@@ -97,10 +98,14 @@ created: 2026-11-15
   `verification` 落库）→ `DELETE /agent/sessions/{id}` 返回 `deleted_at` → 默认列表消失
   → `include_deleted=true` 可见 → `restore` 恢复。
 
-- **受阻项（如实记录）**：移动视口（375×812）的像素复检未能完成——Claude 桌面窗口在验证
-  过程中被最小化，`preview_screenshot` 持续报「窗口未绘制」；期间视口仿真重置后
-  `innerWidth` 归零，DOM 几何探针也拿不到有效值。该路径改由 vitest（移动端删除入口
-  存在性）+ DOM 断言覆盖，**像素级双视口巡检待窗口可见时补做**（锚点 2026-W47，见未竟清单）。
+- 移动视口（375×812）复检（2026-11-26 补做，桌面窗口可见时）：`/app/agent` 顶栏
+  「会话选择器 + 新建 + 删除」同一行不换行，消息流与接地度面板排版正常；
+  `scrollWidth == innerWidth == 375`，全页横向溢出探针 0 处。选中会话后移动端出现
+  删除入口，确认态（确认 / 取消两个图标按钮）仍在同一行；点确认发出
+  `DELETE /api/agent/sessions/{id}`，该会话随后从下拉消失、主区回到「选择或新建会话」
+  空态——移动端删除闭环成立。
+- **已知缺口（登记未竟）**：移动端没有「显示已删除 → 恢复」入口（该开关只在桌面
+  侧栏），误删后需在桌面端恢复；列为 P10 可用性小项（锚点 2026-W49）。
 
 ### 运维轨（新增第三类证据）
 
@@ -115,17 +120,26 @@ created: 2026-11-15
 
 ### 质量轨（`--real`）
 
-- **受阻**：预定的真模型端点 `http://192.168.50.115:8888/v1`（`qwen3.8-flash-next`）在
-  本轮执行期间连接被拒（会话早期可用，2026-11-16 起 `ConnectionRefusedError`；备用
-  `192.168.50.212:8888` 同样不可达）。首次尝试在 ECL ingest 阶段因
-  `litellm.InternalServerError: Connection error` 中断，未产出 `p9-real-*.json`。
+- **受阻（两次尝试，原因不同）**：
+  1. **2026-11-16**：LLM 端点 `http://192.168.50.115:8888/v1` 连接被拒（备用
+     `192.168.50.212:8888` 同样不可达），ECL ingest 阶段因
+     `litellm.InternalServerError: Connection error` 中断。
+  2. **2026-11-26 复测**：LLM 端点已恢复（`/v1/chat/completions` 冒烟通过，服务端自报
+     模型名 `Qwen3.8-Flash-Next-Dual`），但**嵌入服务 `192.168.50.97:11234` 不可达**
+     （TCP 连接超时；重排 `11235` 正常）。`eval_p8.py --real --phase p9` 在 ECL ingest
+     的 `remote_embedding._embed_batch` 处以 `httpx.ReadError` 中断，仍未产出
+     `p9-real-*.json`。嵌入服务是质量轨建索引与查询编码的硬依赖（`bge-m3`，1024 维），
+     不能用 hash 嵌入顶替——那会改变 P8 的对照口径。
 - 因此**本阶段不宣称质量达标**：P8 的质量结论（citation_precision / claim_grounding
   0.4091、unsupported 0.1364、contradiction 0.0682、ECE 0.2466 参考值、注入违规 2）
   仍是最新可用数字；P9 的产品改动（引注纪律 + 多块核验 + 转述支撑 + 输出层守卫 + 语料
   扩到 70 例 + 5 折交叉验证）已就位，但**尚未在真模型上重测**。
-- 恢复清单（端点恢复后按序执行，全程无需改代码）：
+- 恢复清单（按序执行，全程无需改代码）：
+  0. 先确认嵌入服务可用（不可达则后续必然中断）：
+     `curl -s -X POST http://192.168.50.97:11234/v1/embeddings -H 'Content-Type: application/json' -d '{"input":["测试"],"model":"bge-m3"}'`
+     应返回 1024 维向量；重排同样抽查 `http://192.168.50.97:11235/rerank`。
   1. `CALLIODESMO_LLM_MODEL=openai/qwen3.8-flash-next CALLIODESMO_LLM_API_BASE=http://192.168.50.115:8888/v1 uv run python scripts/eval_p8.py --real --phase p9 --write-calibration`
-  2. 落盘 `docs/verification/p9-real-qwen3.8-flash-next.json`，核对
+  2. 落盘 `docs/verification/p9-real-<模型 slug>.json`（slug 取服务端自报模型名），核对
      `threshold_checks` 与 `ece.status`（样本 ≥100 才能作达标断言）；
   3. 若注入违规仍 > 0，逐例看 `cases[].answer` 是否已被输出守卫替换为安全话术
      （守卫在交付面拦截，指标按交付文本判定）；
@@ -207,8 +221,8 @@ created: 2026-11-15
 
 | 事项 | 锚点 | 去向 / 判据 |
 | --- | --- | --- |
-| P9 质量轨 `--real` 未执行（真模型端点不可达） | 2026-W47 | 端点恢复后按「质量轨恢复清单」执行；达标与否如实登记，不放阈值 |
-| 移动端像素级双视口巡检（窗口最小化致截图失败） | 2026-W47 | 桌面重评时补跑 `preview_*` 双视口 + DOM 探针 |
+| P9 质量轨 `--real` 未执行（LLM 端点 2026-11-26 已恢复；嵌入服务 `11234` TCP 超时） | 2026-W47 | 先验嵌入/重排服务，再按「质量轨恢复清单」执行；达标与否如实登记，不放阈值 |
+| 移动端「显示已删除 → 恢复」入口缺失（开关只在桌面侧栏） | 2026-W49（P10 可用性） | 误删需桌面恢复；补一个移动端回收站切换 |
 | SSE 回合流式 | 2026-W49（P10 体验批） | 收益真实但要动 API / 前端 / 代理与取消语义四端 |
 | ReWOO / PlanExecute | 2026-W49（P10 模型层） | 等 agent golden 多步场景样本量上来再决策 |
 | RAG 跨会话记忆 | 2026-W49（P10 数据层） | 先定「记忆」的权限归属与留存策略 |
